@@ -1,0 +1,234 @@
+module load rootless-docker
+    2  start_rootless_docker.sh
+    3  history 
+    4  ls
+    5  module load rootless-docker
+    6  start_rootless_docker.sh
+    7  docker -v
+    8  ls /var/tmp/xdg_runtime_dir_10099/docker.pid
+    9  rm /var/tmp/xdg_runtime_dir_10099/docker.pid
+   10  start_rootless_docker.sh
+   11  exit
+   12  module load rootless-docker
+   13  start_rootless_docker.sh
+   14  docker -v
+   15  python -v
+   16  docker --v
+   17  docker -v
+   18  docker images
+   19  vi README
+   20  docker run hello-world
+   21  docker pull busybox
+   22  docker image
+   23  docker images
+   24  docker run busybox
+   25  docker images
+   26  docker ps -a
+   27  docker run --rm -it prakhar1989/static-site
+   28  docker ps -a
+   29  docker run -d -P --name static-site prakhar1989/static-site
+   30  docker port static-site
+   31  docker stop static-site
+   32  ls
+   33  git clone https://github.com/prakhar1989/docker-curriculum.git
+   34  ls
+   35  cd docker-curriculum/
+   36  ls
+   37  vi 
+   38  vi Dockerfile
+   39  ls
+   40  cd flask-app/
+   41  ls
+   42  vi Docker
+   43  vi Dockerfile 
+   44  pwd
+   45  vi Dockerfile 
+   46  docker build -t siham/catnip
+   47  cd
+   48  conda env create -f conda.yaml
+   49  conda
+   50  git clone git@github.com:facebookresearch/dinov2.git
+   51  cd ./ssh
+   52  ls ~/
+   53  ls ~/ -lag
+   54  ls ~/.ssh/
+   55  cd ~/.ssh/
+   56  ssh-keygen -o -t rsa -C "siham@ugr.es"
+   57  cat /home/siham/keys
+   58  ssh-keygen -o -t rsa -C "siham@ugr.es"
+   59  ls /home/siham/id_rsa.pub 
+   60  cat  /home/siham/id_rsa.pub 
+   61  cd
+   62  git clone git@github.com:facebookresearch/dinov2.git
+   63  git clone git@github.com:facebookresearch/dinov2.git
+   64  ssh -T SihamTabik@github.com
+   65  exit
+   66  exit
+   67  sftp ngpu
+   68  ls
+   69  unzip dinov2-main.zip 
+   70  cd dinov2-main
+   71  ls
+   72  more scripts/
+   73  cd scripts/
+   74  ls
+   75  cd ..
+   76  ls
+   77  more requirements
+   78  more requirements.txt 
+   79  torch
+   80  ls
+   81  cd notebooks/
+   82  ls
+   83  ls
+   84  cd ..
+   85  ls
+   86  cd dinov2/
+   87  ls
+   88  cd run/
+   89  ls
+   90  pwd
+   91  clear
+   92  ls
+   93  cd
+   94  ls
+   95  clear
+   96  ls
+   97  ls
+   98  cd /mnt/homeGPU/siham
+   99  cd /mnt/homeGPU
+  100  ls
+  101  mkdir siham
+  102  cd siham/
+  103  ls
+  104  conda create -p conda_env/ python=3.10
+  105  conda activate conda_env/
+  106  conda init bash
+  107  exit
+  108  clar
+  109  clear
+  110  ls
+  111  cd /mnt/homeGPU/s
+  112  cd /mnt/homeGPU/siham/
+  113  ls
+  114  history 
+  115  conda activate conda_env/
+  116  ls
+  117  pip3 install torch torchvision torchaudio
+  118  git clone https://github.com/facebookresearch/dinov2.git
+  119  ls
+  120  cd dinov2/
+  121  ls
+  122  pip install -r requirements.txt
+  123  ls
+  124  ls
+  125  pip install -r requirements.txt -r requirements-extras.txt
+  126  history 
+  127  cd ..
+  128  cd
+  129  vi README
+  130  exit
+  131  cd /mnt/homeGPU/siham/
+  132  ls
+  133  more conda_env/
+  134  pip install dinov2_retrieval
+  135  ls
+  136  cd dinov2/
+  137  ls
+  138  cd ..
+  139  ls
+  140  dinov2_retrieval -h
+  141  more /home/siham/README 
+  142  git clone https://github.com/vra/dinov2-retrieval.git
+  143  ls
+  144  cd dinov2
+  145  cd ..
+  146  cd dinov2-retrieval/
+  147  ls
+  148  ls imgs/
+  149  dinov2_retrieval -q imgs/1688175364731_output.jpg -d imgs/
+  150  ld
+  151  ls
+  152  pip install dinov2_retrieval
+  153  dinov2_retrieval -q imgs/1688175364731_output.jpg -d imgs/
+  154  cd ..
+  155  ls
+  156  dinov2_retrieval -q imgs/1688175364731_output.jpg -d imgs/
+  157  ./dinov2_retrieval -q imgs/1688175364731_output.jpg -d imgs/
+  158  dinov2_retrieval  -q imgs/1688175364731_output.jpg -d imgs/
+  159  cd /home/siham/.local/lib/python3.9/site-packages/dinov2_retrieval/
+  160  ls
+  161  pwd
+  162  export
+  163  xport LD_LIBRARY_PATH=/home/siham/.local/lib/python3.9/site-packages/
+  164  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/siham/.local/lib/python3.9/site-packages/
+  165  dinov2_retrieval  -q imgs/1688175364731_output.jpg -d imgs/
+  166  cd 
+  167  cd /mnt/homeGPU/siham/
+  168  dinov2_retrieval  -q imgs/1688175364731_output.jpg -d imgs/
+  169  cd ..
+  170  cd siham/
+  171  ls
+  172  more /home/siham/README 
+  173  conda activate conda_env/
+  174   conda init bash
+  175  dinov2_retrieval  -q imgs/1688175364731_output.jpg -d imgs/
+  176  pip install dinov2_retrieval
+  177  dinov2_retrieval  -q imgs/1688175364731_output.jpg -d imgs/
+  178  ls
+  179* mv /home/siham
+  180  ls
+  181  tar xvfz cats.tar.gz 
+  182  ls
+  183  mv cats/cat.4760.jpg .
+  184  ls
+  185  dinov2_retrieval  -q cat.4760.jpg  -d cats/
+  186  ls
+  187  cd 
+  188  cd dinov2-main
+  189  ks
+  190  ls
+  191  ls
+  192  cd ..
+  193  ls
+  194  cd /mnt/homeGPU/siham/
+  195* 
+  196  pip install dinov2_retrieval
+  197  dinov2_retrieval  -q cat.4760.jpg  -d cats/
+  198  ls
+  199  more /home/siham/README 
+  200  greo xformers  *.*
+  201  grep xformers  *.*
+  202  grep xformers  dinov2-retrieval/
+  203  grep xformers  dinov2-retrieval/*
+  204  grep xformers  dinov2-retrieval/src/*.*
+  205  cd  dinov2-retrieval/src/
+  206  ls
+  207  cd dinov2_retrieval/
+  208  ls
+  209  grep "xformers " image_retriever.py 
+  210  grep "xformers" image_retriever.py 
+  211  find xformers  image_retriever.py 
+  212  ls
+  213  vi __init__.py 
+  214  vi image_retriever.py 
+  215  cd ../
+  216  cd ..
+  217  ls
+  218  more README.md 
+  219  more /home/siham/
+  220  more /home/siham/README 
+  221  cd ..
+  222  conda init bash
+  223  dinov2_retrieval  -q cat.4760.jpg  -d cats/
+  224  grep cutlassF dinov2-retrieval/
+  225  grep cutlassF dinov2-retrieval/pyproject.toml 
+  226  grep "_run_priority_list" dinov2-retrieval/*
+  227  grep "_run_priority_list" dinov2-retrieval/*.*
+  228  grep "_run_priority_list" dinov2-retrieval/tests/test_image_retrieval.py 
+  229  vi dinov2-retrieval/tests/test_image_retrieval.py 
+  230  more /home/siham/README 
+  231  history 
+  232  more /home/siham/README 
+  233  history > problem1
+
