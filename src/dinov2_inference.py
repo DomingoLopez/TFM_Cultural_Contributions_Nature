@@ -2,6 +2,7 @@ import http
 from pathlib import Path
 import pickle
 import sys
+import json
 
 import appdirs
 from loguru import logger
@@ -16,42 +17,41 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 class Dinov2Inference:
     """
-    image retrieval object using dinov2.
+    Inference from DinoV2 from a set of images.
+    Includes preprocessing, noise clean up, transformations, etc for
+    the correct load of images to Dinov2.
     """
+    def __init__(self, model_name="small", model_path=None, images=None, disable_cache = True, verbose=False):
+        
+        # Attr initialization
+        with open("json/dinov2_sizes.json",'r') as model_sizes:
+            self.model_name = json.load(model_sizes).get(model_name)
+        self.model_folder = "facebookresearch/dinov2" if model_path is None else model_path
+        self.model_source = "github" if model_path is None else "local"
+        
+        # Validar que 'images' sea una lista y tenga al menos un elemento
+        if not isinstance(images, list):
+            raise TypeError(f"Expected 'images' to be a list, but got {type(images).__name__} instead.")
+        if len(images) < 1:
+            raise ValueError("The 'images' list must contain at least one image.")
+        self.images = images  
 
-    def __init__(self, args):
         # setup logging
         logger.remove()
-
-        if args.verbose:
+        if verbose:
             logger.add(sys.stdout, level="DEBUG")
         else:
             logger.add(sys.stdout, level="INFO")
 
-        # Load dinov2 model
-        model_name_dict = {
-            "small": "dinov2_vits14",
-            "base": "dinov2_vitb14",
-            "large": "dinov2_vitl14",
-            "largest": "dinov2_vitg14",
-        }
-
-        model_name = model_name_dict[args.model_size]
-
-        model_folder = (
-            "facebookresearch/dinov2" if args.model_path is None else args.model_path
-        )
-        model_source = "github" if args.model_path is None else "local"
-
         try:
-            logger.info(f"loading {model_name=} from {model_folder=}")
+            logger.info(f"loading {self.model_name=} from {self.model_folder=}")
             self.model = torch.hub.load(
-                model_folder,
-                model_name,
-                source=model_source,
+                self.model_folder,
+                self.model_name,
+                source=self.model_source,
             )
         except FileNotFoundError:
-            logger.error(f"load model failed. please check if {model_folder=} exists")
+            logger.error(f"load model failed. please check if {self.model_folder=} exists")
             sys.exit(1)
         except http.client.RemoteDisconnected:
             logger.error(
@@ -59,6 +59,7 @@ class Dinov2Inference:
             )
             sys.exit(1)
 
+        # Setup model in eval mode.
         self.model.eval()
 
         # Construct image tranforms
@@ -72,9 +73,6 @@ class Dinov2Inference:
                 ),
             ]
         )
-
-        self.top_k = args.num
-        self.model_name = model_name
 
         if not args.disable_cache:
             cache_root_folder = Path(
