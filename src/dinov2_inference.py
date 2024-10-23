@@ -21,22 +21,30 @@ class Dinov2Inference:
     Includes preprocessing, noise clean up, transformations, etc for
     the correct load of images to Dinov2.
     """
-    def __init__(self, model_name="small", model_path=None, images=None, disable_cache = True, verbose=False):
+    def __init__(self, model_name="small", 
+                 model_path=None, 
+                 images=None, 
+                 disable_cache = True, 
+                 database = "./results/embeddings/", 
+                 verbose=False):
         
         # Attr initialization
         with open("json/dinov2_sizes.json",'r') as model_sizes:
             self.model_name = json.load(model_sizes).get(model_name)
         self.model_folder = "facebookresearch/dinov2" if model_path is None else model_path
         self.model_source = "github" if model_path is None else "local"
+        # Folder where cache exists
+        self.database = database
+        self.disable_cache = disable_cache
         
-        # Validar que 'images' sea una lista y tenga al menos un elemento
+        # Validate image list
         if not isinstance(images, list):
             raise TypeError(f"Expected 'images' to be a list, but got {type(images).__name__} instead.")
         if len(images) < 1:
             raise ValueError("The 'images' list must contain at least one image.")
         self.images = images  
 
-        # setup logging
+        # Setup logging
         logger.remove()
         if verbose:
             logger.add(sys.stdout, level="DEBUG")
@@ -74,18 +82,31 @@ class Dinov2Inference:
             ]
         )
 
-        if not args.disable_cache:
+        # Generate cache folder if cache up
+        if not self.disable_cache:
             cache_root_folder = Path(
-                appdirs.user_cache_dir(appname="dinov2_retrieval", appauthor="vra")
+                appdirs.user_cache_dir(appname="dinov2_inference", appauthor="domi")
             )
             cache_root_folder.mkdir(parents=True, exist_ok=True)
-            self.database_features_cache_path = cache_root_folder / (
-                Path(args.database).name + "_" + model_name + ".pkl"
+            self.embeddings_cache_path = cache_root_folder / (
+                Path(database).name + "_" + model_name + ".pkl"
             )
-            logger.debug(f"{cache_root_folder=}, {self.database_features_cache_path=}")
+            logger.debug(f"{cache_root_folder=}, {self.embeddings_cache_path=}")
 
-    def glob_images(self, path):
-        """Find all image files in path"""
+
+    def __extract_single_image_feature(self, image):
+        """
+        Extract backbone feature of dino v2 model on a single image
+        """
+        net_input = self.transform(image).unsqueeze(0)
+        with torch.no_grad():
+            feature = self.model(net_input).squeeze().numpy()
+        return feature
+    
+    def __glob_images(self, path):
+        """
+        Find all image files in path (for cache only)
+        """
         return (
             list(path.rglob("*.jpg"))
             + list(path.rglob("*.JPG"))
@@ -93,98 +114,54 @@ class Dinov2Inference:
             + list(path.rglob("*.png"))
             + list(path.rglob("*.bmp"))
         )
-
-    def extract_database_features(self, database_img_paths, im_path):
-        """Extract database dinov2 features"""
-        database_features = []
-        print("Dentro de extract_database_features(self, database_img_paths)")
-        for img_path in tqdm(database_img_paths):
-            print("im :", str(img_path))
-            im_path.append(img_path)
+    
+    
+    def __generate_embeddings(self):
+        """
+        Generate all embeddings for loaded images.
+        """
+        embeddings = []
+        for img_path in tqdm(self.images):
+            print("image :", str(img_path))
             img = Image.open(str(img_path)).convert("RGB")
-            print("im :::::::::")
-            feature = self.extract_single_image_feature(img)
-            database_features.append(feature)
-        print("IMAGENES",im_path)
-        return database_features
+            feature = self.__extract_single_image_feature(img)
+            embeddings.append(feature)
+        return embeddings
+        
 
-    def run(self, args):
-        """Run image retrieval on query image(s) using dinvo v2"""
 
-        # get query images
-        query_path = Path(args.query)
-        if query_path.is_dir():
-            query_paths = self.glob_images(query_path)
-        else:
-            query_paths = [query_path]
-
-        logger.debug(f"query image paths: {list(query_paths)}")
-
-        if len(query_paths) < 1:
-            logger.warning("no query image, exit")
-            return
-
-        database_img_paths = self.glob_images(Path(args.database))
+    def run(self):
+        """
+        Execute inference for loaded images 
+        """
+        
+        # Extract images from cache
+        database_img_paths = self.__glob_images(Path(self.database))
 
         if len(database_img_paths) < 1:
             logger.warning("database does not contain images, exit")
             return
         print("Path----",database_img_paths)
 
-        # set top_k to valid range
-        self.top_k = min(self.top_k, len(database_img_paths))
-
-        # Extract features for database images
-        im_path = []
-        if args.disable_cache or not self.database_features_cache_path.exists():
-            logger.info("preparing database features")
-            print("passa por extract_database_features \n")
-            database_features = self.extract_database_features(database_img_paths, im_path)
-            if not args.disable_cache:
+        # Extract embeddings for images or load from cache
+        if self.disable_cache or not self.embeddings_cache_path.exists():
+            logger.info("Preparing embeddings")
+            embeddings = self.__generate_embeddings()
+            if not self.disable_cache:
                 pickle.dump(
-                    database_features,
-                    open(str(self.database_features_cache_path), "wb"),
+                    embeddings,
+                    open(str(self.embeddings_cache_path), "wb"),
                 )
         else:
             logger.info(
-                f"Load cached database features from {self.database_features_cache_path}"
+                f"Load cached database features from {self.embeddings_cache_path}"
             )
-            database_features = pickle.load(
-                open(str(self.database_features_cache_path), "rb")
+            embeddings = pickle.load(
+                open(str(self.embeddings_cache_path), "rb")
             )
 
-        for img_path in query_paths:
-            logger.info(f"processing {img_path}")
-            try:
-                img = Image.open(str(img_path)).convert("RGB")
-            except PIL.UnidentifiedImageError:
-                logger.debug(f"query path is not a image: {img_path}")
-                continue
+        return embeddings
 
-            logger.debug("Extracting features on query image")
-            feature = self.extract_single_image_feature(img)
-            print("image path\t ",str(img_path), "\n")
-            logger.debug("Calculate similarity")
-            distances = self.calculate_distance(feature, database_features)
-            #distance_torch =  self.calculate_torch_distance(feature, database_features)
-            print("closest distance: \n ", distances)
-            
-            closest_indices = np.argsort(distances)[::-1][: self.top_k]
-           
-            sorted_distances = np.sort(distances)[::-1][: self.top_k]
-            #for idx in closest_indices:
-                #print(idx," ", im_path[closest_indices[idx]])
-
-            print(".........SIHAM: sortes closest indices......\n", closest_indices, distances)
-            print("..................")
-#            self.save_result(
-#                args,
-#                img,
-#                img_path,
-#                database_img_paths,
-#                closest_indices,
-#                sorted_distances,
-#            )
 
     def calculate_distance(self, query_feature, database_features):
         cosine_distances = [
