@@ -1,3 +1,7 @@
+# Ignore bbdd lots of data and test data
+data/Data 
+data/test
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
