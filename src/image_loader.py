@@ -24,8 +24,8 @@ class ImageLoader:
         try:
             logger.info("Checking provided path.")
             if not self.folder.is_dir():
-                raise NotADirectoryError(f"Provided path is not a directory")
-            logger.info("Provided path is a valid directory.")
+                raise NotADirectoryError(f"Provided path {self.folder.absolute()} is not a directory")
+            logger.info(f"Provided path {self.folder.absolute()} is a valid directory.")
         except NotADirectoryError as e:
             logger.error(f"Error: {e}")
             sys.exit(1)
