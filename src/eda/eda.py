@@ -119,16 +119,15 @@ class EDA:
         # Paso 3: Entrenar el modelo
         embedder.train()  # Entrenar el modelo  
         # Paso 4: Obtener los embeddings reducidos
-        embeddings_compressed = embedder.embed(X)  # Embeddings en el espacio latente de 2 dimensiones
+        embeddings_compressed = embedder.embed(X)  # Embeddings en el espacio latente de x dimensiones
 
-        if embeddings_compressed.shape[1] == 2:
-            plt.scatter(embeddings_compressed[:, 0], embeddings_compressed[:, 1], alpha=0.5)
-            plt.title("Embeddings in latent space (CVAE compression)")
-            plt.xlabel("Latent dim 1")
-            plt.ylabel("Latent dim 2")
-            plt.show()
-        else:
-            logger.warning("Embeddings dimensionality is not 2D, skipping visualization.")
+        # Independientemente de la dimensión, mostramos solo las dos primeras en el scatter
+        plt.scatter(embeddings_compressed[:, 0], embeddings_compressed[:, 1], alpha=0.5)
+        plt.title("Embeddings in latent space (CVAE compression)")
+        plt.xlabel("Latent dim 1")
+        plt.ylabel("Latent dim 2")
+        plt.show()
+
 
 
     def run_eda(self):
