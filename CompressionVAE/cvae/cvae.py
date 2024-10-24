@@ -4,6 +4,8 @@ import random
 import json
 import time
 import shutil
+from tqdm import tqdm
+from loguru import logger
 
 import numpy as np
 import tensorflow.compat.v1 as tf
@@ -126,7 +128,8 @@ class CompressionVAE(object):
                  batch_size_test=64,
                  logdir='temp',
                  feature_normalization=True,
-                 tb_logging=False):
+                 tb_logging=False,
+                 verbose=False):
 
         self.dim_latent = dim_latent
         self.iaf_flow_length = iaf_flow_length
@@ -139,6 +142,13 @@ class CompressionVAE(object):
         self.tb_logging = tb_logging
 
         self.trained_once_this_session = False
+        self.verbose = verbose
+
+        logger.remove()
+        if self.verbose:
+            logger.add(sys.stdout, level="DEBUG")
+        else:
+            logger.add(sys.stdout, level="INFO")
 
         # --- Check for existing model ---
 
@@ -448,24 +458,29 @@ class CompressionVAE(object):
 
         # Check if model already exists
         if self.has_checkpoint and self.has_params:
-            print(f'Found existing model {self.logdir}.')
+            if self.verbose:
+                print(f'Found existing model {self.logdir}.')
             self.is_trained = True
 
             # If model is trained and overwrite is False, stop here
             if not overwrite:
-                print('To continue training this model, set overwrite=True. To train a new model, '
-                      'specify a different logdir or use default "temp" directory.')
+                if self.verbose:
+                    print('To continue training this model, set overwrite=True. To train a new model, '
+                        'specify a different logdir or use default "temp" directory.')
                 return self
             else:
-                print('Continuing model training.')
+                if self.verbose:
+                    print('Continuing model training.')
 
         with self.graph.as_default():
 
             if self.trained_once_this_session is False:
-                print('Starting queues.')
+                if self.verbose:
+                    print('Starting queues.')
                 threads = tf.train.start_queue_runners(sess=self.sess, coord=self.coord)
                 self.reader.start_threads(self.sess)
-                print('Reader threads started.')
+                if self.verbose:
+                    print('Reader threads started.')
                 self.trained_once_this_session = True
 
             last_saved_step = self.saved_global_step
@@ -473,92 +488,103 @@ class CompressionVAE(object):
             test_loss_history = []
 
             # Start training; If user interrupts, make sure model gets saved.
-            try:
-                for step in range(self.saved_global_step + 1, num_steps):
-                    start_time = time.time()
+            # Usar tqdm para la barra de progreso
+            logger.info("Starting CVAE Training process...")
+            with tqdm(total=num_steps, desc="Training Progress") as pbar:
 
-                    epoch = self.reader.get_epoch(self.batch_size, step)
+                try:
+                    # Start training; If user interrupts, make sure model gets saved.
+                    for step in range(self.saved_global_step + 1, num_steps):
+                        start_time = time.time()
 
-                    # Run the actual optimization step
-                    if self.tb_logging:
-                        summary, loss_value, _ = self.sess.run([self.summaries, self.loss, self.optim],
-                                                               feed_dict={self.dropout_placeholder: dropout_keep_prob,
-                                                                          self.lr_placeholder: lr})
-                        self.writer.add_summary(summary, step)
-                    else:
-                        loss_value, _ = self.sess.run([self.loss, self.optim],
-                                                      feed_dict={self.dropout_placeholder: dropout_keep_prob,
-                                                                 self.lr_placeholder: lr})
+                        epoch = self.reader.get_epoch(self.batch_size, step)
 
-                    # Test step
-                    if step % test_every == 0:
-
-                        test_losses = []
-
-                        for step_test in range(self.test_batches_full + 1):
-
-                            if step_test == self.test_batches_full:
-                                test_batch_size = self.test_batch_last
-                            else:
-                                test_batch_size = self.batch_size_test
-
-                            test_features = self.test_batcher.next_batch(test_batch_size)
-
-                            loss_value_test = self.sess.run([self.loss_test],
-                                                            feed_dict={self.test_feature_placeholder: test_features,
-                                                                       self.dropout_placeholder: 1.0})
-
-                            test_losses.append(loss_value_test)
-
-                        mean_test_loss = np.mean(test_losses)
-                        test_loss_history.append(mean_test_loss)
-
+                        # Run the actual optimization step
                         if self.tb_logging:
-                            _summary = tf.Summary()
-                            _summary.value.add(tag='test/test_loss', simple_value=mean_test_loss)
-                            _summary.value.add(tag='test/test_loss_per_feat',
-                                               simple_value=mean_test_loss / self.reader.dimension)
-                            self.writer.add_summary(_summary, step)
+                            summary, loss_value, _ = self.sess.run([self.summaries, self.loss, self.optim],
+                                                                feed_dict={self.dropout_placeholder: dropout_keep_prob,
+                                                                            self.lr_placeholder: lr})
+                            self.writer.add_summary(summary, step)
+                        else:
+                            loss_value, _ = self.sess.run([self.loss, self.optim],
+                                                        feed_dict={self.dropout_placeholder: dropout_keep_prob,
+                                                                    self.lr_placeholder: lr})
 
-                        duration = (time.time() - start_time) / test_every
-                        print('step {:d}; epoch {:.2f} - loss = {:.3f}, test_loss = {:.3f}, lr = {:.5f}, ({:.3f} sec/step)'
-                              .format(step, epoch, loss_value, mean_test_loss, lr, duration))
+                        # Test step
+                        if step % test_every == 0:
 
-                        # Learning rate scheduling.
-                        if lr_scheduling and len(test_loss_history) >= lr_scheduling_steps:
-                            if test_loss_history[-lr_scheduling_steps] < min(
-                                    test_loss_history[-lr_scheduling_steps + 1:]):
-                                lr /= lr_scheduling_factor
-                                print(f'No improvement on validation data for {lr_scheduling_steps} test steps. '
-                                      f'Decreasing learning rate by factor {lr_scheduling_factor}')
+                            test_losses = []
 
-                                # Check if training should be stopped
-                                if lr <= lr_scheduling_min:
-                                    print(f'Reached learning rate threshold of {lr_scheduling_min}. '
-                                          f'Stopping.')
-                                    break
+                            for step_test in range(self.test_batches_full + 1):
 
-                    if step % checkpoint_every == 0:
+                                if step_test == self.test_batches_full:
+                                    test_batch_size = self.test_batch_last
+                                else:
+                                    test_batch_size = self.batch_size_test
+
+                                test_features = self.test_batcher.next_batch(test_batch_size)
+
+                                loss_value_test = self.sess.run([self.loss_test],
+                                                                feed_dict={self.test_feature_placeholder: test_features,
+                                                                        self.dropout_placeholder: 1.0})
+
+                                test_losses.append(loss_value_test)
+
+                            mean_test_loss = np.mean(test_losses)
+                            test_loss_history.append(mean_test_loss)
+
+                            if self.tb_logging:
+                                _summary = tf.Summary()
+                                _summary.value.add(tag='test/test_loss', simple_value=mean_test_loss)
+                                _summary.value.add(tag='test/test_loss_per_feat',
+                                                simple_value=mean_test_loss / self.reader.dimension)
+                                self.writer.add_summary(_summary, step)
+
+                            duration = (time.time() - start_time) / test_every
+                            
+                            if self.verbose:
+                                print(f'step {step}; epoch {epoch:.2f} - loss = {loss_value:.3f}, '
+                                    f'test_loss = {mean_test_loss:.3f}, lr = {lr:.5f}, '
+                                    f'({duration:.3f} sec/step)')
+
+                            # Learning rate scheduling.
+                            if lr_scheduling and len(test_loss_history) >= lr_scheduling_steps:
+                                if test_loss_history[-lr_scheduling_steps] < min(
+                                        test_loss_history[-lr_scheduling_steps + 1:]):
+                                    lr /= lr_scheduling_factor
+                                    print(f'No improvement on validation data for {lr_scheduling_steps} test steps. '
+                                        f'Decreasing learning rate by factor {lr_scheduling_factor}')
+
+                                    if lr <= lr_scheduling_min:
+                                        print(f'Reached learning rate threshold of {lr_scheduling_min}. Stopping.')
+                                        logger.info("Finishing CVAE Training...")
+                                        break
+
+                        # Guardar el checkpoint cada 'checkpoint_every' pasos
+                        if step % checkpoint_every == 0:
+                            save(self.saver, self.sess, self.logdir, step)
+                            last_saved_step = step
+
+                        # Actualiza la barra de progreso
+                        pbar.update(1)
+
+                        if step == num_steps - 1:
+                            print(f'Reached training step limit of {num_steps} steps. Stopping.')
+                            logger.info("Finishing CVAE Training...")
+
+                except KeyboardInterrupt:
+                    print()
+                finally:
+                    self.is_trained = True
+                    self.has_checkpoint = True
+                    self.saved_global_step = step
+
+                    if step > last_saved_step:
                         save(self.saver, self.sess, self.logdir, step)
-                        last_saved_step = step
-
-                    if step == num_steps - 1:
-                        print(f'Reached training step limit of {num_steps} steps. '
-                              f'Stopping.')
-
-            except KeyboardInterrupt:
-                print()
-            finally:
-                self.is_trained = True
-                self.has_checkpoint = True
-                self.saved_global_step = step
-
-                if step > last_saved_step:
-                    save(self.saver, self.sess, self.logdir, step)
-                # self.coord.request_stop()
-                # self.coord.join(threads)
 
         return self
+    
+
 
     def embed(self,
               X,
