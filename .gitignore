@@ -2,6 +2,11 @@
 data/Data 
 data/test
 
+# Ignore tmp from CVAE
+temp/
+/temp
+temp
+
 # Byte-compiled / optimized / DLL files
 __pycache__
 src/__pycache__
