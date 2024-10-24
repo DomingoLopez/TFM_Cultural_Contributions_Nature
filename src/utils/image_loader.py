@@ -40,10 +40,22 @@ class ImageLoader:
 
     def find_images(self):
         """Find all image files in path recursively. Return their paths"""
-        return (
-            list(self.folder.rglob("*.jpg"))
-            + list(self.folder.rglob("*.JPG"))
-            + list(self.folder.rglob("*.jpeg"))
-            + list(self.folder.rglob("*.png"))
-            + list(self.folder.rglob("*.bmp"))
-        )
+        # return (
+        #     list(self.folder.rglob("*.jpg"))
+        #     + list(self.folder.rglob("*.JPG"))
+        #     + list(self.folder.rglob("*.jpeg"))
+        #     + list(self.folder.rglob("*.png"))
+        #     + list(self.folder.rglob("*.bmp"))
+        # )
+        
+        # We need to avoid using JPG and jpg (upper and lower)
+        # bacause of Unix systems (Case sensitive) and NTFS Systems (Non Case Sensitive).
+        # This will avoid duplicates 
+        image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']
+        # Find all image files recursively and filter by extension (lowercase only)
+        image_paths = [img_path for img_path in self.folder.rglob('*') if img_path.suffix.lower() in image_extensions]
+        # Convert to lowercase and remove duplicates (especially relevant for Windows)
+        unique_image_paths = {img_path.resolve().as_posix().lower(): img_path for img_path in image_paths}
+        
+        return list(unique_image_paths.values())
+
