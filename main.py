@@ -13,6 +13,12 @@ if __name__ == "__main__":
     dinomodel = Dinov2Inference(model_name="small", images=images)
     embeddings = dinomodel.run()
     # TODO: Load embeddings into df. 
+    
+    
+    
+    
+    
+    
     # TODO: Dimensionality reduction (or not)
     # TODO: Apply Clustering techniques
     
