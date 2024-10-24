@@ -18,7 +18,6 @@ if __name__ == "__main__":
     
     
     
-    
     # TODO: Dimensionality reduction (or not)
     # TODO: Apply Clustering techniques
     
