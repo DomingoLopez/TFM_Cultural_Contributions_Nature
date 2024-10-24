@@ -2,6 +2,7 @@ import pandas as pd
 
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
+from src.eda.eda import EDA
 
 
 
@@ -12,12 +13,8 @@ if __name__ == "__main__":
     # Loading images and getting embeddings
     dinomodel = Dinov2Inference(model_name="small", images=images)
     embeddings = dinomodel.run()
-    # TODO: Load embeddings into df. 
-    
-    
-    
-    
-    
-    # TODO: Dimensionality reduction (or not)
+    # Create Eda object and apply or not dim reduction
+    embeddings_ndA = EDA(embeddings=embeddings, verbose=False)
+    embeddings_ndA.run_eda(dimensions=2, dim_reduction = "cvae", show_plots=False)
     # TODO: Apply Clustering techniques
     
