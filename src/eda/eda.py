@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from sklearn.decomposition import PCA
 import umap
-from cvae import CVAE
+from cvae import cvae
 
 
 
@@ -22,7 +22,7 @@ class EDA:
     def __init__(self, 
                  embeddings=None,
                  show_plots=True,
-                 dim_reduction="umap",
+                 dim_reduction="cvae",
                  verbose=False,
                  ):
         
@@ -113,25 +113,22 @@ class EDA:
         """
         logger.info("Using CVAE Dim. reduction")
         
-        # Definir los parámetros del CVAE
-        latent_dim = 2  # Dimensión a la que deseas reducir
-        input_dim = self.embeddings_df.shape[1]  # Dimensión original de los embeddings
+        X = self.embeddings_df.values
+        # Paso 2: Inicializar el modelo CompressionVAE
+        embedder = cvae.CompressionVAE(X)
+        # Paso 3: Entrenar el modelo
+        embedder.train()  # Entrenar el modelo  
+        # Paso 4: Obtener los embeddings reducidos
+        embeddings_compressed = embedder.embed(X)  # Embeddings en el espacio latente de 2 dimensiones
 
-        # Paso 1: Crear y entrenar el modelo CVAE
-        vae = CVAE(input_dim=input_dim, latent_dim=latent_dim)
-
-        # Entrenar el VAE
-        vae.fit(self.embeddings_df, epochs=50, batch_size=32)
-
-        # Paso 2: Usar el encoder para obtener los embeddings reducidos
-        embeddings_compressed = vae.encode(self.embeddings_df)
-
-        # Paso 3: Visualización en 2D si has reducido a 2 dimensiones
-        plt.scatter(embeddings_compressed[:, 0], embeddings_compressed[:, 1], alpha=0.5)
-        plt.title("Embeddings in latent space (VAE compression)")
-        plt.xlabel("Latent dim 1")
-        plt.ylabel("Latent dim 2")
-        plt.show()
+        if embeddings_compressed.shape[1] == 2:
+            plt.scatter(embeddings_compressed[:, 0], embeddings_compressed[:, 1], alpha=0.5)
+            plt.title("Embeddings in latent space (CVAE compression)")
+            plt.xlabel("Latent dim 1")
+            plt.ylabel("Latent dim 2")
+            plt.show()
+        else:
+            logger.warning("Embeddings dimensionality is not 2D, skipping visualization.")
 
 
     def run_eda(self):
