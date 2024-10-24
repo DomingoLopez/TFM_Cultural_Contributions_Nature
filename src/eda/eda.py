@@ -66,12 +66,12 @@ class EDA:
         print(f"Embeddings estatistics :\n {self.embeddings_df.describe()}\n")
         
         
-    def __do_PCA(self):
+    def __do_PCA(self, dimensions=2):
         """
         PCA Dim reduction. 
         """
         logger.info("Using PCA Dim. reduction...")
-        pca = PCA(n_components=2)
+        pca = PCA(n_components=dimensions)
         pca_result = pca.fit_transform(self.embeddings_df.values)
         # Eigenvectors
         eigenvectors = pca.components_
@@ -87,13 +87,13 @@ class EDA:
         plt.show()
     
     
-    def __do_UMAP(self):
+    def __do_UMAP(self, dimensions=2):
         """
         UMAP Dim reduction. 
         More info in https://umap-learn.readthedocs.io/en/latest/
         """
         logger.info("Using UMAP Dim. reduction")
-        reducer = umap.UMAP()
+        reducer = umap.UMAP(n_components=dimensions)
         umap_result = reducer.fit_transform(self.embeddings_df.values)
         plt.scatter(umap_result[:, 0], umap_result[:, 1], alpha=0.5)
         plt.title("Embeddings representation in 2D using UMAP")
@@ -101,7 +101,7 @@ class EDA:
         
         
         
-    def __do_CVAE(self):
+    def __do_CVAE(self, dimensions=2):
         """
         Compression VAE Dim reduction. 
         More info in https://github.com/maxfrenzel/CompressionVAE
@@ -115,7 +115,7 @@ class EDA:
         
         X = self.embeddings_df.values
         # Paso 2: Inicializar el modelo CompressionVAE
-        embedder = cvae.CompressionVAE(X)
+        embedder = cvae.CompressionVAE(X, dim_latent=dimensions)
         # Paso 3: Entrenar el modelo
         embedder.train()  # Entrenar el modelo  
         # Paso 4: Obtener los embeddings reducidos
