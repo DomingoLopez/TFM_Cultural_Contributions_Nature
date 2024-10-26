@@ -76,6 +76,7 @@ class EDA:
         logger.info("Using PCA Dim. reduction...")
         pca = PCA(n_components=dimensions)
         pca_result = pca.fit_transform(self.embeddings_df.values)
+        pca_df = pd.DataFrame(data=pca_result)
         # Eigenvectors
         eigenvectors = pca.components_
         print("Principal components (Eigenvectors):")
@@ -90,7 +91,7 @@ class EDA:
             plt.title("Embeddings representation in 2D using PCA")
             plt.show()
 
-        return pca_result
+        return pca_df
 
     
     def __do_UMAP(self, show_plots=False, dimensions=2):
@@ -101,13 +102,14 @@ class EDA:
         logger.info("Using UMAP Dim. reduction")
         reducer = umap.UMAP(n_components=dimensions)
         umap_result = reducer.fit_transform(self.embeddings_df.values)
+        umap_df = pd.DataFrame(data=umap_result)
         # Show only 2 dimensions in plots
         if show_plots:
             plt.scatter(umap_result[:, 0], umap_result[:, 1], alpha=0.5)
             plt.title("Embeddings representation in 2D using UMAP")
             plt.show()
         
-        return umap_result
+        return umap_df
         
         
     def __do_CVAE(self, dimensions=2, show_plots=True):
@@ -129,6 +131,7 @@ class EDA:
         embedder.train()  
         # 4: Get reduced embeddings
         embeddings_compressed = embedder.embed(X)  
+        cvae_df = pd.DataFrame(data=embeddings_compressed)
         # Show only 2 dimensions in plots
         if show_plots:
             plt.scatter(embeddings_compressed[:, 0], embeddings_compressed[:, 1], alpha=0.5)
@@ -137,7 +140,7 @@ class EDA:
             plt.ylabel("Latent dim 2")
             plt.show()
 
-        return embeddings_compressed
+        return cvae_df
 
 
 
@@ -146,19 +149,19 @@ class EDA:
         Execute eda, including plots if selected and other stuff
         """
         self.__simple_eda(show_plots)
-        embeddings_ndA = None
+        embeddings_df = None
         # Apply dim reduction if chosen
         if dim_reduction is not None:
             if dim_reduction == "umap":
-                embeddings_ndA = self.__do_UMAP(show_plots=show_plots, dimensions=dimensions)
+                embeddings_df = self.__do_UMAP(show_plots=show_plots, dimensions=dimensions)
             elif dim_reduction == "cvae":
-                embeddings_ndA = self.__do_CVAE(show_plots=show_plots, dimensions=dimensions)
+                embeddings_df = self.__do_CVAE(show_plots=show_plots, dimensions=dimensions)
             elif dim_reduction == "pca":
-                embeddings_ndA = self.__do_PCA(show_plots=show_plots, dimensions=dimensions)
+                embeddings_df = self.__do_PCA(show_plots=show_plots, dimensions=dimensions)
             else:
-                embeddings_ndA = self.__do_UMAP(show_plots=show_plots, dimensions=dimensions)
+                embeddings_df = self.__do_UMAP(show_plots=show_plots, dimensions=dimensions)
         
-        return embeddings_ndA
+        return embeddings_df
            
             
 
@@ -166,7 +169,7 @@ if __name__ == "__main__":
     # Objeto EDA.
     eda = EDA(embeddings=None, verbose=False)
     # devolemos los embeddings, con reducción o sin reducción según hayamos escogido
-    embeddings_ndA = eda.run_eda(show_plots=False, dim_reduction="umap", dimensions=3)
-    print(embeddings_ndA.shape)
+    embeddings_df = eda.run_eda(show_plots=False, dim_reduction="umap", dimensions=3)
+    print(embeddings_df.shape)
     
 
