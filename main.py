@@ -14,7 +14,7 @@ if __name__ == "__main__":
     dinomodel = Dinov2Inference(model_name="small", images=images)
     embeddings = dinomodel.run()
     # Create Eda object and apply or not dim reduction
-    embeddings_ndA = EDA(embeddings=embeddings, verbose=False)
-    embeddings_ndA.run_eda(dimensions=2, dim_reduction = "cvae", show_plots=False)
+    eda = EDA(embeddings=embeddings, verbose=False)
+    embeddings_after_dimred = eda.run_eda(dimensions=2, dim_reduction = "cvae", show_plots=False)
     # TODO: Apply Clustering techniques
     
