@@ -1,5 +1,6 @@
 import pandas as pd
 
+from src.clustering.clustering_factory import ClusteringFactory
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
 from src.eda.eda import EDA
@@ -15,6 +16,9 @@ if __name__ == "__main__":
     embeddings = dinomodel.run()
     # Create Eda object and apply or not dim reduction
     eda = EDA(embeddings=embeddings, verbose=False)
-    embeddings_after_dimred = eda.run_eda(dimensions=2, dim_reduction = "cvae", show_plots=False)
-    # TODO: Apply Clustering techniques
-    
+    embeddings_after_dimred = eda.run_eda(dimensions=2, dim_reduction = None, show_plots=False)
+    # Create clustering factory and kmeans
+    clustering_model = ClusteringFactory.create_clustering_model("kmeans", embeddings_after_dimred)
+    # Run Clustering
+    clustering_model.run()
+    print("Clustering complete. Results available in results/modelname/timestamp")
