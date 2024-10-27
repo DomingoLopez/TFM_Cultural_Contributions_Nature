@@ -2,6 +2,12 @@
 data/Data 
 data/test
 
+/clustering/results
+clustering/results/
+clustering/results/
+
+
+
 # Ignore tmp from CVAE
 temp/
 /temp
