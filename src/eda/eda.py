@@ -160,7 +160,9 @@ class EDA:
                 embeddings_df = self.__do_PCA(show_plots=show_plots, dimensions=dimensions)
             else:
                 embeddings_df = self.__do_UMAP(show_plots=show_plots, dimensions=dimensions)
-        
+        else:
+            embeddings_df = self.embeddings_df
+            
         return embeddings_df
            
             
