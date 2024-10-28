@@ -1,4 +1,5 @@
 from datetime import datetime
+import hdbscan
 import os
 from pathlib import Path
 import sys
@@ -51,49 +52,73 @@ class HDBSCANClustering(ClusteringModel):
         """
         
         # Collect indexes
-        error = []
+         # Initialize lists to store results
         k_ = []
         silhouette_coefficients = []
         davies_boulding_coefficients = []
 
-        # Perform clustering for each k
-        for k in np.arange(2, 10):
-            # Define params
-            params = {
-                "n_clusters": k,
-                "n_init": 100,
-                "init": "k-means++",
-                "random_state": 1234
-            }
-            # Define file paths for saving plots and results
-            param_string = "__".join([f"{key}_{value}" for key, value in params.items()])
-            file_path_plot = os.path.join(self.folder_plots, param_string) + ".png"
-            file_path_result_plot = os.path.join(self.folder_results, param_string) + "_result.png"
-            file_path_result_csv = os.path.join(self.folder_results, param_string) + "_result.csv"
-            file_path_error = os.path.join(self.folder_results, param_string) + "_error.png"
+        # List of metrics to iterate over
+        metrics = ["euclidean", "manhattan", "chebyshev", "mahalanobis"]
+        # TODO: PARA CADA MÉTRICA HAY QUE GENERAR UN ARCHIVO CON LAS Ks Y results
+        # Iterate over each metric and different values of min_cluster_size
+        for metric in metrics:
+            for min_cluster_size in range(50, 150, 5):  # Adjust range and step as needed
+                # Define model parameters
+                params = {
+                    "min_cluster_size": min_cluster_size,
+                    "min_samples": int(min_cluster_size / 2),
+                    "metric": metric,
+                }
+                # Generate a unique identifier for the current parameters
+                param_string = "__".join([f"{key}_{value}" for key, value in params.items()])
+                file_path_plot = os.path.join(self.folder_plots, param_string) + ".png"
 
-            # Run KMeans
-            kmeans = KMeans(n_clusters=params["n_clusters"], init=params["init"], 
-                            n_init=params["n_init"], random_state=params["random_state"]).fit(self.data)
-            error.append(kmeans.inertia_)
-            
-            # REPRESENTATION
-            pca_df, pca_centers = super().do_PCA_for_representation(self.data, kmeans.cluster_centers_)
-            super().save_clustering_plot(pca_df, kmeans.labels_, pca_centers, i=0, j=1, save_path=file_path_plot)
+                if metric == "mahalanobis":
+                    cov_matrix = np.cov(self.data.values, rowvar=False)
+                    VI = np.linalg.inv(cov_matrix)
+                    params["VI"] = VI
+                
 
-            # SCORERS
-            score_silhouette = silhouette_score(self.data, kmeans.labels_)
-            score_davies = davies_bouldin_score(self.data, kmeans.labels_)
-            silhouette_coefficients.append(score_silhouette)
-            davies_boulding_coefficients.append(score_davies)
-            k_.append(k)
+                # Run HDBSCAN
+                hdbscan_model = hdbscan.HDBSCAN(**params).fit(self.data)
+                labels = hdbscan_model.labels_
+
+                # Calculate the number of clusters (excluding noise)
+                n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+                k_.append(n_clusters)
+
+                # REPRESENTATION
+                if n_clusters > 0:
+                    # Reduce data to 2D for visualization and save plot
+                    # HDBSCAN implements soft clustering, which are examples of
+                    # each cluster, and can be a list of examples. So we need to 
+                    # calculate at least the most representative por each cluster
+                    unique_labels = np.unique(labels)
+                    centers = []
+                    for label in unique_labels:
+                        if label != -1:  # Ignorar puntos de ruido
+                            cluster_points = self.data.values[labels == label]
+                            cluster_center = np.mean(cluster_points, axis=0)
+                            centers.append(cluster_center)
+
+                    if centers:
+                        centers = np.array(centers)
+                        pca_df, pca_centers = super().do_PCA_for_representation(self.data, centers)
+                        super().save_clustering_plot(pca_df, labels, pca_centers, i=0, j=1, save_path=file_path_plot)
+                    
+                    # SCORERS
+                    score_silhouette = silhouette_score(self.data, labels) if n_clusters > 1 else 0
+                    score_davies = davies_bouldin_score(self.data, labels) if n_clusters > 1 else 99
+                    silhouette_coefficients.append(score_silhouette)
+                    davies_boulding_coefficients.append(score_davies)
+                else:
+                    # Handle cases where no clusters are found
+                    silhouette_coefficients.append(0)
+                    davies_boulding_coefficients.append(99)
 
         # Save the scores and generate plots
         super().save_clustering_result(
-            k_, silhouette_coefficients, davies_boulding_coefficients, error,
-            save_path=file_path_result_plot, 
-            save_path_csv=file_path_result_csv, 
-            save_path_error = file_path_error
+            k_, silhouette_coefficients, davies_boulding_coefficients, []
         )
 
 
