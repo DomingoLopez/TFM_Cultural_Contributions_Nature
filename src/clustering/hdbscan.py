@@ -32,7 +32,7 @@ class HDBSCANClustering(ClusteringModel):
         **kwargs : dict
             Additional parameters for customization or future expansion.
         """
-        super().__init__(data, model_name="kmeans")
+        super().__init__(data, model_name="hdbscan")
         
         
 

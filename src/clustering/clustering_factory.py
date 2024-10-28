@@ -1,5 +1,6 @@
 import pandas as pd
 from src.clustering.clustering_model import ClusteringModel
+from src.clustering.hdbscan import HDBSCANClustering
 from src.clustering.kmeans import KMeansClustering
 
 

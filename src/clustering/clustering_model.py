@@ -44,6 +44,14 @@ class ClusteringModel(ABC):
         self.folder_plots = base_path / "plots"
         self.folder_results = base_path / "results" 
         
+        # Results path
+        error_path = "error_inertia.png"
+        self.file_path_error = os.path.join(self.folder_results, error_path)
+        csv_result_path = "results.csv"
+        self.file_path_result_csv = os.path.join(self.folder_results, csv_result_path)
+        plot_result_path = "results.png"
+        self.file_path_result_plot = os.path.join(self.folder_results, plot_result_path)
+
         # Create folders if they don't exist
         os.makedirs(self.folder_plots, exist_ok=True)
         os.makedirs(self.folder_results, exist_ok=True)
@@ -111,10 +119,7 @@ class ClusteringModel(ABC):
         k: list,
         score_silhouette: list,
         score_davies: list,
-        error: list,
-        save_path: str = "",
-        save_path_csv: str = "",
-        save_path_error: str =""
+        error: list
     ):
         """
         Saves clustering scores and generates a plot of the scores.
@@ -142,7 +147,7 @@ class ClusteringModel(ABC):
         """
         
          # Save making sure dir exists
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        os.makedirs(os.path.dirname(self.file_path_result_plot), exist_ok=True)
         
         # Plot scores
         if len(score_silhouette) > 1:
@@ -156,9 +161,9 @@ class ClusteringModel(ABC):
             plt.ylabel('Scores')
             plt.legend()
             # save figure
-            plt.savefig(save_path, bbox_inches='tight')
+            plt.savefig(self.file_path_result_plot, bbox_inches='tight')
             # save csv
-            scores.to_csv(save_path_csv, index=False)
+            scores.to_csv(self.file_path_result_csv, index=False)
         
         if len(error) > 1:
             # Plot error inertia
@@ -171,7 +176,7 @@ class ClusteringModel(ABC):
             plt.ylabel('error inertia')
             plt.legend()
             # save figure
-            plt.savefig(save_path_error, bbox_inches='tight')
+            plt.savefig(self.file_path_error, bbox_inches='tight')
 
 
 
