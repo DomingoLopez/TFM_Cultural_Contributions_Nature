@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 from pathlib import Path
 import sys
@@ -11,18 +12,18 @@ from sklearn.datasets import make_blobs
 from src.clustering.clustering_model import ClusteringModel
 
 
-class KMeansClustering(ClusteringModel):
+class HDBSCANClustering(ClusteringModel):
     """
-    KMeans clustering model class inheriting from ClusteringModel.
+    HDBSCAN clustering model class inheriting from ClusteringModel.
 
-    This class implements the KMeans clustering algorithm on a dataset and 
+    This class implements the HDBSCAN clustering algorithm on a dataset and 
     provides methods to run clustering, calculate metrics, and save results 
     including plots and score data.
     """
 
     def __init__(self, data: pd.DataFrame, **kwargs):
         """
-        Initialize the KMeansClustering model.
+        Initialize the HDBSCANClustering model.
 
         Parameters
         ----------
@@ -37,23 +38,11 @@ class KMeansClustering(ClusteringModel):
 
     def run(self):
         """
-        Execute the KMeans clustering process on the dataset.
+        Execute the HDBSCAN clustering process on the dataset.
 
-        This method performs KMeans clustering across a range of cluster values (k) 
+        This method performs HDBSCAN clustering across a range of cluster values (k) 
         from 2 to 9. For each value of k, it calculates the silhouette and Davies-Bouldin 
         scores, saves plots for each clustering configuration, and stores the results.
-
-        Attributes
-        ----------
-        error : list
-            List to store the inertia (sum of squared distances to closest cluster center) 
-            for each k.
-        k_ : list
-            List of cluster values tested.
-        silhouette_coefficients : list
-            List of silhouette scores for each k.
-        davies_boulding_coefficients : list
-            List of Davies-Bouldin scores for each k.
         
         Side Effects
         ------------
@@ -84,7 +73,8 @@ class KMeansClustering(ClusteringModel):
             file_path_error = os.path.join(self.folder_results, param_string) + "_error.png"
 
             # Run KMeans
-            kmeans = KMeans(**params).fit(self.data)
+            kmeans = KMeans(n_clusters=params["n_clusters"], init=params["init"], 
+                            n_init=params["n_init"], random_state=params["random_state"]).fit(self.data)
             error.append(kmeans.inertia_)
             
             # REPRESENTATION
@@ -111,6 +101,6 @@ if __name__ == "__main__":
     # Test the KMeansClustering class with a sample dataset
     data, _ = make_blobs(n_samples=300, centers=4, cluster_std=0.6, random_state=0)
     data = pd.DataFrame(data, columns=['x', 'y'])
-    kmeans_clustering = KMeansClustering(data)
+    kmeans_clustering = HDBSCANClustering(data)
     kmeans_clustering.run()
-    print("KMeans clustering complete. Results and plots saved.")
+    print("HDBSCAN clustering complete. Results and plots saved.")
