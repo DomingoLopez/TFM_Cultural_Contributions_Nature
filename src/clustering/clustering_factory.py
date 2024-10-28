@@ -22,7 +22,7 @@ class ClusteringFactory:
         method : str
             The clustering algorithm to use. Supported values are:
             - "kmeans": K-means clustering algorithm.
-            - "dbscan": DBSCAN clustering algorithm (not yet implemented).
+            - "hdbscan": HDBSCAN clustering algorithm.
         data : pd.DataFrame
             The dataset on which clustering will be performed.
         **kwargs : dict
@@ -46,8 +46,8 @@ class ClusteringFactory:
         """
         if method == "kmeans":
             return KMeansClustering(data, **kwargs)
-        elif method == "dbscan":
-            pass  # Future implementation for DBSCAN
+        elif method == "hdbscan":
+            return HDBSCANClustering(data, **kwargs)
         else:
             raise ValueError(f"Unknown clustering method: {method}")
 
