@@ -79,9 +79,6 @@ class KMeansClustering(ClusteringModel):
             # Define file paths for saving plots and results
             param_string = "__".join([f"{key}_{value}" for key, value in params.items()])
             file_path_plot = os.path.join(self.folder_plots, param_string) + ".png"
-            file_path_result_plot = os.path.join(self.folder_results, param_string) + "_result.png"
-            file_path_result_csv = os.path.join(self.folder_results, param_string) + "_result.csv"
-            file_path_error = os.path.join(self.folder_results, param_string) + "_error.png"
 
             # Run KMeans
             kmeans = KMeans(**params).fit(self.data)
@@ -100,10 +97,10 @@ class KMeansClustering(ClusteringModel):
 
         # Save the scores and generate plots
         super().save_clustering_result(
-            k_, silhouette_coefficients, davies_boulding_coefficients, error,
-            save_path=file_path_result_plot, 
-            save_path_csv=file_path_result_csv, 
-            save_path_error = file_path_error
+            k_, 
+            silhouette_coefficients, 
+            davies_boulding_coefficients, 
+            error
         )
 
 
