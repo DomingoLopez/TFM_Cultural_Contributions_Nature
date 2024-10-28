@@ -2,9 +2,8 @@
 data/Data 
 data/test
 
-/clustering/results
-clustering/results/
-clustering/results/
+/src/results
+
 
 
 

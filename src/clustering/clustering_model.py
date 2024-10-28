@@ -100,8 +100,10 @@ class ClusteringModel(ABC):
         k: list,
         score_silhouette: list,
         score_davies: list,
+        error: list,
         save_path: str = "",
-        save_path_csv: str = ""
+        save_path_csv: str = "",
+        save_path_error: str =""
     ):
         """
         Saves clustering scores and generates a plot of the scores.
@@ -118,27 +120,49 @@ class ClusteringModel(ABC):
             List of silhouette scores for each clustering configuration.
         score_davies : list
             List of Davies-Bouldin scores for each clustering configuration.
+        error: list
+            Error inertia from clustering
         save_path : str
             Path to save the plot with scores.
         save_path_csv : str
             Path to save the CSV file containing scores data.
+        save_path_error : str
+            Path to save the plot with error inertia 
         """
-
-        scores = pd.DataFrame({'k_value':k,'sil_score': score_silhouette,'davies_score': score_davies})
-        # plot
-        plt.figure(figsize=(8, 5))
-        sns.lineplot(data=scores, x='k_value', y='sil_score', label='Silhouette Score')
-        sns.lineplot(data=scores, x='k_value', y='davies_score', label='Davies Score')
-        plt.title('Scores en función de k_value')
-        plt.xlabel('k_value')
-        plt.ylabel('Scores')
-        plt.legend()
-        # Save making sure dir exists
+        
+         # Save making sure dir exists
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        # save figure
-        plt.savefig(save_path, bbox_inches='tight')
-        # save csv
-        scores.to_csv(save_path_csv, index=False)
+        
+        # Plot scores
+        if len(score_silhouette) > 1:
+            scores = pd.DataFrame({'k_value':k,'sil_score': score_silhouette,'davies_score': score_davies})
+            # plot
+            plt.figure(figsize=(8, 5))
+            sns.lineplot(data=scores, x='k_value', y='sil_score', label='Silhouette Score')
+            sns.lineplot(data=scores, x='k_value', y='davies_score', label='Davies Score')
+            plt.title('Scores en función de k_value')
+            plt.xlabel('k_value')
+            plt.ylabel('Scores')
+            plt.legend()
+            # save figure
+            plt.savefig(save_path, bbox_inches='tight')
+            # save csv
+            scores.to_csv(save_path_csv, index=False)
+        
+        if len(error) > 1:
+            # Plot error inertia
+            errors = pd.DataFrame({'k_value':k,'error_inertia': error})
+            # plot
+            plt.figure(figsize=(8, 5))
+            sns.lineplot(data=errors, x='k_value', y='error_inertia', label='Error inertia')
+            plt.title('Errors vs k')
+            plt.xlabel('k_value')
+            plt.ylabel('error inertia')
+            plt.legend()
+            # save figure
+            plt.savefig(save_path_error, bbox_inches='tight')
+
+
 
     def do_PCA_for_representation(self, df, centers):
         """
