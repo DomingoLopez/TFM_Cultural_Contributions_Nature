@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import os
 from pathlib import Path
 import seaborn as sns
@@ -26,7 +26,8 @@ class ClusteringModel(ABC):
     """
 
     def __init__(self, 
-                 data: pd.DataFrame):
+                 data: pd.DataFrame,
+                 model_name: str):
         """
         Initialize the clustering model with data.
 
@@ -36,6 +37,16 @@ class ClusteringModel(ABC):
             The dataset on which clustering will be performed.
         """
         self.data = data
+        # Setting up directories for saving results based on model_name
+        timestamp = datetime.now().strftime("%d-%m-%Y-%H-%M-%S")
+        base_path = Path(__file__).resolve().parent.parent / "results" / model_name / timestamp
+        self.folder_run = base_path
+        self.folder_plots = base_path / "plots"
+        self.folder_results = base_path / "results" 
+        
+        # Create folders if they don't exist
+        os.makedirs(self.folder_plots, exist_ok=True)
+        os.makedirs(self.folder_results, exist_ok=True)
 
     @abstractmethod
     def run(self):
