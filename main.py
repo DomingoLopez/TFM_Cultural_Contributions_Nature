@@ -20,7 +20,7 @@ if __name__ == "__main__":
     # Create clustering factory and kmeans
     # TODO: Here we could pass a eda object to Clustering creation, so it would know how many dimensiones
     # do we have and put that in another subfolder with results, or even add that to path name of results.
-    clustering_model = ClusteringFactory.create_clustering_model("hdbscan", embeddings_after_dimred)
+    clustering_model = ClusteringFactory.create_clustering_model("kmeans", embeddings_after_dimred)
     # Run Clustering
     clustering_model.run()
     print("Clustering complete. Results available in results/modelname/timestamp")
