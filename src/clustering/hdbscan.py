@@ -51,17 +51,14 @@ class HDBSCANClustering(ClusteringModel):
         - Saves score plots and CSV files in `folder_results`.
         """
         
-        # Collect indexes
-         # Initialize lists to store results
-        k_ = []
-        silhouette_coefficients = []
-        davies_boulding_coefficients = []
 
         # List of metrics to iterate over
         metrics = ["euclidean", "manhattan", "chebyshev", "mahalanobis"]
-        # TODO: PARA CADA MÉTRICA HAY QUE GENERAR UN ARCHIVO CON LAS Ks Y results
-        # Iterate over each metric and different values of min_cluster_size
         for metric in metrics:
+            # Get results for every metric
+            k_ = []
+            silhouette_coefficients = []
+            davies_boulding_coefficients = []
             for min_cluster_size in range(50, 150, 5):  # Adjust range and step as needed
                 # Define model parameters
                 params = {
@@ -84,6 +81,7 @@ class HDBSCANClustering(ClusteringModel):
                 labels = hdbscan_model.labels_
 
                 # Calculate the number of clusters (excluding noise)
+                # TODO: Trye Not excluding noise and compare
                 n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
                 k_.append(n_clusters)
 
@@ -116,10 +114,11 @@ class HDBSCANClustering(ClusteringModel):
                     silhouette_coefficients.append(0)
                     davies_boulding_coefficients.append(99)
 
-        # Save the scores and generate plots
-        super().save_clustering_result(
-            k_, silhouette_coefficients, davies_boulding_coefficients, []
-        )
+            # Save the scores and generate plots
+            super().save_clustering_result(
+                k_, silhouette_coefficients, davies_boulding_coefficients, [],
+                params
+            )
 
 
 if __name__ == "__main__":
