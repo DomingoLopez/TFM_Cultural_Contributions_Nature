@@ -53,7 +53,7 @@ class HDBSCANClustering(ClusteringModel):
         
 
         # List of metrics to iterate over
-        metrics = ["euclidean", "manhattan", "chebyshev", "mahalanobis"]
+        metrics = ["euclidean", "manhattan", "chebyshev"]
         for metric in metrics:
             # Get results for every metric
             k_ = []
@@ -66,25 +66,19 @@ class HDBSCANClustering(ClusteringModel):
                     "metric": metric,
                     "min_cluster_size": min_cluster_size,
                     "min_samples": int(min_cluster_size / 2)
-                    
                 }
-                
-                if metric == "mahalanobis":
-                    cov_matrix = np.cov(self.data.values, rowvar=False)
-                    VI = np.linalg.inv(cov_matrix)
-                    params["VI"] = VI
                 
                 # Run HDBSCAN
                 hdbscan_model = hdbscan.HDBSCAN(**params).fit(self.data)
                 labels = hdbscan_model.labels_
 
                 # Calculate the number of clusters (excluding noise)
-                # TODO: Trye Not excluding noise and compare
+                # TODO: Try Not excluding noise and compare
                 n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
                 k_.append(n_clusters)
                 
                 # CALCULATE RESULT DIRS (PLOTTING)
-                file_path_plot = os.path.join(self.folder_plots, f"metric_{metric}/min_cluster_size_{min_cluster_size}/n_clusters_{n_clusters}/plot.png")
+                file_path_plot = os.path.join(self.folder_plots, f"n_clusters_{n_clusters}/metric_{metric}/min_cluster_size_{min_cluster_size}/plot.png")
 
                 # REPRESENTATION
                 if n_clusters > 0:
@@ -108,7 +102,7 @@ class HDBSCANClustering(ClusteringModel):
                             n_neighbors=3, 
                             metric=params.get("metric", "euclidean"),
                             cluster_centers=centers,
-                            save_path = os.path.join(self.folder_plots, f"metric_{metric}/min_cluster_size_{min_cluster_size}/n_clusters_{n_clusters}/knn_points/points.csv")
+                            save_path = os.path.join(self.folder_plots, f"n_clusters_{n_clusters}/metric_{metric}/min_cluster_size_{min_cluster_size}/knn_points/points.csv")
                         )
 
                         pca_df, pca_centers = super().do_PCA_for_representation(self.data, centers)
@@ -124,21 +118,23 @@ class HDBSCANClustering(ClusteringModel):
                     silhouette_coefficients.append(0)
                     davies_bouldin_coefficients.append(99)
             
-            # CALCULATE RESULT DIRS (RESULTS)
-            file_path_result_csv = os.path.join(self.folder_results, f"metric_{metric}/min_cluster_size_{min_cluster_size}/result.csv")
-            file_path_result_plot = os.path.join(self.folder_results, f"metric_{metric}/min_cluster_size_{min_cluster_size}/result.png")
+            if n_clusters > 0:
 
-            # Save the scores and generate plots
-            super().save_clustering_result(
-                k_, 
-                silhouette_coefficients, 
-                davies_bouldin_coefficients, 
-                [],
-                # paths
-                file_path_result_plot,
-                file_path_result_csv,
-                ""
-            )
+                # CALCULATE RESULT DIRS (RESULTS)
+                file_path_result_csv = os.path.join(self.folder_results, f"metric_{metric}/result.csv")
+                file_path_result_plot = os.path.join(self.folder_results, f"metric_{metric}/result.png")
+
+                # Save the scores and generate plots
+                super().save_clustering_result(
+                    k_, 
+                    silhouette_coefficients, 
+                    davies_bouldin_coefficients, 
+                    [],
+                    # paths
+                    file_path_result_plot,
+                    file_path_result_csv,
+                    ""
+                )
 
 
 if __name__ == "__main__":
