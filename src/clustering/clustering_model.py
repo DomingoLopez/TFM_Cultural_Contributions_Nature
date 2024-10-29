@@ -37,6 +37,7 @@ class ClusteringModel(ABC):
             The dataset on which clustering will be performed.
         """
         self.data = data
+        self.model_name = model_name
         # Setting up directories for saving results based on model_name
         timestamp = datetime.now().strftime("%d-%m-%Y-%H-%M-%S")
         base_path = Path(__file__).resolve().parent.parent / "results" / model_name / timestamp
@@ -114,12 +115,16 @@ class ClusteringModel(ABC):
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path, bbox_inches='tight')
 
+
+
+
     def save_clustering_result(
         self,
         k: list,
         score_silhouette: list,
         score_davies: list,
-        error: list
+        error: list,
+        params: Optional[dict]
     ):
         """
         Saves clustering scores and generates a plot of the scores.
@@ -138,13 +143,19 @@ class ClusteringModel(ABC):
             List of Davies-Bouldin scores for each clustering configuration.
         error: list
             Error inertia from clustering
-        save_path : str
-            Path to save the plot with scores.
-        save_path_csv : str
-            Path to save the CSV file containing scores data.
-        save_path_error : str
-            Path to save the plot with error inertia 
+        params: dict
+            Just in case we test different metrics, etc
         """
+        
+        if self.model_name == "kmeans":
+            file_path_result_plot = self.file_path_result_plot
+            file_path_result_csv = self.file_path_result_csv
+            file_path_error = self.file_path_error
+        elif self.model_name == "hdbscan":
+            param_string = "__".join([f"{key}_{value}" for key, value in params.items()])
+            file_path_result_plot = os.path.join(self.folder_results, param_string) + "_results.png"
+            file_path_result_csv = os.path.join(self.folder_results, param_string) + "_results.csv"
+            file_path_error = ""
         
          # Save making sure dir exists
         os.makedirs(os.path.dirname(self.file_path_result_plot), exist_ok=True)
@@ -161,9 +172,9 @@ class ClusteringModel(ABC):
             plt.ylabel('Scores')
             plt.legend()
             # save figure
-            plt.savefig(self.file_path_result_plot, bbox_inches='tight')
+            plt.savefig(file_path_result_plot, bbox_inches='tight')
             # save csv
-            scores.to_csv(self.file_path_result_csv, index=False)
+            scores.to_csv(file_path_result_csv, index=False)
         
         if len(error) > 1:
             # Plot error inertia
@@ -176,7 +187,7 @@ class ClusteringModel(ABC):
             plt.ylabel('error inertia')
             plt.legend()
             # save figure
-            plt.savefig(self.file_path_error, bbox_inches='tight')
+            plt.savefig(file_path_error, bbox_inches='tight')
 
 
 
