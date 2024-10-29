@@ -1,7 +1,8 @@
 import pandas as pd
+from src.clustering.clust_agglomerative import AgglomerativeClusteringModel
 from src.clustering.clustering_model import ClusteringModel
-from src.clustering.hdbscan import HDBSCANClustering
-from src.clustering.kmeans import KMeansClustering
+from src.clustering.clust_hdbscan import HDBSCANClustering
+from src.clustering.clust_kmeans import KMeansClustering
 
 
 class ClusteringFactory:
@@ -49,6 +50,8 @@ class ClusteringFactory:
             return KMeansClustering(data, **kwargs)
         elif method == "hdbscan":
             return HDBSCANClustering(data, **kwargs)
+        elif method == "agglomerative":
+            return AgglomerativeClusteringModel(data, **kwargs)
         else:
             raise ValueError(f"Unknown clustering method: {method}")
 

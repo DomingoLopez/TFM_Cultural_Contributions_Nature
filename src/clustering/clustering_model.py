@@ -98,14 +98,15 @@ class ClusteringModel(ABC):
         """
 
         # color mapping for clusters
-        cmap_bold = ListedColormap(['#FF0000', '#00FF00', '#FFFF00', '#0000FF','#FF9D0A','#00B6FF','#F200FF','#FF6100'])
+        colors = ['#FF0000', '#00FF00', '#FFFF00', '#0000FF', '#FF9D0A', '#00B6FF', '#F200FF', '#FF6100']
+        cmap_bold = ListedColormap(colors)
         # Plotting frame
         plt.figure(figsize=figs)
         # Plotting points with seaborn
-        sns.scatterplot(x=X.iloc[:, i], y=X.iloc[:, j], hue=c, palette=cmap_bold.colors, s=30)
+        sns.scatterplot(x=X.iloc[:, i], y=X.iloc[:, j], hue=c, palette=cmap_bold.colors, s=30, hue_order=sorted(set(c)))  # Ensures that -1 appears first in the legend if present)
         # Plotting centroids
         if centroids is not None:
-            sns.scatterplot(x=centroids[:, i], y=centroids[:, j], marker='D',palette=cmap_bold.colors, hue=range(centroids.shape[0]), s=100,edgecolors='black')
+            sns.scatterplot(x=centroids[:, i], y=centroids[:, j], marker='D',palette=colors[1:] if -1 in set(c) else colors[:], hue=range(centroids.shape[0]), s=100,edgecolors='black')
         # Save plot making sure dir exists
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path, bbox_inches='tight')
