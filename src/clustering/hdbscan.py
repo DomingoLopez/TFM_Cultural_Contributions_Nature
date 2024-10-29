@@ -62,9 +62,10 @@ class HDBSCANClustering(ClusteringModel):
             for min_cluster_size in range(50, 150, 5):  # Adjust range and step as needed
                 # Define model parameters
                 params = {
-                    "min_cluster_size": min_cluster_size,
-                    "min_samples": int(min_cluster_size / 2),
                     "metric": metric,
+                    "min_cluster_size": min_cluster_size,
+                    "min_samples": int(min_cluster_size / 2)
+                    
                 }
                 # Generate a unique identifier for the current parameters
                 param_string = "__".join([f"{key}_{value}" for key, value in params.items()])
