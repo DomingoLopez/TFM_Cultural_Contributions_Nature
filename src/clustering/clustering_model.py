@@ -14,6 +14,7 @@ from matplotlib.colors import ListedColormap
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import davies_bouldin_score, silhouette_score
+from sklearn.neighbors import NearestNeighbors
 
 
 class ClusteringModel(ABC):
@@ -39,20 +40,14 @@ class ClusteringModel(ABC):
         self.data = data
         self.model_name = model_name
         # Setting up directories for saving results based on model_name
+        # Theese are base directories. Every model will define their results
+        # directory tree
         timestamp = datetime.now().strftime("%d-%m-%Y-%H-%M-%S")
         base_path = Path(__file__).resolve().parent.parent / "results" / model_name / timestamp
         self.folder_run = base_path
         self.folder_plots = base_path / "plots"
         self.folder_results = base_path / "results" 
         
-        # Results path
-        error_path = "error_inertia.png"
-        self.file_path_error = os.path.join(self.folder_results, error_path)
-        csv_result_path = "results.csv"
-        self.file_path_result_csv = os.path.join(self.folder_results, csv_result_path)
-        plot_result_path = "results.png"
-        self.file_path_result_plot = os.path.join(self.folder_results, plot_result_path)
-
         # Create folders if they don't exist
         os.makedirs(self.folder_plots, exist_ok=True)
         os.makedirs(self.folder_results, exist_ok=True)
@@ -116,15 +111,15 @@ class ClusteringModel(ABC):
         plt.savefig(save_path, bbox_inches='tight')
 
 
-
-
     def save_clustering_result(
         self,
         k: list,
         score_silhouette: list,
         score_davies: list,
         error: list,
-        params: Optional[dict]
+        file_path_result_plot: str,
+        file_path_result_csv: str,
+        file_path_result_error: str
     ):
         """
         Saves clustering scores and generates a plot of the scores.
@@ -143,22 +138,19 @@ class ClusteringModel(ABC):
             List of Davies-Bouldin scores for each clustering configuration.
         error: list
             Error inertia from clustering
-        params: dict
-            Just in case we test different metrics, etc
+        file_path_result_plot: str
+            Path for saving plot 
+        file_path_result_csv: str
+            Path for saving csv with results
+        file_path_result_error: str
+            Path for saving error inertia just in case
         """
-        
-        if self.model_name == "kmeans":
-            file_path_result_plot = self.file_path_result_plot
-            file_path_result_csv = self.file_path_result_csv
-            file_path_error = self.file_path_error
-        elif self.model_name == "hdbscan":
-            param_string = "__".join([f"{key}_{value}" for key, value in params.items()])
-            file_path_result_plot = os.path.join(self.folder_results, param_string) + "_results.png"
-            file_path_result_csv = os.path.join(self.folder_results, param_string) + "_results.csv"
-            file_path_error = ""
-        
-         # Save making sure dir exists
-        os.makedirs(os.path.dirname(self.file_path_result_plot), exist_ok=True)
+                
+        # Save making sure dir exists
+        os.makedirs(os.path.dirname(file_path_result_plot), exist_ok=True)
+        os.makedirs(os.path.dirname(file_path_result_csv), exist_ok=True)
+        if len(error) > 1:
+            os.makedirs(os.path.dirname(file_path_result_error), exist_ok=True)
         
         # Plot scores
         if len(score_silhouette) > 1:
@@ -187,9 +179,65 @@ class ClusteringModel(ABC):
             plt.ylabel('error inertia')
             plt.legend()
             # save figure
-            plt.savefig(file_path_error, bbox_inches='tight')
+            plt.savefig(file_path_result_error, bbox_inches='tight')
 
 
+
+    def find_and_save_clustering_knn_points(self, n_neighbors, metric, cluster_centers, save_path ):
+        """
+        Finds the k-nearest neighbors for each centroid of clusters and saves the results in a CSV file.
+
+        This method calculates the `n_neighbors` closest points in the dataset to each centroid in 
+        `cluster_centers` using the specified `metric`. It then saves the results in a CSV file where
+        each column corresponds to a cluster (identified by its centroid), and each row lists the indices 
+        of the closest neighbors to that centroid.
+
+        Parameters
+        ----------
+        n_neighbors : int
+            Number of nearest neighbors to find for each centroid.
+
+        metric : str
+            Distance metric to use for finding neighbors (e.g., 'euclidean', 'manhattan').
+
+        cluster_centers : array-like of shape (n_clusters, n_features)
+            Coordinates of cluster centroids for which the nearest neighbors are computed.
+
+        save_path : str
+            File path where the CSV file containing nearest neighbors information will be saved.
+
+        Attributes
+        ----------
+        closest_neighbors : dict
+            Dictionary where each key is the cluster index and the value is an array of indices representing
+            the nearest neighbors for that cluster's centroid.
+
+        Side Effects
+        ------------
+        - Creates the directory specified by `save_path` if it does not already exist.
+        - Saves a CSV file containing the indices of the nearest neighbors for each cluster's centroid.
+
+        Example
+        -------
+        >>> self.find_and_save_clustering_knn_points(3, 'euclidean', cluster_centers, 'output/knn_points.csv')
+
+        """
+        closest_neighbors = {}
+        used_metric = metric if metric in ('cityblock', 'cosine','euclidean','haversine','l1','l2','manhattan','nan_euclidean') else 'euclidean'
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric=used_metric, algorithm='auto').fit(self.data)
+        for idx, centroid in enumerate(cluster_centers):
+            distances, indices = nbrs.kneighbors([centroid])
+            if idx not in closest_neighbors:
+                closest_neighbors[idx] = []
+            closest_neighbors[idx]= indices.flatten()
+            
+        # check dir exists
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        # Transform to df and save to csv
+        knn_data = {f"Cluster_{idx}": neighbors for idx, neighbors in closest_neighbors.items()}
+        df_closest_neighbors = pd.DataFrame(knn_data)
+        df_closest_neighbors.to_csv(save_path, index=False)
+                                  
 
     def do_PCA_for_representation(self, df, centers):
         """
