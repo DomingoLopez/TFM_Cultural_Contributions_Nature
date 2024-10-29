@@ -83,17 +83,6 @@ class HDBSCANClustering(ClusteringModel):
                 n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
                 k_.append(n_clusters)
                 
-                # Find the 3 nearest neighbors for each centroid and save it in file
-                super().find_and_save_clustering_knn_points(
-                    n_neighbors=3, 
-                    metric=params.get("metric", "euclidean"),
-                    cluster_centers=kmeans.cluster_centers_,
-                    save_path = os.path.join(self.folder_plots, f"n_clusters_{k}/knn_points/points.csv")
-                )
-                
-                
-
-
                 # CALCULATE RESULT DIRS (PLOTTING)
                 file_path_plot = os.path.join(self.folder_plots, f"metric_{metric}/min_cluster_size_{min_cluster_size}/n_clusters_{n_clusters}/plot.png")
 
@@ -113,6 +102,15 @@ class HDBSCANClustering(ClusteringModel):
 
                     if centers:
                         centers = np.array(centers)
+                        
+                        # Find the 3 nearest neighbors for each centroid and save it in file
+                        super().find_and_save_clustering_knn_points(
+                            n_neighbors=3, 
+                            metric=params.get("metric", "euclidean"),
+                            cluster_centers=centers,
+                            save_path = os.path.join(self.folder_plots, f"metric_{metric}/min_cluster_size_{min_cluster_size}/n_clusters_{n_clusters}/knn_points/points.csv")
+                        )
+
                         pca_df, pca_centers = super().do_PCA_for_representation(self.data, centers)
                         super().save_clustering_plot(pca_df, labels, pca_centers, i=0, j=1, save_path=file_path_plot)
                     
