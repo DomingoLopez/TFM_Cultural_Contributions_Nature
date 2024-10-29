@@ -52,7 +52,7 @@ class KMeansClustering(ClusteringModel):
             List of cluster values tested.
         silhouette_coefficients : list
             List of silhouette scores for each k.
-        davies_boulding_coefficients : list
+        davies_bouldin_coefficients : list
             List of Davies-Bouldin scores for each k.
         
         Side Effects
@@ -65,11 +65,11 @@ class KMeansClustering(ClusteringModel):
         error = []
         k_ = []
         silhouette_coefficients = []
-        davies_boulding_coefficients = []
+        davies_bouldin_coefficients = []
 
         # TODO: We could try different metrics too
         # Perform clustering for each k
-        for k in np.arange(2, 10):
+        for k in range(2, 10):
             # Define params
             params = {
                 "n_clusters": k,
@@ -77,31 +77,50 @@ class KMeansClustering(ClusteringModel):
                 "init": "k-means++",
                 "random_state": 1234
             }
-            # Define file paths for saving plots and results
-            param_string = "__".join([f"{key}_{value}" for key, value in params.items()])
-            file_path_plot = os.path.join(self.folder_plots, param_string) + ".png"
-
             # Run KMeans
             kmeans = KMeans(**params).fit(self.data)
             error.append(kmeans.inertia_)
             
+            # Find the 3 nearest neighbors for each centroid and save it in file
+            super().find_and_save_clustering_knn_points(
+                n_neighbors=3, 
+                metric=params.get("metric", "euclidean"),
+                cluster_centers=kmeans.cluster_centers_,
+                save_path = os.path.join(self.folder_plots, f"n_clusters_{k}/knn_points/points.csv")
+            )
+                
+            # CALCULATE RESULT DIRS (PLOTTING + KNN CENTROIDS)
+            file_path_plot = os.path.join(self.folder_plots, f"n_clusters_{k}/plot.png")
+            
             # REPRESENTATION
             pca_df, pca_centers = super().do_PCA_for_representation(self.data, kmeans.cluster_centers_)
             super().save_clustering_plot(pca_df, kmeans.labels_, pca_centers, i=0, j=1, save_path=file_path_plot)
+            
 
             # SCORERS
             score_silhouette = silhouette_score(self.data, kmeans.labels_)
             score_davies = davies_bouldin_score(self.data, kmeans.labels_)
             silhouette_coefficients.append(score_silhouette)
-            davies_boulding_coefficients.append(score_davies)
+            davies_bouldin_coefficients.append(score_davies)
             k_.append(k)
+
+
+        # CALCULATE RESULT DIRS (RESULTS)
+        file_path_result_csv = os.path.join(self.folder_results, f"result.csv")
+        file_path_result_plot = os.path.join(self.folder_results, f"result.png")
+        file_path_result_error = os.path.join(self.folder_results, f"errors.png")
+        
 
         # Save the scores and generate plots
         super().save_clustering_result(
             k_, 
             silhouette_coefficients, 
-            davies_boulding_coefficients, 
-            error
+            davies_bouldin_coefficients, 
+            error,
+            # paths
+            file_path_result_plot,
+            file_path_result_csv,
+            file_path_result_error
         )
 
 
