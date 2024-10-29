@@ -67,6 +67,7 @@ class KMeansClustering(ClusteringModel):
         silhouette_coefficients = []
         davies_boulding_coefficients = []
 
+        # TODO: We could try different metrics too
         # Perform clustering for each k
         for k in np.arange(2, 10):
             # Define params
