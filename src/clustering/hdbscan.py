@@ -58,7 +58,8 @@ class HDBSCANClustering(ClusteringModel):
             # Get results for every metric
             k_ = []
             silhouette_coefficients = []
-            davies_boulding_coefficients = []
+            davies_bouldin_coefficients = []
+            
             for min_cluster_size in range(50, 150, 5):  # Adjust range and step as needed
                 # Define model parameters
                 params = {
@@ -67,16 +68,12 @@ class HDBSCANClustering(ClusteringModel):
                     "min_samples": int(min_cluster_size / 2)
                     
                 }
-                # Generate a unique identifier for the current parameters
-                param_string = "__".join([f"{key}_{value}" for key, value in params.items()])
-                file_path_plot = os.path.join(self.folder_plots, param_string) + ".png"
-
+                
                 if metric == "mahalanobis":
                     cov_matrix = np.cov(self.data.values, rowvar=False)
                     VI = np.linalg.inv(cov_matrix)
                     params["VI"] = VI
                 
-
                 # Run HDBSCAN
                 hdbscan_model = hdbscan.HDBSCAN(**params).fit(self.data)
                 labels = hdbscan_model.labels_
@@ -85,6 +82,20 @@ class HDBSCANClustering(ClusteringModel):
                 # TODO: Trye Not excluding noise and compare
                 n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
                 k_.append(n_clusters)
+                
+                # Find the 3 nearest neighbors for each centroid and save it in file
+                super().find_and_save_clustering_knn_points(
+                    n_neighbors=3, 
+                    metric=params.get("metric", "euclidean"),
+                    cluster_centers=kmeans.cluster_centers_,
+                    save_path = os.path.join(self.folder_plots, f"n_clusters_{k}/knn_points/points.csv")
+                )
+                
+                
+
+
+                # CALCULATE RESULT DIRS (PLOTTING)
+                file_path_plot = os.path.join(self.folder_plots, f"metric_{metric}/min_cluster_size_{min_cluster_size}/n_clusters_{n_clusters}/plot.png")
 
                 # REPRESENTATION
                 if n_clusters > 0:
@@ -109,16 +120,26 @@ class HDBSCANClustering(ClusteringModel):
                     score_silhouette = silhouette_score(self.data, labels) if n_clusters > 1 else 0
                     score_davies = davies_bouldin_score(self.data, labels) if n_clusters > 1 else 99
                     silhouette_coefficients.append(score_silhouette)
-                    davies_boulding_coefficients.append(score_davies)
+                    davies_bouldin_coefficients.append(score_davies)
                 else:
                     # Handle cases where no clusters are found
                     silhouette_coefficients.append(0)
-                    davies_boulding_coefficients.append(99)
+                    davies_bouldin_coefficients.append(99)
+            
+            # CALCULATE RESULT DIRS (RESULTS)
+            file_path_result_csv = os.path.join(self.folder_results, f"metric_{metric}/min_cluster_size_{min_cluster_size}/result.csv")
+            file_path_result_plot = os.path.join(self.folder_results, f"metric_{metric}/min_cluster_size_{min_cluster_size}/result.png")
 
             # Save the scores and generate plots
             super().save_clustering_result(
-                k_, silhouette_coefficients, davies_boulding_coefficients, [],
-                params
+                k_, 
+                silhouette_coefficients, 
+                davies_bouldin_coefficients, 
+                [],
+                # paths
+                file_path_result_plot,
+                file_path_result_csv,
+                ""
             )
 
 
