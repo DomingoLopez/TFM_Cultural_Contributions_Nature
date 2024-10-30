@@ -23,11 +23,23 @@ if __name__ == "__main__":
     # TODO: NORMALIZAR EN EL EDA
     # Create Eda object and apply or not dim reduction
     eda = EDA(embeddings=embeddings, verbose=False)
-    embeddings_after_dimred = eda.run_eda(dimensions=3, dim_reduction = 'umap', show_plots=False)
-    # Create clustering factory and kmeans
-    # TODO: Here we could pass a eda object to Clustering creation, so it would know how many dimensiones
-    # do we have and put that in another subfolder with results, or even add that to path name of results.
-    clustering_model = ClusteringFactory.create_clustering_model("agglomerative", embeddings_after_dimred)
-    # Run Clustering
-    study = clustering_model.run_optuna(evaluation_method="silhouette", n_trials=500)
-    print("Clustering complete. Results available in results/modelname/timestamp")
+    
+    results = []
+    for i in range(3,20):
+        embeddings_after_dimred = eda.run_dim_red(dimensions=i, dim_reduction = 'umap', show_plots=False)
+        clustering_model = ClusteringFactory.create_clustering_model("agglomerative", embeddings_after_dimred)
+        study = clustering_model.run_optuna(evaluation_method="silhouette", n_trials=500)
+        print(study)
+        results.append((i, study.best_params, study.best_value))
+        
+        
+    # # Create clustering factory and kmeans
+    # # TODO: Here we could pass a eda object to Clustering creation, so it would know how many dimensiones
+    # # do we have and put that in another subfolder with results, or even add that to path name of results.
+    # clustering_model = ClusteringFactory.create_clustering_model("agglomerative", embeddings_after_dimred)
+    # # Run Clustering
+    # study = clustering_model.run_optuna(evaluation_method="silhouette", n_trials=500)
+    # # print("Clustering complete. Results available in results/modelname/timestamp")
+    
+    print(results)
+    

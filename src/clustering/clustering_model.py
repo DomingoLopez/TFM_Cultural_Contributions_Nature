@@ -79,6 +79,7 @@ class ClusteringModel(ABC):
         """
         # Create study with obj function, direction and n_trials
         study = optuna.create_study(direction=direction)
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
         study.optimize(objective_function, n_trials=n_trials)
 
         # Best params
