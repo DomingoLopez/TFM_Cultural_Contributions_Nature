@@ -73,7 +73,7 @@ if __name__ == "__main__":
     # value of its metric (davies or silhouette)
     # For now, we could take best result
     best_experiment = results_df.loc[results_df['best_value'].idxmin()]
-    
+    clustering_model.run_single_experiment()
     
 
         
