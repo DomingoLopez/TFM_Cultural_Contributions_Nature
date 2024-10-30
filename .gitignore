@@ -4,7 +4,8 @@ data/test
 
 /src/results
 *.csv
-
+/trash
+trash
 
 # Ignore tmp from CVAE
 temp/
