@@ -1,4 +1,7 @@
+import os
+from pathlib import Path
 import pandas as pd
+import pickle
 
 from src.clustering.clustering_factory import ClusteringFactory
 from src.utils.image_loader import ImageLoader
@@ -14,39 +17,63 @@ if __name__ == "__main__":
     # Loading images and getting embeddings
     dinomodel = Dinov2Inference(model_name="small", images=images)
     embeddings = dinomodel.run()
-
     # Create Eda object and apply or not dim reduction
     eda = EDA(embeddings=embeddings, verbose=False)
-    #embeddings_scaled = eda.run_scaler()
-    
+
+    # ##############################################################
+    # BIG STUDY
+    # ##############################################################
     scalers = ["standard","minmax","robust","maxabs"]
+    dim_red = "umap"
+    clustering = "hdbscan"
+    eval_method = "davies_bouldin"
+    result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results/{clustering}_{eval_method}"
+    os.makedirs(result_dir_cache_path, exist_ok=True)
+    result_file_cache_path = Path(__file__).resolve().parent / result_dir_cache_path / "result.pkl"
     results = []
-    for scaler in scalers:
-        embeddings_scaled = eda.run_scaler(scaler)
-        for dim in range(3, 15):
-            embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction='umap', show_plots=False)
-            clustering_model = ClusteringFactory.create_clustering_model("hdbscan", embeddings_after_dimred)
-            
-            # Ejecuta Optuna y almacena el estudio
-            study = clustering_model.run_optuna(evaluation_method="davies_bouldin", n_trials=100)
-            
-            # Accede al número de clústeres en el mejor ensayo
-            best_trial = study.best_trial
-            n_clusters_best = best_trial.user_attrs.get("n_clusters", None)  # Extrae el número de clústeres
+    # If file with results doesnt exists
+    if not os.path.isfile(result_file_cache_path):
+        for scaler in scalers:
+            embeddings_scaled = eda.run_scaler(scaler)
+            for dim in range(3, 15):
+                embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=dim_red, show_plots=False)
+                clustering_model = ClusteringFactory.create_clustering_model(clustering, embeddings_after_dimred)
+                # Execute optuna
+                study = clustering_model.run_optuna(evaluation_method=eval_method, n_trials=10)
+                # Access best trial n_cluster
+                best_trial = study.best_trial
+                n_clusters_best = best_trial.user_attrs.get("n_clusters", None)  # Extrae el número de clústeres
+                # Store results
+                results.append({
+                    "scaler": scaler,
+                    "dimension": dim,
+                    "n_clusters": n_clusters_best,
+                    "best_params": str(study.best_params),
+                    "best_value": study.best_value
+                })
 
-            # Almacena resultados
-            results.append({
-                "scaler": scaler,
-                "dimension": dim,
-                "n_clusters": n_clusters_best,
-                "best_params": str(study.best_params),
-                "best_value": study.best_value
-            })
+        # Store results as dataframe 
+        results_df = pd.DataFrame(results)
+        # Save study in cache.
+        results_cache_path = ""
+        pickle.dump(
+            results_df,
+            open(str(result_file_cache_path), "wb"),
+        )
+    else:
+        try:
+            results_df = pickle.load(
+                open(str(result_file_cache_path), "rb")
+            )
+        except:
+            FileNotFoundError("Couldnt find provided file with results from experiments. Please, ensure that file exists.")
 
-    # Convierte resultados en DataFrame y guarda en CSV
-    results_df = pd.DataFrame(results)
-    print(results_df)
-    results_df.to_csv("resultado.csv", sep=";")
+    # With results we can make final experiment with desired params
+    # For example give me experiment where it got 4 clusters with best
+    # value of its metric (davies or silhouette)
+    # For now, we could take best result
+
+    
         
     # # Create clustering factory and kmeans
     # # TODO: Here we could pass a eda object to Clustering creation, so it would know how many dimensiones

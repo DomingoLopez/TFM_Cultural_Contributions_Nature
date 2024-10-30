@@ -1,6 +1,7 @@
 import optuna
 from datetime import datetime
 import os
+import pickle
 from pathlib import Path
 from tqdm import tqdm
 import seaborn as sns
@@ -107,6 +108,7 @@ class ClusteringModel(ABC):
         
         # Execute optuna optimization with tqdm
         pbar = tqdm(total=n_trials, desc="Optuna Optimization")
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
         study = optuna.create_study(direction=direction)
         study.optimize(objective, n_trials=n_trials, callbacks=[lambda study, trial: pbar.update(1)])
         pbar.close()

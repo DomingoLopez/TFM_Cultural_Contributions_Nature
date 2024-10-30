@@ -109,7 +109,7 @@ class EDA:
         """
         PCA Dim reduction. 
         """
-        logger.info("Using PCA Dim. reduction...")
+        logger.info(f"Using PCA Dim. reduction. {dimensions=}")
         pca = PCA(n_components=dimensions)
         pca_result = pca.fit_transform(embeddings_df.values)
         pca_df = pd.DataFrame(data=pca_result)
@@ -135,7 +135,7 @@ class EDA:
         UMAP Dim reduction. 
         More info in https://umap-learn.readthedocs.io/en/latest/
         """
-        logger.info("Using UMAP Dim. reduction")
+        logger.info(f"Using UMAP Dim. reduction. {dimensions=}")
         reducer = umap.UMAP(n_components=dimensions)
         umap_result = reducer.fit_transform(embeddings_df.values)
         umap_df = pd.DataFrame(data=umap_result)
@@ -158,7 +158,7 @@ class EDA:
         cd CompressionVAE
         pip install -e .
         """
-        logger.info("Using CVAE Dim. reduction")
+        logger.info(f"Using CVAE Dim. reduction: {dimensions=}")
         # 1: Obtain array of embeddings
         X = embeddings_df.values
         # 2: Initialize cvae model with selected dimensions
