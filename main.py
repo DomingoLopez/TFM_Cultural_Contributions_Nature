@@ -28,20 +28,30 @@ if __name__ == "__main__":
     results = []
     for scaler in scalers:
         embeddings_scaled = eda.run_scaler(scaler)
-        for dim in range(3,15):
-            embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction = 'umap', show_plots=False)
-            clustering_model = ClusteringFactory.create_clustering_model("kmeans", embeddings_after_dimred)
+        for dim in range(3, 15):
+            embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction='umap', show_plots=False)
+            clustering_model = ClusteringFactory.create_clustering_model("hdbscan", embeddings_after_dimred)
+            
+            # Ejecuta Optuna y almacena el estudio
             study = clustering_model.run_optuna(evaluation_method="silhouette", n_trials=100)
+            
+            # Accede al número de clústeres en el mejor ensayo
+            best_trial = study.best_trial
+            n_clusters_best = best_trial.user_attrs.get("n_clusters", None)  # Extrae el número de clústeres
+
+            # Almacena resultados
             results.append({
-            "scaler": scaler,
-            "dimension": dim,
-            "best_params": str(study.best_params),  
-            "best_value": study.best_value          
-        })
-        
+                "scaler": scaler,
+                "dimension": dim,
+                "n_clusters": n_clusters_best,
+                "best_params": str(study.best_params),
+                "best_value": study.best_value
+            })
+
+    # Convierte resultados en DataFrame y guarda en CSV
     results_df = pd.DataFrame(results)
     print(results_df)
-    results_df.to_csv("resultado.csv",sep=";")
+    results_df.to_csv("resultado.csv", sep=";")
         
     # # Create clustering factory and kmeans
     # # TODO: Here we could pass a eda object to Clustering creation, so it would know how many dimensiones

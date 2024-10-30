@@ -1,5 +1,5 @@
 from datetime import datetime
-#import hdbscan
+import hdbscan
 import optuna
 import os
 from pathlib import Path
@@ -54,7 +54,7 @@ class HDBSCANClustering(ClusteringModel):
             # Hyperparams suggestions
             min_cluster_size = trial.suggest_int('min_cluster_size', 50, 150)
             min_samples = trial.suggest_int('min_samples', 25, 75)
-            cluster_selection_epsilon = trial.suggest_loguniform('cluster_selection_epsilon', 0.01, 1.0)
+            cluster_selection_epsilon = trial.suggest_float('cluster_selection_epsilon', 0.01, 1.0, log=True)
             alpha = trial.suggest_float('alpha', 0.5, 2.0)
             metric = trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'chebyshev'])
             cluster_selection_method = trial.suggest_categorical('cluster_selection_method', ['eom', 'leaf'])
@@ -74,22 +74,29 @@ class HDBSCANClustering(ClusteringModel):
             # Train and predict labels
             labels = model.fit_predict(self.data)
 
+            # Calculate number of clusters (excluding noise)
+            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+            trial.set_user_attr("n_clusters", n_clusters)  # Store the number of clusters
+
             # Eval model
-            if len(set(labels)) > 1:  
+            if n_clusters > 1:  
                 if evaluation_method == "silhouette":
                     score = silhouette_score(self.data[labels != -1], labels[labels != -1])
                 elif evaluation_method == "davies_bouldin":
-                    score = -davies_bouldin_score(self.data[labels != -1], labels[labels != -1])  # Negative, cause dbindex better when lower
+                    score = -davies_bouldin_score(self.data[labels != -1], labels[labels != -1])  # Negative for maximization
                 else:
-                    raise ValueError("Método de evaluación no soportado. Usa 'silhouette' o 'davies_bouldin'.")
+                    raise ValueError("Evaluation method not supported. Use 'silhouette' or 'davies_bouldin' instead.")
             else:
-                score = -1  # Penalty in case of obtaining no clusters or noise
+                score = -1  
 
             return score
 
-        # Llamar al método de la clase padre usando super()
-        study = super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")
+        # Call the parent method to run Optuna with the defined objective function
+        study = super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")      
         return study
+
+
+
 
     def run_basic_experiment(self):
         """
