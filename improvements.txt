@@ -7,7 +7,8 @@ TODO:
 
 
 
-
+TOP DOWN - No hay implementación en sklearn.
+Podríamos hacerle a mano si hiciera falta. 
 
 
 
