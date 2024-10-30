@@ -1,4 +1,15 @@
-ESCALAR LOS EMBBEDINGS ANTES DE APLICAR EL CLUSTERING - ESENCIAL
+TODO:
+- Optuna con Davies bouldin
+- GridSearch También. 
+- Después de GridSearch, hacer que se puede ejecutar un modelo con dichos hyperparámetros que serán los mejores.
+- Después representación de ese mejor modelo, 
+- Poder sacar en imágenes los puntos dados, por ejemplo tras obtener los knn puntos de los centroides
+
+
+
+
+
+
 
 Rutas de directorios con los resultados.
     - Cada tipo de cluster debe tener su árbol de rutas en función de las métricas que vamos a utilizar
