@@ -34,7 +34,7 @@ class KMeansClustering(ClusteringModel):
         super().__init__(data, model_name="kmeans")
         
         
-    def run_optuna(self, evaluation_method: str = "silhouette", n_trials: int = 50):
+    def run_optuna(self, evaluation_method: str = "silhouette", n_trials: int = 50,penalty: str="linear", penalty_range: tuple =(2,8)):
         """
         Run Optuna optimization for the KMeans clustering model with a specified evaluation method.
 
@@ -87,7 +87,7 @@ class KMeansClustering(ClusteringModel):
             )
 
         # Call the generic Optuna optimization method
-        return self.run_optuna_generic(model_builder, evaluation_method, n_trials)
+        return self.run_optuna_generic(model_builder, evaluation_method, n_trials,penalty, penalty_range)
         
         
 

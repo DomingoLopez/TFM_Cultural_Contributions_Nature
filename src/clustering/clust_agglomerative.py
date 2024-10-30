@@ -36,7 +36,7 @@ class AgglomerativeClusteringModel(ClusteringModel):
   
     
     
-    def run_optuna(self, evaluation_method="silhouette", n_trials=50):
+    def run_optuna(self, evaluation_method="silhouette", n_trials=50,penalty: str="linear", penalty_range: tuple =(2,8)):
         """
         Run Optuna optimization for the Agglomerative Clustering model with a specified evaluation method.
 
@@ -81,7 +81,7 @@ class AgglomerativeClusteringModel(ClusteringModel):
             )
 
          # Call generic class method
-        return self.run_optuna_generic(model_builder, evaluation_method, n_trials)
+        return self.run_optuna_generic(model_builder, evaluation_method, n_trials, penalty, penalty_range)
         
 
     def run_basic_experiment(self):

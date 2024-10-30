@@ -68,9 +68,9 @@ class ClusteringModel(ABC):
         pass
     
     
-    def run_optuna_generic(self, model_builder, evaluation_method="silhouette", n_trials=50):
+    def run_optuna_generic(self, model_builder, evaluation_method="silhouette", n_trials=50, penalty="linear", penalty_range=(2,8)):
         """
-        Generic Optuna optimization for clustering models.
+        Generic Optuna optimization for clustering models with configurable penalty types.
 
         Parameters
         ----------
@@ -80,33 +80,78 @@ class ClusteringModel(ABC):
             The evaluation metric to optimize ('silhouette' or 'davies_bouldin').
         n_trials : int
             The number of trials for Optuna. Default is 50.
+        penalty : str, optional
+            The type of penalty to apply based on `n_clusters`. Options are:
+            - "linear": Linear penalty based on `n_clusters`.
+            - "proportional": Proportional penalty inversely related to `n_clusters`.
+            - "range": Proportional penalty only when `n_clusters` is outside a specified range.
         """
-        # Objetive function
+        
+        # Define acceptable range for "range" penalty type
+        if penalty_range is not None and penalty == "range":
+            min_clusters, max_clusters = penalty_range
+        
+        # Objective function
         def objective(trial):
-            # model builder 
+            # Build the model with suggested hyperparameters
             model = model_builder(trial)
-            # Fit predict
+            
+            # Fit and predict
             labels = model.fit_predict(self.data)
-            # Get number of clusters (-1 nosie)
+            
+            # Get number of clusters (excluding noise)
             n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
             trial.set_user_attr("n_clusters", n_clusters)
-            # Model eval
+            
+            # Evaluate model
             if n_clusters > 1:
+                # Calculate the original score without penalty
                 if evaluation_method == "silhouette":
-                    score = silhouette_score(self.data[labels != -1], labels[labels != -1])
+                    score_original = silhouette_score(self.data[labels != -1], labels[labels != -1])
                 elif evaluation_method == "davies_bouldin":
-                    score = davies_bouldin_score(self.data[labels != -1], labels[labels != -1])
+                    score_original = davies_bouldin_score(self.data[labels != -1], labels[labels != -1])
                 else:
-                    raise ValueError("Evaluation method not supported.Use 'silhouette' or 'davies_bouldin instead'.")
+                    raise ValueError("Evaluation method not supported. Use 'silhouette' or 'davies_bouldin' instead.")
+
+                # Apply the selected penalty type
+                if penalty == "linear":
+                    # Linear penalty: subtract or add 0.1 * n_clusters
+                    adjustment = 0.1 * n_clusters
+                    score_penalized = score_original - adjustment if evaluation_method == "silhouette" else score_original + adjustment
+
+                elif penalty == "proportional":
+                    # Proportional penalty: multiply by a factor based on n_clusters
+                    penalty_factor = 1 - (1 / n_clusters) if evaluation_method == "silhouette" else 1 + (1 / n_clusters)
+                    score_penalized = score_original * penalty_factor
+
+                elif penalty == "range":
+                    # Range-based penalty: penalize if n_clusters is outside [min_clusters, max_clusters]
+                    if n_clusters < min_clusters:
+                        adjustment = 0.1 * (min_clusters - n_clusters)
+                        score_penalized = score_original - adjustment if evaluation_method == "silhouette" else score_original + adjustment
+                    elif n_clusters > max_clusters:
+                        adjustment = 0.1 * (n_clusters - max_clusters)
+                        score_penalized = score_original - adjustment if evaluation_method == "silhouette" else score_original + adjustment
+                    else:
+                        score_penalized = score_original  # No penalty if within range
+
+                else:
+                    raise ValueError("Penalty type not supported. Use 'linear', 'proportional', or 'range'.")
+                    
             else:
-                score = -1
+                # Penalize single/no cluster cases
+                score_original = -1 if evaluation_method == "silhouette" else float('inf')
+                score_penalized = score_original
 
-            return score
+            # Log the original score for later reference
+            trial.set_user_attr("score_original", score_original)
+            
+            return score_penalized
 
-        # Direction of optimization 
+        # Set optimization direction
         direction = "maximize" if evaluation_method == "silhouette" else "minimize"
         
-        # Execute optuna optimization with tqdm
+        # Execute Optuna optimization with tqdm
         pbar = tqdm(total=n_trials, desc="Optuna Optimization")
         optuna.logging.set_verbosity(optuna.logging.WARNING)
         study = optuna.create_study(direction=direction)
@@ -114,6 +159,7 @@ class ClusteringModel(ABC):
         pbar.close()
 
         return study
+
     
 
     def save_clustering_plot(

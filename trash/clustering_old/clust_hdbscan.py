@@ -39,7 +39,7 @@ class HDBSCANClustering(ClusteringModel):
 
 
 
-    def run_optuna(self, evaluation_method="silhouette", n_trials=50):
+    def run_optuna(self, evaluation_method="silhouette", n_trials=50, penalty="linear", penalty_range=(2,8)):
         """
         Run Optuna optimization for the HDBSCAN clustering model with a specified evaluation method.
 
@@ -82,7 +82,7 @@ class HDBSCANClustering(ClusteringModel):
                 gen_min_span_tree=trial.suggest_categorical('gen_min_span_tree', [True, False])
             )
         # Call generic class method
-        return self.run_optuna_generic(model_builder, evaluation_method, n_trials)
+        return self.run_optuna_generic(model_builder, evaluation_method, n_trials, penalty, penalty_range)
         
 
 
