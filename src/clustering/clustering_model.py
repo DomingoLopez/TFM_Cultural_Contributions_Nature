@@ -1,3 +1,4 @@
+import optuna
 from datetime import datetime
 import os
 from pathlib import Path
@@ -28,7 +29,8 @@ class ClusteringModel(ABC):
 
     def __init__(self, 
                  data: pd.DataFrame,
-                 model_name: str):
+                 model_name: str,
+                 params: Optional[dict] = {}):
         """
         Initialize the clustering model with data.
 
@@ -53,15 +55,42 @@ class ClusteringModel(ABC):
         os.makedirs(self.folder_results, exist_ok=True)
 
     @abstractmethod
-    def run(self):
+    def run_basic_experiment(self):
         """
-        Run the clustering experiment.
-
-        This method should be implemented by subclasses to perform specific clustering
-        operations on the dataset provided at initialization. It defines the main 
-        execution flow of the clustering.
+        Run the clustering experiment for some default params given in each implementation.
+        This method is just to run some experiments in order to see the problem from different
+        points of view and as a way to improve incoming  implementations.
         """
         pass
+    
+    
+    def optimize_with_optuna(self, objective_function, n_trials=50, direction='maximize'):
+        """
+        Runs an Optuna optimization study on the clustering model using a provided objective function.
+
+        Parameters
+        ----------
+        objective_function : Callable
+            The function to optimize, provided by the child class.
+        n_trials : int
+            The number of trials for Optuna. Default is 50.
+        direction : str
+            Optimization direction, either 'maximize' or 'minimize'.
+        """
+        # Create study with obj function, direction and n_trials
+        study = optuna.create_study(direction=direction)
+        study.optimize(objective_function, n_trials=n_trials)
+
+        # Best params
+        self.best_params = study.best_params
+        self.best_score = study.best_value
+
+        # Mostrar resultados
+        print("Best hyperparams:", self.best_params)
+        print("Best Score:", self.best_score)
+
+        return study  
+    
 
     def save_clustering_plot(
         self,

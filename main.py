@@ -29,5 +29,5 @@ if __name__ == "__main__":
     # do we have and put that in another subfolder with results, or even add that to path name of results.
     clustering_model = ClusteringFactory.create_clustering_model("agglomerative", embeddings_after_dimred)
     # Run Clustering
-    clustering_model.run()
+    study = clustering_model.run_optuna(evaluation_method="silhouette", n_trials=500)
     print("Clustering complete. Results available in results/modelname/timestamp")
