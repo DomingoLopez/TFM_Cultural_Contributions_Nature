@@ -144,11 +144,10 @@ class EDA:
 
 
 
-    def run_eda(self, dimensions=2, show_plots=True, dim_reduction ="cvae"):
+    def run_dim_red(self, dimensions=2, show_plots=True, dim_reduction ="cvae"):
         """
         Execute eda, including plots if selected and other stuff
         """
-        self.__simple_eda(show_plots)
         embeddings_df = None
         # Apply dim reduction if chosen
         if dim_reduction is not None:

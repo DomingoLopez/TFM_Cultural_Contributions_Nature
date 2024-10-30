@@ -80,7 +80,8 @@ class KMeansClustering(ClusteringModel):
             return score
 
         # Call the parent method to run Optuna with the defined objective function
-        super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")
+        study = super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")
+        return study
         
         
 

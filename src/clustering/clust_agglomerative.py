@@ -82,8 +82,8 @@ class AgglomerativeClusteringModel(ClusteringModel):
             return score
 
         # Call the parent method to run Optuna with the defined objective function
-        super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")      
-        
+        study = super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")      
+        return study
         
 
     def run_basic_experiment(self):

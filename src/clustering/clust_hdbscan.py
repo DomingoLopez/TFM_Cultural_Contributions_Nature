@@ -88,8 +88,8 @@ class HDBSCANClustering(ClusteringModel):
             return score
 
         # Llamar al método de la clase padre usando super()
-        super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")
-        
+        study = super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")
+        return study
 
     def run_basic_experiment(self):
         """
