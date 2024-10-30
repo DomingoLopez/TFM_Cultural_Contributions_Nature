@@ -15,7 +15,7 @@ from src.eda.eda import EDA
 if __name__ == "__main__":
     # Finding images
     # image_loader = ImageLoader(folder="./data/Small_Data")
-    image_loader = ImageLoader(folder="./data/Data")
+    image_loader = ImageLoader(folder="./data/Small_Data")
     images = image_loader.find_images()
     # Loading images and getting embeddings
     dinomodel = Dinov2Inference(model_name="small", images=images)
@@ -31,11 +31,11 @@ if __name__ == "__main__":
     scalers = ["standard","minmax","robust","maxabs"]
     dim_red = "umap"
     clustering = "hdbscan"
-    eval_method = "silhouette"
-    penalty = "range"
-    penalty_range = (2,8)
+    eval_method = "davies_bouldin"
+    penalty = "proportional" # linear
+    penalty_range = (4,8)
     cache = False
-    result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results/{clustering}_{eval_method}_images_{len(images)}"
+    result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results/{clustering}_{eval_method}_penalty_{penalty}_images_{len(images)}"
     os.makedirs(result_dir_cache_path, exist_ok=True)
     result_file_cache_path = Path(__file__).resolve().parent / result_dir_cache_path / "result.pkl"
     result_file_cache_path_csv = Path(__file__).resolve().parent / result_dir_cache_path / "result.csv"
