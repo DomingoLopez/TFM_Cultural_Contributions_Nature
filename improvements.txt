@@ -1,9 +1,8 @@
-TODO:
-- Optuna con Davies bouldin
-- GridSearch También. 
-- Después de GridSearch, hacer que se puede ejecutar un modelo con dichos hyperparámetros que serán los mejores.
-- Después representación de ese mejor modelo, 
-- Poder sacar en imágenes los puntos dados, por ejemplo tras obtener los knn puntos de los centroides
+Siguientes pasos:
+    - Con los resultados de optuna, coger el que menor value tenga (para davies) o mayor para silhouette_coefficients
+    - Con esos hacer un experimento simple y representar el plot, coger los knn más cercanos, etc. 
+    - Y guardar todo eso. No almacenar fechas ni nada. Solo nombre del algoritmo y resultados con optuna. 
+    - Con las tres imágenes de cada centroide, que salgan en pantalla con el cluster arriba. 
 
 
 

@@ -36,54 +36,52 @@ class AgglomerativeClusteringModel(ClusteringModel):
   
     
     
-    def run_optuna(self, evaluation_method: str = "silhouette", n_trials: int = 50):
+    def run_optuna(self, evaluation_method="silhouette", n_trials=50):
         """
-        Run Optuna optimization for Agglomerative Clustering with a specified evaluation method.
+        Run Optuna optimization for the Agglomerative Clustering model with a specified evaluation method.
 
+        This method sets up and executes an Optuna hyperparameter optimization for the Agglomerative 
+        Clustering algorithm. It defines the range of hyperparameters specific to Agglomerative Clustering, 
+        including `n_clusters`, `linkage`, and `metric`. The optimization process seeks to maximize the 
+        silhouette score or minimize the Davies-Bouldin score, depending on the selected `evaluation_method`.
+        
         Parameters
         ----------
-        evaluation_method : str
-            The evaluation metric to optimize ('silhouette' or 'davies_bouldin').
-        n_trials : int
-            The number of trials for Optuna. Default is 50.
-        """
+        evaluation_method : str, optional
+            The evaluation metric to optimize. It can be either 'silhouette' (to maximize the silhouette score) 
+            or 'davies_bouldin' (to minimize the Davies-Bouldin score). Defaults to "silhouette".
+        n_trials : int, optional
+            The number of optimization trials to run. Defaults to 50.
 
-        # Define the objective function for Optuna
-        def objective(trial):
-            # Suggest hyperparameters
+        Returns
+        -------
+        optuna.study.Study
+            The Optuna study object containing details of the optimization process, including the best 
+            hyperparameters found and associated evaluation score.
+        
+        Notes
+        -----
+        - This method calls the generic `run_optuna_generic` method from the base class `ClusteringModel`, 
+        which manages the Optuna optimization process and the model evaluation.
+        - `model_builder` is a nested function that constructs an Agglomerative Clustering model using 
+        hyperparameters suggested by each Optuna trial. Note that if `linkage` is set to 'ward', 
+        the `metric` is automatically set to 'euclidean' as required by the Agglomerative Clustering algorithm.
+        """
+         # Param/model builder for Agglomerative
+        def model_builder(trial):
             n_clusters = trial.suggest_int('n_clusters', 2, 10)
             linkage = trial.suggest_categorical('linkage', ['ward', 'complete', 'average', 'single'])
             metric = trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'cosine'])
-
-            # Ensure 'ward' linkage only uses 'euclidean' metric
             custom_metric = metric if linkage != "ward" else "euclidean"
             
-            # Create AgglomerativeClustering model with suggested hyperparameters
-            model = AgglomerativeClustering(
+            return AgglomerativeClustering(
                 n_clusters=n_clusters,
                 linkage=linkage,
                 metric=custom_metric
             )
 
-            # Train and predict labels
-            labels = model.fit_predict(self.data)
-
-            # Evaluate model
-            if len(set(labels)) > 1:
-                if evaluation_method == "silhouette":
-                    score = silhouette_score(self.data, labels)
-                elif evaluation_method == "davies_bouldin":
-                    score = -davies_bouldin_score(self.data, labels)  # Negative, as DB index is better when lower
-                else:
-                    raise ValueError("Método de evaluación no soportado. Usa 'silhouette' o 'davies_bouldin'.")
-            else:
-                score = -1  # Penalty in case of obtaining no clusters
-
-            return score
-
-        # Call the parent method to run Optuna with the defined objective function
-        study = super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")      
-        return study
+         # Call generic class method
+        return self.run_optuna_generic(model_builder, evaluation_method, n_trials)
         
 
     def run_basic_experiment(self):

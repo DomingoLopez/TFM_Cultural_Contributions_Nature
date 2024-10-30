@@ -35,67 +35,55 @@ class HDBSCANClustering(ClusteringModel):
             Additional parameters for customization or future expansion.
         """
         super().__init__(data, model_name="hdbscan")
-        
-        
-    def run_optuna(self, evaluation_method: str = "silhouette", n_trials: int = 50):
-        """
-        Run Optuna optimization for HDBSCAN with a specified evaluation method.
+    
 
+
+
+    def run_optuna(self, evaluation_method="silhouette", n_trials=50):
+        """
+        Run Optuna optimization for the HDBSCAN clustering model with a specified evaluation method.
+
+        This method sets up and executes an Optuna hyperparameter optimization for the HDBSCAN 
+        clustering algorithm. It defines the range of hyperparameters specific to HDBSCAN, 
+        including `min_cluster_size`, `min_samples`, and `alpha`, and passes these parameters 
+        to the generic Optuna optimization method inherited from the base class.
+        
         Parameters
         ----------
-        evaluation_method : str
-            The evaluation metric to optimize ('silhouette' or 'davies_bouldin').
-        n_trials : int
-            The number of trials for Optuna. Default is 50.
+        evaluation_method : str, optional
+            The evaluation metric to optimize. It can be either 'silhouette' (for maximizing 
+            the silhouette score) or 'davies_bouldin' (for minimizing the Davies-Bouldin score). 
+            Defaults to "silhouette".
+        n_trials : int, optional
+            The number of optimization trials to run. Defaults to 50.
+
+        Returns
+        -------
+        optuna.study.Study
+            The Optuna study object containing details of the optimization process, including 
+            the best hyperparameters found and associated evaluation score.
+        
+        Notes
+        -----
+        - This method calls the generic `run_optuna_generic` method from the base class, 
+        which handles the Optuna optimization process and evaluation.
+        - `model_builder` is a nested function that constructs an HDBSCAN model using 
+        hyperparameters suggested by each Optuna trial.
         """
-
-        # Objetive function for optuna
-        def objective(trial):
-            # Hyperparams suggestions
-            min_cluster_size = trial.suggest_int('min_cluster_size', 50, 150)
-            min_samples = trial.suggest_int('min_samples', 25, 75)
-            cluster_selection_epsilon = trial.suggest_float('cluster_selection_epsilon', 0.01, 1.0, log=True)
-            alpha = trial.suggest_float('alpha', 0.5, 2.0)
-            metric = trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'chebyshev'])
-            cluster_selection_method = trial.suggest_categorical('cluster_selection_method', ['eom', 'leaf'])
-            gen_min_span_tree = trial.suggest_categorical('gen_min_span_tree', [True, False])
-
-            # Create model
-            model = hdbscan.HDBSCAN(
-                min_cluster_size=min_cluster_size,
-                min_samples=min_samples,
-                cluster_selection_epsilon=cluster_selection_epsilon,
-                alpha=alpha,
-                metric=metric,
-                cluster_selection_method=cluster_selection_method,
-                gen_min_span_tree=gen_min_span_tree
+        # Param/model builder for hdbscan
+        def model_builder(trial):
+            return hdbscan.HDBSCAN(
+                min_cluster_size=trial.suggest_int('min_cluster_size', 50, 150),
+                min_samples=trial.suggest_int('min_samples', 25, 75),
+                cluster_selection_epsilon=trial.suggest_float('cluster_selection_epsilon', 0.01, 1.0, log=True),
+                alpha=trial.suggest_float('alpha', 0.5, 2.0),
+                metric=trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'chebyshev']),
+                cluster_selection_method=trial.suggest_categorical('cluster_selection_method', ['eom', 'leaf']),
+                gen_min_span_tree=trial.suggest_categorical('gen_min_span_tree', [True, False])
             )
-
-            # Train and predict labels
-            labels = model.fit_predict(self.data)
-
-            # Calculate number of clusters (excluding noise)
-            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-            trial.set_user_attr("n_clusters", n_clusters)  # Store the number of clusters
-
-            # Eval model
-            if n_clusters > 1:  
-                if evaluation_method == "silhouette":
-                    score = silhouette_score(self.data[labels != -1], labels[labels != -1])
-                elif evaluation_method == "davies_bouldin":
-                    score = -davies_bouldin_score(self.data[labels != -1], labels[labels != -1])  # Negative for maximization
-                else:
-                    raise ValueError("Evaluation method not supported. Use 'silhouette' or 'davies_bouldin' instead.")
-            else:
-                score = -1  
-
-            return score
-
-        # Call the parent method to run Optuna with the defined objective function
-        study = super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")      
-        return study
-
-
+        # Call generic class method
+        return self.run_optuna_generic(model_builder, evaluation_method, n_trials)
+        
 
 
     def run_basic_experiment(self):

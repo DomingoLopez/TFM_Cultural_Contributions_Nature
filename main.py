@@ -15,11 +15,6 @@ if __name__ == "__main__":
     dinomodel = Dinov2Inference(model_name="small", images=images)
     embeddings = dinomodel.run()
 
-    # t = pd.DataFrame(embeddings)
-    # print(t .head())
-    # print(t.describe())
-    # print(t.info())
-
     # Create Eda object and apply or not dim reduction
     eda = EDA(embeddings=embeddings, verbose=False)
     #embeddings_scaled = eda.run_scaler()
@@ -33,7 +28,7 @@ if __name__ == "__main__":
             clustering_model = ClusteringFactory.create_clustering_model("hdbscan", embeddings_after_dimred)
             
             # Ejecuta Optuna y almacena el estudio
-            study = clustering_model.run_optuna(evaluation_method="silhouette", n_trials=100)
+            study = clustering_model.run_optuna(evaluation_method="davies_bouldin", n_trials=100)
             
             # Accede al número de clústeres en el mejor ensayo
             best_trial = study.best_trial

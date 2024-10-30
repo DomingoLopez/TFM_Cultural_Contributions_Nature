@@ -2,6 +2,7 @@ import optuna
 from datetime import datetime
 import os
 from pathlib import Path
+from tqdm import tqdm
 import seaborn as sns
 import pandas as pd
 import numpy as np
@@ -54,6 +55,8 @@ class ClusteringModel(ABC):
         os.makedirs(self.folder_plots, exist_ok=True)
         os.makedirs(self.folder_results, exist_ok=True)
 
+
+
     @abstractmethod
     def run_basic_experiment(self):
         """
@@ -64,33 +67,51 @@ class ClusteringModel(ABC):
         pass
     
     
-    def optimize_with_optuna(self, objective_function, n_trials=50, direction='maximize'):
+    def run_optuna_generic(self, model_builder, evaluation_method="silhouette", n_trials=50):
         """
-        Runs an Optuna optimization study on the clustering model using a provided objective function.
+        Generic Optuna optimization for clustering models.
 
         Parameters
         ----------
-        objective_function : Callable
-            The function to optimize, provided by the child class.
+        model_builder : Callable[[optuna.trial.Trial], clustering_model]
+            Function that builds the clustering model with hyperparameters suggested by the Optuna trial.
+        evaluation_method : str
+            The evaluation metric to optimize ('silhouette' or 'davies_bouldin').
         n_trials : int
             The number of trials for Optuna. Default is 50.
-        direction : str
-            Optimization direction, either 'maximize' or 'minimize'.
         """
-        # Create study with obj function, direction and n_trials
+        # Objetive function
+        def objective(trial):
+            # model builder 
+            model = model_builder(trial)
+            # Fit predict
+            labels = model.fit_predict(self.data)
+            # Get number of clusters (-1 nosie)
+            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+            trial.set_user_attr("n_clusters", n_clusters)
+            # Model eval
+            if n_clusters > 1:
+                if evaluation_method == "silhouette":
+                    score = silhouette_score(self.data[labels != -1], labels[labels != -1])
+                elif evaluation_method == "davies_bouldin":
+                    score = davies_bouldin_score(self.data[labels != -1], labels[labels != -1])
+                else:
+                    raise ValueError("Evaluation method not supported.Use 'silhouette' or 'davies_bouldin instead'.")
+            else:
+                score = -1
+
+            return score
+
+        # Direction of optimization 
+        direction = "maximize" if evaluation_method == "silhouette" else "minimize"
+        
+        # Execute optuna optimization with tqdm
+        pbar = tqdm(total=n_trials, desc="Optuna Optimization")
         study = optuna.create_study(direction=direction)
-        optuna.logging.set_verbosity(optuna.logging.WARNING)
-        study.optimize(objective_function, n_trials=n_trials)
+        study.optimize(objective, n_trials=n_trials, callbacks=[lambda study, trial: pbar.update(1)])
+        pbar.close()
 
-        # Best params
-        self.best_params = study.best_params
-        self.best_score = study.best_value
-
-        # Mostrar resultados
-        print("Best hyperparams:", self.best_params)
-        print("Best Score:", self.best_score)
-
-        return study  
+        return study
     
 
     def save_clustering_plot(
