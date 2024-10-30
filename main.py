@@ -72,8 +72,10 @@ if __name__ == "__main__":
     # For example give me experiment where it got 4 clusters with best
     # value of its metric (davies or silhouette)
     # For now, we could take best result
-
+    best_experiment = results_df.loc[results_df['best_value'].idxmin()]
     
+    
+
         
     # # Create clustering factory and kmeans
     # # TODO: Here we could pass a eda object to Clustering creation, so it would know how many dimensiones
