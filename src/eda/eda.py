@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, RobustScaler, StandardScaler
 import umap
 from cvae import cvae
 
@@ -67,15 +68,50 @@ class EDA:
             plt.hist(self.embeddings_df.values.flatten(), bins=50)
             plt.title("Embeddings distribution")
             plt.show()
+
+    
+    def run_scaler(self, type="standard"):
+        """
+        Apply a specified scaler to the embeddings DataFrame.
+
+        Parameters
+        ----------
+        type : str
+            The type of scaler to apply. Options are "standard", "minmax", "robust", or "maxabs".
+        
+        Returns
+        -------
+        embeddings_scaled : pd.DataFrame
+            The scaled embeddings as a DataFrame.
+        """
+        # Diccionario de opciones de escaladores
+        scalers = {
+            "standard": StandardScaler(),
+            "minmax": MinMaxScaler(),
+            "robust": RobustScaler(),
+            "maxabs": MaxAbsScaler()
+        }
+
+        # Obtener el escalador seleccionado o StandardScaler por defecto
+        scaler = scalers.get(type, StandardScaler())
+        logger.info(f"Applying {type} scaler to embeddings")
+
+        # Aplicar el escalado a las embeddings
+        embeddings = scaler.fit_transform(self.embeddings_df.values)
+
+        # Actualizar el DataFrame de embeddings con los valores escalados
+        embeddings_scaled = pd.DataFrame(embeddings, columns=self.embeddings_df.columns)
+        logger.debug(f"Embeddings scaled using {type.capitalize()}Scaler.")
+        return embeddings_scaled
         
         
-    def __do_PCA(self, show_plots=False, dimensions=2):
+    def __do_PCA(self, embeddings_df, show_plots=False, dimensions=2):
         """
         PCA Dim reduction. 
         """
         logger.info("Using PCA Dim. reduction...")
         pca = PCA(n_components=dimensions)
-        pca_result = pca.fit_transform(self.embeddings_df.values)
+        pca_result = pca.fit_transform(embeddings_df.values)
         pca_df = pd.DataFrame(data=pca_result)
         # Eigenvectors
         eigenvectors = pca.components_
@@ -94,14 +130,14 @@ class EDA:
         return pca_df
 
     
-    def __do_UMAP(self, show_plots=False, dimensions=2):
+    def __do_UMAP(self, embeddings_df, show_plots=False, dimensions=2):
         """
         UMAP Dim reduction. 
         More info in https://umap-learn.readthedocs.io/en/latest/
         """
         logger.info("Using UMAP Dim. reduction")
         reducer = umap.UMAP(n_components=dimensions)
-        umap_result = reducer.fit_transform(self.embeddings_df.values)
+        umap_result = reducer.fit_transform(embeddings_df.values)
         umap_df = pd.DataFrame(data=umap_result)
         # Show only 2 dimensions in plots
         if show_plots:
@@ -112,7 +148,7 @@ class EDA:
         return umap_df
         
         
-    def __do_CVAE(self, dimensions=2, show_plots=True):
+    def __do_CVAE(self, embeddings_df, dimensions=2, show_plots=True):
         """
         Compression VAE Dim reduction. 
         More info in https://github.com/maxfrenzel/CompressionVAE
@@ -124,7 +160,7 @@ class EDA:
         """
         logger.info("Using CVAE Dim. reduction")
         # 1: Obtain array of embeddings
-        X = self.embeddings_df.values
+        X = embeddings_df.values
         # 2: Initialize cvae model with selected dimensions
         embedder = cvae.CompressionVAE(X, dim_latent=dimensions, verbose = False)
         # 3: Train cvae model
@@ -144,25 +180,24 @@ class EDA:
 
 
 
-    def run_dim_red(self, dimensions=2, show_plots=True, dim_reduction ="cvae"):
+    def run_dim_red(self, embeddings_df, dimensions=2, show_plots=True, dim_reduction ="cvae"):
         """
         Execute eda, including plots if selected and other stuff
         """
-        embeddings_df = None
         # Apply dim reduction if chosen
         if dim_reduction is not None:
             if dim_reduction == "umap":
-                embeddings_df = self.__do_UMAP(show_plots=show_plots, dimensions=dimensions)
+                embeddings_dim_red = self.__do_UMAP(embeddings_df,show_plots=show_plots, dimensions=dimensions)
             elif dim_reduction == "cvae":
-                embeddings_df = self.__do_CVAE(show_plots=show_plots, dimensions=dimensions)
+                embeddings_dim_red = self.__do_CVAE(embeddings_df,show_plots=show_plots, dimensions=dimensions)
             elif dim_reduction == "pca":
-                embeddings_df = self.__do_PCA(show_plots=show_plots, dimensions=dimensions)
+                embeddings_dim_red = self.__do_PCA(embeddings_df,show_plots=show_plots, dimensions=dimensions)
             else:
-                embeddings_df = self.__do_UMAP(show_plots=show_plots, dimensions=dimensions)
+                embeddings_dim_red = self.__do_UMAP(embeddings_df,show_plots=show_plots, dimensions=dimensions)
         else:
-            embeddings_df = self.embeddings_df
+            embeddings_dim_red = embeddings_df
             
-        return embeddings_df
+        return embeddings_dim_red
            
             
 
