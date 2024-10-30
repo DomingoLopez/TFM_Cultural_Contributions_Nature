@@ -3,7 +3,7 @@ data/Data
 data/test
 
 /src/results
-
+*.csv
 
 
 # Ignore tmp from CVAE

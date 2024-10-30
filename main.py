@@ -20,18 +20,28 @@ if __name__ == "__main__":
     # print(t.describe())
     # print(t.info())
 
-    # TODO: NORMALIZAR EN EL EDA
     # Create Eda object and apply or not dim reduction
     eda = EDA(embeddings=embeddings, verbose=False)
+    #embeddings_scaled = eda.run_scaler()
     
+    scalers = ["standard","minmax","robust","maxabs"]
     results = []
-    for i in range(3,20):
-        embeddings_after_dimred = eda.run_dim_red(dimensions=i, dim_reduction = 'umap', show_plots=False)
-        clustering_model = ClusteringFactory.create_clustering_model("agglomerative", embeddings_after_dimred)
-        study = clustering_model.run_optuna(evaluation_method="silhouette", n_trials=500)
-        print(study)
-        results.append((i, study.best_params, study.best_value))
+    for scaler in scalers:
+        embeddings_scaled = eda.run_scaler(scaler)
+        for dim in range(3,15):
+            embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction = 'umap', show_plots=False)
+            clustering_model = ClusteringFactory.create_clustering_model("kmeans", embeddings_after_dimred)
+            study = clustering_model.run_optuna(evaluation_method="silhouette", n_trials=100)
+            results.append({
+            "scaler": scaler,
+            "dimension": dim,
+            "best_params": str(study.best_params),  
+            "best_value": study.best_value          
+        })
         
+    results_df = pd.DataFrame(results)
+    print(results_df)
+    results_df.to_csv("resultado.csv",sep=";")
         
     # # Create clustering factory and kmeans
     # # TODO: Here we could pass a eda object to Clustering creation, so it would know how many dimensiones
@@ -40,6 +50,3 @@ if __name__ == "__main__":
     # # Run Clustering
     # study = clustering_model.run_optuna(evaluation_method="silhouette", n_trials=500)
     # # print("Clustering complete. Results available in results/modelname/timestamp")
-    
-    print(results)
-    
