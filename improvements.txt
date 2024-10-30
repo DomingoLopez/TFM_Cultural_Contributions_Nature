@@ -1,3 +1,5 @@
+ESCALAR LOS EMBBEDINGS ANTES DE APLICAR EL CLUSTERING - ESENCIAL
+
 Rutas de directorios con los resultados.
     - Cada tipo de cluster debe tener su árbol de rutas en función de las métricas que vamos a utilizar
     - El tema es que no es muy estándar para cada cluster. Por ello hay que verlo uno por uno y no se puede automatizar como tal.

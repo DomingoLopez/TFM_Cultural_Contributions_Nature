@@ -1,5 +1,6 @@
 from datetime import datetime
-import hdbscan
+#import hdbscan
+import optuna
 import os
 from pathlib import Path
 import sys
@@ -36,8 +37,61 @@ class HDBSCANClustering(ClusteringModel):
         super().__init__(data, model_name="hdbscan")
         
         
+    def run_optuna(self, evaluation_method: str = "silhouette", n_trials: int = 50):
+        """
+        Run Optuna optimization for HDBSCAN with a specified evaluation method.
 
-    def run(self):
+        Parameters
+        ----------
+        evaluation_method : str
+            The evaluation metric to optimize ('silhouette' or 'davies_bouldin').
+        n_trials : int
+            The number of trials for Optuna. Default is 50.
+        """
+
+        # Objetive function for optuna
+        def objective(trial):
+            # Hyperparams suggestions
+            min_cluster_size = trial.suggest_int('min_cluster_size', 50, 150)
+            min_samples = trial.suggest_int('min_samples', 25, 75)
+            cluster_selection_epsilon = trial.suggest_loguniform('cluster_selection_epsilon', 0.01, 1.0)
+            alpha = trial.suggest_float('alpha', 0.5, 2.0)
+            metric = trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'chebyshev'])
+            cluster_selection_method = trial.suggest_categorical('cluster_selection_method', ['eom', 'leaf'])
+            gen_min_span_tree = trial.suggest_categorical('gen_min_span_tree', [True, False])
+
+            # Create model
+            model = hdbscan.HDBSCAN(
+                min_cluster_size=min_cluster_size,
+                min_samples=min_samples,
+                cluster_selection_epsilon=cluster_selection_epsilon,
+                alpha=alpha,
+                metric=metric,
+                cluster_selection_method=cluster_selection_method,
+                gen_min_span_tree=gen_min_span_tree
+            )
+
+            # Train and predict labels
+            labels = model.fit_predict(self.data)
+
+            # Eval model
+            if len(set(labels)) > 1:  
+                if evaluation_method == "silhouette":
+                    score = silhouette_score(self.data[labels != -1], labels[labels != -1])
+                elif evaluation_method == "davies_bouldin":
+                    score = -davies_bouldin_score(self.data[labels != -1], labels[labels != -1])  # Negative, cause dbindex better when lower
+                else:
+                    raise ValueError("Método de evaluación no soportado. Usa 'silhouette' o 'davies_bouldin'.")
+            else:
+                score = -1  # Penalty in case of obtaining no clusters or noise
+
+            return score
+
+        # Llamar al método de la clase padre usando super()
+        super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")
+        
+
+    def run_basic_experiment(self):
         """
         Execute the HDBSCAN clustering process on the dataset.
 

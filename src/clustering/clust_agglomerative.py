@@ -33,9 +33,60 @@ class AgglomerativeClusteringModel(ClusteringModel):
             Additional parameters for customization or future expansion.
         """
         super().__init__(data, model_name="agglomerative")
+  
+    
+    
+    def run_optuna(self, evaluation_method: str = "silhouette", n_trials: int = 50):
+        """
+        Run Optuna optimization for Agglomerative Clustering with a specified evaluation method.
+
+        Parameters
+        ----------
+        evaluation_method : str
+            The evaluation metric to optimize ('silhouette' or 'davies_bouldin').
+        n_trials : int
+            The number of trials for Optuna. Default is 50.
+        """
+
+        # Define the objective function for Optuna
+        def objective(trial):
+            # Suggest hyperparameters
+            n_clusters = trial.suggest_int('n_clusters', 2, 10)
+            linkage = trial.suggest_categorical('linkage', ['ward', 'complete', 'average', 'single'])
+            metric = trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'cosine'])
+
+            # Ensure 'ward' linkage only uses 'euclidean' metric
+            custom_metric = metric if linkage != "ward" else "euclidean"
+            
+            # Create AgglomerativeClustering model with suggested hyperparameters
+            model = AgglomerativeClustering(
+                n_clusters=n_clusters,
+                linkage=linkage,
+                metric=custom_metric
+            )
+
+            # Train and predict labels
+            labels = model.fit_predict(self.data)
+
+            # Evaluate model
+            if len(set(labels)) > 1:
+                if evaluation_method == "silhouette":
+                    score = silhouette_score(self.data, labels)
+                elif evaluation_method == "davies_bouldin":
+                    score = -davies_bouldin_score(self.data, labels)  # Negative, as DB index is better when lower
+                else:
+                    raise ValueError("Método de evaluación no soportado. Usa 'silhouette' o 'davies_bouldin'.")
+            else:
+                score = -1  # Penalty in case of obtaining no clusters
+
+            return score
+
+        # Call the parent method to run Optuna with the defined objective function
+        super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")      
+        
         
 
-    def run(self):
+    def run_basic_experiment(self):
         """
         Execute the Agglomerative Clustering process on the dataset.
 

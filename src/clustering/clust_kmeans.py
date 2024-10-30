@@ -34,8 +34,57 @@ class KMeansClustering(ClusteringModel):
         super().__init__(data, model_name="kmeans")
         
         
+    def run_optuna(self, evaluation_method: str = "silhouette", n_trials: int = 50):
+        """
+        Run Optuna optimization for KMeans with a specified evaluation method.
 
-    def run(self):
+        Parameters
+        ----------
+        evaluation_method : str
+            The evaluation metric to optimize ('silhouette' or 'davies_bouldin').
+        n_trials : int
+            The number of trials for Optuna. Default is 50.
+        """
+
+        # Define the objective function for Optuna
+        def objective(trial):
+            # Suggest hyperparameters
+            n_clusters = trial.suggest_int('n_clusters', 2, 10)
+            init = trial.suggest_categorical('init', ['k-means++', 'random'])
+            n_init = trial.suggest_int('n_init', 10, 20)
+            max_iter = trial.suggest_int('max_iter', 100, 300)
+
+            # Create KMeans model with suggested hyperparameters
+            model = KMeans(
+                n_clusters=n_clusters,
+                init=init,
+                n_init=n_init,
+                max_iter=max_iter,
+                random_state=1234
+            )
+
+            # Train and predict labels
+            labels = model.fit_predict(self.data)
+
+            # Evaluate model
+            if len(set(labels)) > 1:
+                if evaluation_method == "silhouette":
+                    score = silhouette_score(self.data, labels)
+                elif evaluation_method == "davies_bouldin":
+                    score = -davies_bouldin_score(self.data, labels)  # Negative, as DB index is better when lower
+                else:
+                    raise ValueError("Método de evaluación no soportado. Usa 'silhouette' o 'davies_bouldin'.")
+            else:
+                score = -1  # Penalty in case of obtaining no clusters
+
+            return score
+
+        # Call the parent method to run Optuna with the defined objective function
+        super().optimize_with_optuna(objective, n_trials=n_trials, direction="maximize")
+        
+        
+
+    def run_basic_experiment(self):
         """
         Execute the KMeans clustering process on the dataset.
 
@@ -69,7 +118,7 @@ class KMeansClustering(ClusteringModel):
 
         # TODO: We could try different metrics too
         # Perform clustering for each k
-        for k in range(2, 10):
+        for k in range(2, 9):
             # Define params
             params = {
                 "n_clusters": k,
