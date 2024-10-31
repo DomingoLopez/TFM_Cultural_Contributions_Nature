@@ -12,12 +12,14 @@ from loguru import logger
 import sys
 from abc import ABC, abstractmethod
 
+
 from typing import Optional, Tuple
 from matplotlib.colors import ListedColormap
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 class ClusteringModel(ABC):
@@ -68,6 +70,63 @@ class ClusteringModel(ABC):
         pass
     
     
+    def get_cluster_centers(self, labels):
+        """
+        Calculate the centers of clusters given data points and their cluster labels.
+
+        This function computes the center of each cluster by calculating the mean 
+        position of all points within each cluster. It is suitable for use with 
+        clustering algorithms where direct access to cluster centers is unavailable, 
+        such as when using `fit_predict` in KMeans or AgglomerativeClustering.
+
+        Parameters
+        ----------
+        data : array-like or pandas.DataFrame of shape (n_samples, n_features)
+            The dataset where each row represents a data point with multiple features.
+        labels : array-like of shape (n_samples,)
+            Cluster labels assigned to each data point, with each unique label 
+            representing a separate cluster. Points labeled as -1 are typically 
+            considered noise and can be excluded if desired.
+
+        Returns
+        -------
+        centers : numpy.ndarray of shape (n_clusters, n_features)
+            An array containing the calculated center of each cluster. Each row 
+            corresponds to the center of one cluster, with the same number of 
+            features as the input data.
+
+        Example
+        -------
+        >>> from sklearn.cluster import KMeans
+        >>> import numpy as np
+        >>> data = np.random.rand(100, 2)
+        >>> kmeans = KMeans(n_clusters=3)
+        >>> labels = kmeans.fit_predict(data)
+        >>> centers = get_cluster_centers(data, labels)
+        >>> print(centers)
+
+        Notes
+        -----
+        - This method calculates the mean of each cluster's points to find a center, 
+        which approximates the centroid.
+        - For algorithms like KMeans, which explicitly compute centroids, the centers 
+        obtained here should closely match the model's centroids.
+        """
+        unique_labels = np.unique(labels)
+        centers = []
+        for label in unique_labels:
+            if label != -1:  # Ignore noise
+                cluster_points = self.data.values[labels == label]
+                cluster_center = np.mean(cluster_points, axis=0)
+                centers.append(cluster_center)
+
+        if centers:
+            centers = np.array(centers)
+        
+        return centers
+            
+            
+    
     def run_optuna_generic(self, model_builder, evaluation_method="silhouette", n_trials=50, penalty="linear", penalty_range=(2,8)):
         """
         Generic Optuna optimization for clustering models with configurable penalty types.
@@ -102,6 +161,11 @@ class ClusteringModel(ABC):
             # Get number of clusters (excluding noise)
             n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
             trial.set_user_attr("n_clusters", n_clusters)
+            
+            # Calculate cluster centers
+            centers = self.get_cluster_centers(labels)
+            trial.set_user_attr("centers", centers)  # Store centers in trial attributes
+
             
             # Evaluate model
             if n_clusters > 1:
@@ -281,6 +345,91 @@ class ClusteringModel(ABC):
             # save figure
             plt.savefig(file_path_result_error, bbox_inches='tight')
 
+
+
+    def find_clustering_knn_points(self, n_neighbors, metric, cluster_centers):
+        """
+        Finds the k-nearest neighbors for each centroid of clusters. Returns knn points for
+        each cluster in dataframe style.
+
+        This method calculates the `n_neighbors` closest points in the dataset to each centroid in 
+        `cluster_centers` using the specified `metric`. 
+
+        Parameters
+        ----------
+        n_neighbors : int
+            Number of nearest neighbors to find for each centroid.
+
+        metric : str
+            Distance metric to use for finding neighbors (e.g., 'euclidean', 'manhattan').
+
+        cluster_centers : array-like of shape (n_clusters, n_features)
+            Coordinates of cluster centroids for which the nearest neighbors are computed.
+
+        Attributes
+        ----------
+        closest_neighbors : dict
+            Dictionary where each key is the cluster index and the value is an array of indices representing
+            the nearest neighbors for that cluster's centroid.
+
+        Example
+        -------
+        >>> self.find_clustering_knn_points(3, 'euclidean', cluster_centers, 'output/knn_points.csv')
+
+        """
+        closest_neighbors = {}
+        used_metric = metric if metric in ('cityblock', 'cosine','euclidean','haversine','l1','l2','manhattan','nan_euclidean') else 'euclidean'
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric=used_metric, algorithm='auto').fit(self.data)
+        for idx, centroid in enumerate(cluster_centers):
+            distances, indices = nbrs.kneighbors([centroid])
+            if idx not in closest_neighbors:
+                closest_neighbors[idx] = []
+            closest_neighbors[idx]= indices.flatten()
+            
+        # Transform to df and save to csv
+        knn_data = {f"Cluster_{idx}": neighbors for idx, neighbors in closest_neighbors.items()}
+        df_closest_neighbors = pd.DataFrame(knn_data)
+
+        return df_closest_neighbors
+    
+    
+    
+    
+    def find_clustering_cosine_similarity_points(self, n_neighbors, cluster_centers):
+        """
+        Finds the k-nearest neighbors for each centroid of clusters using cosine similarity.
+
+        This method calculates the `n_neighbors` closest points in the dataset to each centroid in 
+        `cluster_centers` using cosine similarity.
+
+        Parameters
+        ----------
+        n_neighbors : int
+            Number of nearest neighbors to find for each centroid.
+
+        cluster_centers : array-like of shape (n_clusters, n_features)
+            Coordinates of cluster centroids for which the nearest neighbors are computed.
+
+        Returns
+        -------
+        df_closest_neighbors : pandas.DataFrame
+            DataFrame where each column corresponds to a cluster index, and rows contain indices
+            of the closest neighbors based on cosine similarity for that cluster's centroid.
+        """
+        closest_neighbors = {}
+        for idx, centroid in enumerate(cluster_centers):
+            similarities = cosine_similarity(self.data, centroid.reshape(1, -1)).flatten()
+            # Get index of n neighbors with max similarity
+            top_indices = np.argsort(similarities)[-n_neighbors:]  # Get highest
+            closest_neighbors[idx] = top_indices[::-1]  # Invert to order from more to less similarity
+        
+        # Converto to df
+        knn_data = {f"Cluster_{idx}": neighbors for idx, neighbors in closest_neighbors.items()}
+        df_closest_neighbors = pd.DataFrame(knn_data)
+
+        return df_closest_neighbors
+    
+    
 
 
     def find_and_save_clustering_knn_points(self, n_neighbors, metric, cluster_centers, save_path ):
