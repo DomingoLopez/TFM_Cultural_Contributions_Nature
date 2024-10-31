@@ -71,7 +71,7 @@ if __name__ == "__main__":
     eval_method = "davies_bouldin"
     penalty = "range" # linear
     penalty_range = (4,8)
-    cache = True
+    cache = False
     result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results_optuna/{clustering}_{eval_method}_penalty_{penalty}_images_{len(images)}"
     os.makedirs(result_dir_cache_path, exist_ok=True)
     result_file_cache_path = Path(__file__).resolve().parent / result_dir_cache_path / "result.pkl"
