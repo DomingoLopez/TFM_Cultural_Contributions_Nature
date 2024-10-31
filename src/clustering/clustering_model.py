@@ -1,6 +1,7 @@
 import optuna
 from datetime import datetime
 import os
+import hdbscan
 import pickle
 from pathlib import Path
 from tqdm import tqdm
@@ -15,12 +16,13 @@ from abc import ABC, abstractmethod
 
 from typing import Optional, Tuple
 from matplotlib.colors import ListedColormap
-from sklearn.cluster import KMeans
+from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import cosine_similarity
 
+from ..utils.decorators import deprecated
 
 class ClusteringModel(ABC):
     """
@@ -33,8 +35,7 @@ class ClusteringModel(ABC):
 
     def __init__(self, 
                  data: pd.DataFrame,
-                 model_name: str,
-                 params: Optional[dict] = {}):
+                 model_name: str):
         """
         Initialize the clustering model with data.
 
@@ -59,7 +60,7 @@ class ClusteringModel(ABC):
         os.makedirs(self.folder_results, exist_ok=True)
 
 
-
+    @deprecated("This method was developed only for testing uses")
     @abstractmethod
     def run_basic_experiment(self):
         """
@@ -70,55 +71,88 @@ class ClusteringModel(ABC):
         pass
     
     
+    
+    def run_single_experiment(self, params, eval_method):
+        """
+        Run a single clustering experiment based on the model specified by self.model_name.
+
+        Parameters
+        ----------
+        params : dict
+            Hyperparameters for the clustering model.
+        eval_method : str
+            Evaluation method for the clustering ('silhouette' or 'davies_bouldin').
+
+        Returns
+        -------
+        labels : np.ndarray
+            Cluster labels assigned to each data point.
+        centers : np.ndarray
+            Calculated cluster centers.
+        score : float
+            Clustering score based on the specified evaluation method.
+        """
+        if self.model_name == "kmeans":
+            # KMeans clustering
+            model = KMeans(**params)
+        elif self.model_name == "hdbscan":
+            # HDBSCAN clustering
+            model = hdbscan.HDBSCAN(**params)
+        elif self.model_name == "agglomerative":
+            # Agglomerative clustering
+            model = AgglomerativeClustering(**params)
+        else:
+            raise ValueError(f"Model '{self.model_name}' is not supported. Choose from 'kmeans', 'hdbscan', or 'agglomerative'.")
+        
+        labels = model.fit_predict(self.data)
+        centers = model.cluster_centers_
+
+        # Calculate the score based on the specified evaluation method
+        if eval_method == "silhouette" and len(set(labels)) > 1:
+            score = silhouette_score(self.data[labels != -1], labels[labels != -1])
+        elif eval_method == "davies_bouldin" and len(set(labels)) > 1:
+            score = davies_bouldin_score(self.data[labels != -1], labels[labels != -1])
+        else:
+            score = None  # Not enough clusters for valid scoring or unsupported eval_method
+
+        return labels, centers, score
+    
+    
     def get_cluster_centers(self, labels):
         """
         Calculate the centers of clusters given data points and their cluster labels.
 
-        This function computes the center of each cluster by calculating the mean 
-        position of all points within each cluster. It is suitable for use with 
-        clustering algorithms where direct access to cluster centers is unavailable, 
-        such as when using `fit_predict` in KMeans or AgglomerativeClustering.
+        For density-based clustering, this function finds the densest point or a representative point
+        near the cluster's central area. For centroid-based methods, it calculates the mean of the 
+        points within each cluster to approximate the centroid.
 
         Parameters
         ----------
-        data : array-like or pandas.DataFrame of shape (n_samples, n_features)
-            The dataset where each row represents a data point with multiple features.
         labels : array-like of shape (n_samples,)
-            Cluster labels assigned to each data point, with each unique label 
-            representing a separate cluster. Points labeled as -1 are typically 
-            considered noise and can be excluded if desired.
+            Cluster labels assigned to each data point, with each unique label representing 
+            a separate cluster. Points labeled as -1 are typically considered noise.
 
         Returns
         -------
         centers : numpy.ndarray of shape (n_clusters, n_features)
-            An array containing the calculated center of each cluster. Each row 
-            corresponds to the center of one cluster, with the same number of 
-            features as the input data.
-
-        Example
-        -------
-        >>> from sklearn.cluster import KMeans
-        >>> import numpy as np
-        >>> data = np.random.rand(100, 2)
-        >>> kmeans = KMeans(n_clusters=3)
-        >>> labels = kmeans.fit_predict(data)
-        >>> centers = get_cluster_centers(data, labels)
-        >>> print(centers)
-
-        Notes
-        -----
-        - This method calculates the mean of each cluster's points to find a center, 
-        which approximates the centroid.
-        - For algorithms like KMeans, which explicitly compute centroids, the centers 
-        obtained here should closely match the model's centroids.
+            An array containing the calculated center of each cluster.
         """
         unique_labels = np.unique(labels)
         centers = []
         for label in unique_labels:
             if label != -1:  # Ignore noise
                 cluster_points = self.data.values[labels == label]
-                cluster_center = np.mean(cluster_points, axis=0)
-                centers.append(cluster_center)
+                
+                if self.model_name in ["hdbscan", "dbscan"]:  # Density-based methods
+                    # Find the point with highest density within the cluster
+                    nbrs = NearestNeighbors(n_neighbors=min(5, len(cluster_points))).fit(cluster_points)
+                    densities = np.mean(nbrs.kneighbors()[0], axis=1)
+                    densest_point_idx = np.argmin(densities)  # Lower distance to neighbors = higher density
+                    cluster_center = cluster_points[densest_point_idx]
+                else:  # For centroid-based methods like KMeans or Agglomerative
+                    cluster_center = np.mean(cluster_points, axis=0)
+
+            centers.append(cluster_center)
 
         if centers:
             centers = np.array(centers)
@@ -177,8 +211,11 @@ class ClusteringModel(ABC):
                 else:
                     raise ValueError("Evaluation method not supported. Use 'silhouette' or 'davies_bouldin' instead.")
 
-                # Apply the selected penalty type
-                if penalty == "linear":
+                if penalty is None:
+                    # No penalty applied
+                    score_penalized = score_original
+                
+                elif penalty == "linear":
                     # Linear penalty: subtract or add 0.1 * n_clusters
                     adjustment = 0.1 * n_clusters
                     score_penalized = score_original - adjustment if evaluation_method == "silhouette" else score_original + adjustment
@@ -224,8 +261,8 @@ class ClusteringModel(ABC):
 
         return study
 
-    
 
+    @deprecated("This method was developed only for testing uses")
     def save_clustering_plot(
         self,
         X: pd.DataFrame, 
@@ -275,6 +312,8 @@ class ClusteringModel(ABC):
         plt.savefig(save_path, bbox_inches='tight')
 
 
+
+    @deprecated("This method was developed only for testing uses")
     def save_clustering_result(
         self,
         k: list,
@@ -431,7 +470,7 @@ class ClusteringModel(ABC):
     
     
 
-
+    @deprecated("This method was developed only for testing uses")
     def find_and_save_clustering_knn_points(self, n_neighbors, metric, cluster_centers, save_path ):
         """
         Finds the k-nearest neighbors for each centroid of clusters and saves the results in a CSV file.
@@ -486,8 +525,10 @@ class ClusteringModel(ABC):
         knn_data = {f"Cluster_{idx}": neighbors for idx, neighbors in closest_neighbors.items()}
         df_closest_neighbors = pd.DataFrame(knn_data)
         df_closest_neighbors.to_csv(save_path, index=False)
-                                  
-
+                              
+                              
+    
+    @deprecated("This method was developed only for testing uses")
     def do_PCA_for_representation(self, df, centers):
         """
         Performs PCA to reduce data and cluster centers to 2D for plotting.

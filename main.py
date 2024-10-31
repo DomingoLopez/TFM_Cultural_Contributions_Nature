@@ -72,7 +72,7 @@ if __name__ == "__main__":
     penalty = "range" # linear
     penalty_range = (4,8)
     cache = True
-    result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results/{clustering}_{eval_method}_penalty_{penalty}_images_{len(images)}"
+    result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results_optuna/{clustering}_{eval_method}_penalty_{penalty}_images_{len(images)}"
     os.makedirs(result_dir_cache_path, exist_ok=True)
     result_file_cache_path = Path(__file__).resolve().parent / result_dir_cache_path / "result.pkl"
     result_file_cache_path_csv = Path(__file__).resolve().parent / result_dir_cache_path / "result.csv"
@@ -146,9 +146,9 @@ if __name__ == "__main__":
     embeddings_scaled = eda.run_scaler(best_scaler)
     embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=best_dimension, dim_reduction=best_dim_red, show_plots=False)
     clustering_model = ClusteringFactory.create_clustering_model(clustering, embeddings_after_dimred)
-    # IF I SAVED ALL THE SCALED EMBEDDINGS, RUNNING THE SINGLE EXPERIMENT WOULD NOT BE NECESSARY, AS I WOULD ALREADY HAVE THEM.
-    # TODO: MAKE SINGLE EXPERIMENT
-    
+    # Run single Experiment
+    labels, centers, score = clustering_model.run_single_experiment(best_params_dict)
+    # Plot experiment  
         
     
     # Obtain knn image index for each cluster
@@ -167,10 +167,7 @@ if __name__ == "__main__":
     print("\n\n[COSINE] - Showing images related (3 nn) to each cluster:")
     show_images_per_cluster(images, cosine_similarity_df)
     
-    # # # Create clustering factory and kmeans
-    # # # TODO: Here we could pass a eda object to Clustering creation, so it would know how many dimensiones
-    # # # do we have and put that in another subfolder with results, or even add that to path name of results.
-    # # clustering_model = ClusteringFactory.create_clustering_model("agglomerative", embeddings_after_dimred)
-    # # # Run Clustering
-    # # study = clustering_model.run_optuna(evaluation_method="silhouette", n_trials=500)
-    # # # print("Clustering complete. Results available in results/modelname/timestamp")
+    
+    # TODO: Show representation of clusters using pca and pca_centers, etc. 
+    
+    
