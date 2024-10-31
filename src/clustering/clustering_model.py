@@ -141,17 +141,19 @@ class ClusteringModel(ABC):
         unique_labels = np.unique(labels)
         centers = []
         for label in unique_labels:
-            if label != -1:  # Ignore noise
-                cluster_points = self.data.values[labels == label]
+            if label == -1:  # Ignore noise
+                continue
+            
+            cluster_points = self.data.values[labels == label]
                 
-                if self.model_name in ["hdbscan", "dbscan"]:  # Density-based methods
-                    # Find the point with highest density within the cluster
-                    nbrs = NearestNeighbors(n_neighbors=min(5, len(cluster_points))).fit(cluster_points)
-                    densities = np.mean(nbrs.kneighbors()[0], axis=1)
-                    densest_point_idx = np.argmin(densities)  # Lower distance to neighbors = higher density
-                    cluster_center = cluster_points[densest_point_idx]
-                else:  # For centroid-based methods like KMeans or Agglomerative
-                    cluster_center = np.mean(cluster_points, axis=0)
+            if self.model_name in ["hdbscan", "dbscan"]:  # Density-based methods
+                # Find the point with highest density within the cluster
+                nbrs = NearestNeighbors(n_neighbors=min(5, len(cluster_points))).fit(cluster_points)
+                densities = np.mean(nbrs.kneighbors()[0], axis=1)
+                densest_point_idx = np.argmin(densities)  # Lower distance to neighbors = higher density
+                cluster_center = cluster_points[densest_point_idx]
+            else:  # For centroid-based methods like KMeans or Agglomerative
+                cluster_center = np.mean(cluster_points, axis=0)
 
             centers.append(cluster_center)
 

@@ -1,0 +1,61 @@
+;scaler;dim_reduction;dimension;n_clusters;best_params;centers;best_value;best_original_value
+0;standard;umap;3;3;{'min_cluster_size': 111, 'min_samples': 72, 'cluster_selection_epsilon': 0.02390681196308297, 'alpha': 1.3221026060379673, 'metric': 'chebyshev', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': True};"[[ 6.555478   -1.5738251  10.9938135 ]
+ [12.704503    2.084034   11.747706  ]
+ [11.310428   -0.33185977  6.870335  ]]";0.5180558204650879;0.6180558
+1;standard;umap;4;3;{'min_cluster_size': 65, 'min_samples': 66, 'cluster_selection_epsilon': 0.02272246377574049, 'alpha': 0.6814322024601575, 'metric': 'manhattan', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': False};"[[ 9.0181875   0.46240196 11.19241     6.6582785 ]
+ [10.03708    -0.4917241   5.7695346   7.1755233 ]
+ [11.663627    0.24392457  9.592985    9.535468  ]]";0.5750978231430054;0.6750978
+2;standard;umap;5;3;{'min_cluster_size': 121, 'min_samples': 75, 'cluster_selection_epsilon': 0.034116703921304274, 'alpha': 1.9711294896327232, 'metric': 'chebyshev', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': False};"[[ 6.9964366 -1.9984196  9.688175   5.90187    4.406557 ]
+ [12.436231   2.8855507  7.2648983 10.054429   5.870488 ]
+ [11.016418  -1.459775  11.172587  10.352011   3.7507606]]";0.5512886285781861;0.6512886
+3;standard;umap;6;5;{'min_cluster_size': 50, 'min_samples': 35, 'cluster_selection_epsilon': 0.01743247238168584, 'alpha': 0.9069961619257525, 'metric': 'manhattan', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': False};"[[ 6.600343    0.69381607  8.583567    8.8368      4.5746956  -0.0260959 ]
+ [ 9.858275    0.25051054  6.908603    9.014492    6.16967     0.984854  ]
+ [11.609576    2.889306    6.7819467   9.56548     2.6421444   1.9472313 ]
+ [10.740562    2.149369    6.079174    8.3833      7.176444    4.309259  ]
+ [11.3135805   0.24750026  6.087201    7.5995517   8.550686    3.5541227 ]]";0.6118764281272888;0.6118764
+4;minmax;umap;3;4;{'min_cluster_size': 56, 'min_samples': 69, 'cluster_selection_epsilon': 0.16294232013633375, 'alpha': 1.1095019089391003, 'metric': 'manhattan', 'cluster_selection_method': 'eom', 'gen_min_span_tree': True};"[[ 3.8267384 10.699069   3.6014726]
+ [ 2.8240542 10.567834  -3.89801  ]
+ [ 1.6529709  9.688613   0.7607744]
+ [-0.6199737 10.210315  -1.807492 ]]";0.623572587966919;0.6235726
+5;minmax;umap;4;5;{'min_cluster_size': 54, 'min_samples': 41, 'cluster_selection_epsilon': 0.047113953772469006, 'alpha': 1.7073705700723567, 'metric': 'chebyshev', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': False};"[[ 3.663983   11.210393    4.893095   -0.38419515]
+ [-0.6313053  11.016497    3.1840618   1.469662  ]
+ [ 1.9628896  10.647062    0.21224464  1.6229718 ]
+ [-2.5944574  10.980308    3.1650214   5.720263  ]
+ [-1.0235485  11.353494    0.9002469   5.2723975 ]]";0.5682135820388794;0.5682136
+6;minmax;umap;5;3;{'min_cluster_size': 56, 'min_samples': 75, 'cluster_selection_epsilon': 0.014675798837349187, 'alpha': 1.3617379182603258, 'metric': 'chebyshev', 'cluster_selection_method': 'eom', 'gen_min_span_tree': True};"[[ 0.3781342   8.268603   -0.3391646   3.3330197   1.9990797 ]
+ [ 0.20041522 12.183779   -0.0700852   1.6697409   3.481071  ]
+ [ 1.8984151  10.056247    4.0125456   1.7497325   5.508665  ]]";0.5784802079200745;0.6784802
+7;minmax;umap;6;4;{'min_cluster_size': 52, 'min_samples': 55, 'cluster_selection_epsilon': 0.5684575713257474, 'alpha': 1.0012743821427847, 'metric': 'euclidean', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': True};"[[ 1.0158697   9.380491    2.609815    1.1456156   4.604738    8.731319  ]
+ [-1.134629    7.6061444   3.116648    1.6838121   1.4312474   5.2021914 ]
+ [-0.27646354  8.757599    2.8302982   1.6025934   3.366179    7.350696  ]
+ [-1.8045497   8.899356   -1.1006039   0.19320187  4.6706743   9.33179   ]]";0.5936455726623535;0.5936456
+8;robust;umap;3;4;{'min_cluster_size': 54, 'min_samples': 37, 'cluster_selection_epsilon': 0.036418221719035825, 'alpha': 0.7795096330569307, 'metric': 'chebyshev', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': True};"[[ 9.929603   3.0139413 12.171314 ]
+ [ 6.8480225 -0.9685388 13.232038 ]
+ [12.457185   2.3396087  8.090934 ]
+ [13.766328   0.3703199  7.053423 ]]";0.5347096920013428;0.5347097
+9;robust;umap;4;3;{'min_cluster_size': 52, 'min_samples': 75, 'cluster_selection_epsilon': 0.01077128981921529, 'alpha': 1.4614962971636505, 'metric': 'manhattan', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': True};"[[11.686007    2.0800545   7.9836044   9.981371  ]
+ [ 7.3337073  -0.15490507 10.669747    7.2039957 ]
+ [12.050584   -1.198944   12.737627    9.575674  ]]";0.5589447259902954;0.6589447
+10;robust;umap;5;3;{'min_cluster_size': 98, 'min_samples': 75, 'cluster_selection_epsilon': 0.032138067989690336, 'alpha': 1.2395848742183304, 'metric': 'chebyshev', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': True};"[[ 8.072506    1.777449   11.320192    6.7808747   5.4943824 ]
+ [11.925808    1.8096837   5.340531   11.317725    6.138336  ]
+ [12.915557   -0.43324557  9.827266    9.574469    2.5188453 ]]";0.551216208934784;0.6512162
+11;robust;umap;6;4;{'min_cluster_size': 56, 'min_samples': 37, 'cluster_selection_epsilon': 0.030847431231163007, 'alpha': 0.5583724016688292, 'metric': 'euclidean', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': True};"[[ 7.414385    0.93186325 11.049007    9.393148    5.070423    2.7486794 ]
+ [ 9.19852    -1.0716506  10.988259    8.365361    7.3149123   2.3387074 ]
+ [ 9.707628   -1.3995316   7.702602    9.355427    7.786179    4.797684  ]
+ [10.859568   -1.6805874   7.583689    6.8412247   8.680634    4.3972883 ]]";0.5407206416130066;0.54072064
+12;maxabs;umap;3;4;{'min_cluster_size': 50, 'min_samples': 62, 'cluster_selection_epsilon': 0.7077180372587065, 'alpha': 1.2520263049823188, 'metric': 'euclidean', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': False};"[[ 4.9815936 -0.1310701  8.564485 ]
+ [ 8.197529  -1.4915228 13.841011 ]
+ [10.772287   0.98336    7.7407093]
+ [ 8.860869  -1.9459736  8.216272 ]]";0.6080290675163269;0.60802907
+13;maxabs;umap;4;4;{'min_cluster_size': 50, 'min_samples': 67, 'cluster_selection_epsilon': 0.992873481679951, 'alpha': 1.1670154408371687, 'metric': 'euclidean', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': False};"[[ 5.4940004  -0.84501123  6.714188    0.36307648]
+ [10.96145     2.6985557   8.042084    5.247255  ]
+ [ 8.560597   -0.8613482   7.1252465   2.458638  ]
+ [ 9.819514   -2.2793052  11.28153     3.295829  ]]";0.6188669800758362;0.618867
+14;maxabs;umap;5;4;{'min_cluster_size': 50, 'min_samples': 68, 'cluster_selection_epsilon': 0.016282262783432925, 'alpha': 1.4840291320523662, 'metric': 'euclidean', 'cluster_selection_method': 'eom', 'gen_min_span_tree': False};"[[ 8.985227   -0.05376536  6.9224157  -0.4150793   6.420111  ]
+ [12.309916    2.8987358  10.286808    5.7201657   6.8422394 ]
+ [10.256544    0.2510777  10.403595    1.1977262   8.380738  ]
+ [11.347022   -0.06470965  8.706082    2.135891    7.3145046 ]]";0.6246181726455688;0.6246182
+15;maxabs;umap;6;4;{'min_cluster_size': 53, 'min_samples': 70, 'cluster_selection_epsilon': 0.0541129226572437, 'alpha': 1.9368628047221494, 'metric': 'euclidean', 'cluster_selection_method': 'leaf', 'gen_min_span_tree': False};"[[ 6.9351716  -0.785589    6.1025367   1.61313     6.404452    6.6540008 ]
+ [12.269166    3.5408707   6.716082    5.5731173   5.771849    7.2569075 ]
+ [10.605859    0.5640123   6.945015    1.7136203   6.5883737   6.911397  ]
+ [10.533524    0.9302334   9.156951   -0.19981539  8.138046    8.388686  ]]";0.6149271130561829;0.6149271

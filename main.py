@@ -21,21 +21,20 @@ def show_images_per_cluster(images, knn_cluster_result_df):
     n_clusters = knn_cluster_result_df.shape[1]  # Número de clusters
     n_images_per_cluster = knn_cluster_result_df.shape[0]  # Número de imágenes por cluster
     
-    # Crear una figura para cada cluster y las imágenes correspondientes
-    fig, axs = plt.subplots(n_clusters, n_images_per_cluster, figsize=(15, n_clusters * 3))
+    # Crear una figura con subplots para cada cluster y sus imágenes correspondientes
+    fig, axs = plt.subplots(n_clusters, n_images_per_cluster, figsize=(15, n_clusters * 3), squeeze=False)
     fig.suptitle("Closest Images to Cluster Centers", fontsize=16)
     
     for cluster_idx in range(n_clusters):
         cluster_name = f"Cluster_{cluster_idx}"
         for img_idx in range(n_images_per_cluster):
-            image_index = knn_similarity_df[cluster_name].iloc[img_idx]  # Índice de la imagen en el array 'image_paths'
+            image_index = knn_cluster_result_df[cluster_name].iloc[img_idx]  # Índice de la imagen en el array 'images'
             img_path = images[image_index]
             img = cv2.imread(img_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convertir de BGR a RGB para matplotlib
             
-            # Si hay un solo cluster, axs es una fila y no una matriz
-            ax = axs[cluster_idx, img_idx] if n_clusters > 1 else axs[img_idx]
-            
+            # Asegurarse de que `axs` siempre sea bidimensional
+            ax = axs[cluster_idx, img_idx]
             ax.imshow(img)
             ax.axis("off")
             ax.set_title(f"{cluster_name} - Img {img_idx + 1}")
@@ -46,11 +45,10 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 
 
 
-
 if __name__ == "__main__":
     # Finding images
     # image_loader = ImageLoader(folder="./data/Small_Data")
-    image_loader = ImageLoader(folder="./data/Small_Data")
+    image_loader = ImageLoader(folder="./data/Data")
     images = image_loader.find_images()
     # Loading images and getting embeddings
     dinomodel = Dinov2Inference(model_name="small", images=images, disable_cache=False)
@@ -67,8 +65,8 @@ if __name__ == "__main__":
     dim_red = "umap"
     clustering = "hdbscan"
     eval_method = "silhouette"
-    penalty = "range" # linear
-    penalty_range = (4,8)
+    penalty = "proportional" 
+    penalty_range = None
     cache = False
     result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results_optuna/{clustering}_{eval_method}_penalty_{penalty}_images_{len(images)}"
     os.makedirs(result_dir_cache_path, exist_ok=True)
@@ -80,11 +78,11 @@ if __name__ == "__main__":
     if not os.path.isfile(result_file_cache_path) or not cache:
         for scaler in scalers:
             embeddings_scaled = eda.run_scaler(scaler)
-            for dim in range(3, 15):
+            for dim in range(3, 14):
                 embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=dim_red, show_plots=False)
                 clustering_model = ClusteringFactory.create_clustering_model(clustering, embeddings_after_dimred)
                 # Execute optuna
-                study = clustering_model.run_optuna(evaluation_method=eval_method, n_trials=50, penalty=penalty, penalty_range=penalty_range)
+                study = clustering_model.run_optuna(evaluation_method=eval_method, n_trials=200, penalty=penalty, penalty_range=penalty_range)
                 # Access best trial n_cluster
                 best_trial = study.best_trial
                 n_clusters_best = best_trial.user_attrs.get("n_clusters", None)  # Extract clusters
@@ -124,6 +122,7 @@ if __name__ == "__main__":
     # For example give me experiment where it got 4 clusters with best
     # value of its metric (davies or silhouette)
     # For now, we could take best result
+
     if eval_method == "silhouette":
         best_experiment = results_df.loc[results_df['best_original_value'].idxmax()]
     else:
@@ -135,9 +134,18 @@ if __name__ == "__main__":
     best_dimension = best_experiment["dimension"]
     best_dim_red = best_experiment["dim_reduction"]
     # Convert to dictionary
-    best_params = best_experiment["best_params"].replace("'", "\"")
-    best_params_dict = json.loads(best_params) 
-    
+    best_params = best_experiment["best_params"].replace("'", "\"").replace("True", "true").replace("False", "false")
+
+    print(f"Best parameters raw: {best_params}")
+
+    try:
+        best_params_dict = json.loads(best_params)
+    except json.JSONDecodeError as e:
+        print("Error decoding JSON params:", e)
+        print("Parameters are not correct:", best_params)
+        raise
+
+
     # Use single experiment 
     # single_experiment = clustering_model.run_single_experiment()
     eda = EDA(embeddings=embeddings, verbose=False)
@@ -167,7 +175,7 @@ if __name__ == "__main__":
     print(knn_similarity_df)
     print("\nClosest points to center based on cosine similarity:")
     print(cosine_similarity_df)
-    
+
     print("\n\n[KNN] - Showing images related (x nn) to each cluster:")
     show_images_per_cluster(images, knn_similarity_df)
     print("\n\n[COSINE] - Showing images related (x nn) to each cluster:")
