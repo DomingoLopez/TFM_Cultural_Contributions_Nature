@@ -1,7 +1,7 @@
 import optuna
 from datetime import datetime
 import os
-#import hdbscan
+import hdbscan
 import pickle
 from pathlib import Path
 from tqdm import tqdm
@@ -98,8 +98,7 @@ class ClusteringModel(ABC):
             model = KMeans(**params)
         elif self.model_name == "hdbscan":
             # HDBSCAN clustering
-            # model = hdbscan.HDBSCAN(**params)
-            raise ValueError(f"HDBSCAN COMMENT JUST FOR FKNG WINDOWS")
+            model = hdbscan.HDBSCAN(**params)
         elif self.model_name == "agglomerative":
             # Agglomerative clustering
             model = AgglomerativeClustering(**params)

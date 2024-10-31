@@ -47,8 +47,6 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 
 
 
-
-
 if __name__ == "__main__":
     # Finding images
     # image_loader = ImageLoader(folder="./data/Small_Data")
@@ -67,7 +65,7 @@ if __name__ == "__main__":
     # Variables initialization
     scalers = ["standard","minmax","robust","maxabs"]
     dim_red = "umap"
-    clustering = "agglomerative"
+    clustering = "hdbscan"
     eval_method = "silhouette"
     penalty = "range" # linear
     penalty_range = (4,8)
@@ -162,17 +160,17 @@ if __name__ == "__main__":
     # Obtain knn image index for each cluster
     # Lets suppose that the dim reduction is the same for every case, and the centers are the same.
     # Lets calculate similarities
-    knn_similarity_df = clustering_model.find_clustering_knn_points(3, best_params_dict.get("metric"), best_centers, labels)
-    cosine_similarity_df = clustering_model.find_clustering_cosine_similarity_points(3, best_centers, labels)
+    knn_similarity_df = clustering_model.find_clustering_knn_points(5, best_params_dict.get("metric"), best_centers, labels)
+    cosine_similarity_df = clustering_model.find_clustering_cosine_similarity_points(5, best_centers, labels)
     # print closests points to center based on knn
     print("Closest points to center based on knn:")
     print(knn_similarity_df)
     print("\nClosest points to center based on cosine similarity:")
     print(cosine_similarity_df)
     
-    print("\n\n[KNN] - Showing images related (3 nn) to each cluster:")
+    print("\n\n[KNN] - Showing images related (x nn) to each cluster:")
     show_images_per_cluster(images, knn_similarity_df)
-    print("\n\n[COSINE] - Showing images related (3 nn) to each cluster:")
+    print("\n\n[COSINE] - Showing images related (x nn) to each cluster:")
     show_images_per_cluster(images, cosine_similarity_df)
     
     
