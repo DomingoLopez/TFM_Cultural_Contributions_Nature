@@ -3,7 +3,7 @@ data/Data
 data/test
 
 /src/results
-*.csv
+
 /trash/
 trash
 
