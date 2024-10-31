@@ -68,7 +68,7 @@ if __name__ == "__main__":
     scalers = ["standard","minmax","robust","maxabs"]
     dim_red = "umap"
     clustering = "agglomerative"
-    eval_method = "davies_bouldin"
+    eval_method = "silhouette"
     penalty = "range" # linear
     penalty_range = (4,8)
     cache = False
@@ -162,8 +162,8 @@ if __name__ == "__main__":
     # Obtain knn image index for each cluster
     # Lets suppose that the dim reduction is the same for every case, and the centers are the same.
     # Lets calculate similarities
-    knn_similarity_df = clustering_model.find_clustering_knn_points(3, best_params_dict.get("metric"), best_centers)
-    cosine_similarity_df = clustering_model.find_clustering_cosine_similarity_points(3, best_centers)
+    knn_similarity_df = clustering_model.find_clustering_knn_points(3, best_params_dict.get("metric"), best_centers, labels)
+    cosine_similarity_df = clustering_model.find_clustering_cosine_similarity_points(3, best_centers, labels)
     # print closests points to center based on knn
     print("Closest points to center based on knn:")
     print(knn_similarity_df)
