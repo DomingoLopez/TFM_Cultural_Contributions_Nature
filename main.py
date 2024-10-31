@@ -147,10 +147,18 @@ if __name__ == "__main__":
     embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=best_dimension, dim_reduction=best_dim_red, show_plots=False)
     clustering_model = ClusteringFactory.create_clustering_model(clustering, embeddings_after_dimred)
     # Run single Experiment
-    labels, centers, score = clustering_model.run_single_experiment(best_params_dict)
-    # Plot experiment  
-        
+    labels, centers, score = clustering_model.run_single_experiment(best_params_dict,eval_method)
     
+    unique_labels, counts = np.unique(labels, return_counts=True)
+    conteo_clusters = dict(zip(unique_labels, counts))
+    print(f"Mejores parámetros: {best_params_dict}")
+    print(f"Score {eval_method} tras single experiment: {score}")
+    print(f"N. Clusters: {len(set(labels)) - (1 if -1 in labels else 0)}")
+    print(f"Conteo de imágenes por cluster: {conteo_clusters}")
+    # Plot experiment  
+    # TODO: move this pca calculation to eda object. Give more sense to eda object
+    pca_df, pca_centers = clustering_model.do_PCA_for_representation(embeddings_after_dimred, centers)
+    clustering_model.plot_single_experiment(pca_df, labels, pca_centers, i=0, j=1)
     # Obtain knn image index for each cluster
     # Lets suppose that the dim reduction is the same for every case, and the centers are the same.
     # Lets calculate similarities

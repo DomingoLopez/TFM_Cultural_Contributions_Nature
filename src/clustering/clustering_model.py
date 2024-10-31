@@ -1,7 +1,7 @@
 import optuna
 from datetime import datetime
 import os
-import hdbscan
+#import hdbscan
 import pickle
 from pathlib import Path
 from tqdm import tqdm
@@ -92,12 +92,14 @@ class ClusteringModel(ABC):
         score : float
             Clustering score based on the specified evaluation method.
         """
+        np.random.seed(42)
         if self.model_name == "kmeans":
             # KMeans clustering
             model = KMeans(**params)
         elif self.model_name == "hdbscan":
             # HDBSCAN clustering
-            model = hdbscan.HDBSCAN(**params)
+            # model = hdbscan.HDBSCAN(**params)
+            raise ValueError(f"HDBSCAN COMMENT JUST FOR FKNG WINDOWS")
         elif self.model_name == "agglomerative":
             # Agglomerative clustering
             model = AgglomerativeClustering(**params)
@@ -105,7 +107,7 @@ class ClusteringModel(ABC):
             raise ValueError(f"Model '{self.model_name}' is not supported. Choose from 'kmeans', 'hdbscan', or 'agglomerative'.")
         
         labels = model.fit_predict(self.data)
-        centers = model.cluster_centers_
+        centers = self.get_cluster_centers(labels)
 
         # Calculate the score based on the specified evaluation method
         if eval_method == "silhouette" and len(set(labels)) > 1:
@@ -188,7 +190,7 @@ class ClusteringModel(ABC):
         def objective(trial):
             # Build the model with suggested hyperparameters
             model = model_builder(trial)
-            
+            np.random.seed(42)
             # Fit and predict
             labels = model.fit_predict(self.data)
             
@@ -260,6 +262,46 @@ class ClusteringModel(ABC):
         pbar.close()
 
         return study
+
+
+    def plot_single_experiment(
+        self,
+        X: pd.DataFrame, 
+        c: Optional[np.ndarray] = None, 
+        centroids: Optional[np.ndarray] = None,
+        i: int = 0, 
+        j: int = 0, 
+        figs: Tuple[int, int] = (9, 7)):
+        """
+        Plots a 2D representation of the dataset and its associated clusters.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Data points to plot, with each row representing a sample in 2D space.
+        c : Optional[np.ndarray]
+            Cluster labels for each point.
+        centroids : Optional[np.ndarray]
+            Coordinates of cluster centroids in 2D space.
+        i : int
+            Index of the feature for the x-axis.
+        j : int
+            Index of the feature for the y-axis.
+        figs : Tuple[int, int]
+            Size of the figure in inches.
+        """
+
+        # color mapping for clusters
+        colors = ['#FF0000', '#00FF00', '#FFFF00', '#0000FF', '#FF9D0A', '#00B6FF', '#F200FF', '#FF6100']
+        cmap_bold = ListedColormap(colors)
+        # Plotting frame
+        plt.figure(figsize=figs)
+        # Plotting points with seaborn
+        sns.scatterplot(x=X.iloc[:, i], y=X.iloc[:, j], hue=c, palette=cmap_bold.colors, s=30, hue_order=sorted(set(c)))  # Ensures that -1 appears first in the legend if present)
+        # Plotting centroids
+        if centroids is not None:
+            sns.scatterplot(x=centroids[:, i], y=centroids[:, j], marker='D',palette=colors[1:] if -1 in set(c) else colors[:], hue=range(centroids.shape[0]), s=100,edgecolors='black')
+        plt.show()
 
 
     @deprecated("This method was developed only for testing uses")
@@ -551,7 +593,7 @@ class ClusteringModel(ABC):
         pca_centers : np.ndarray
             Cluster centroids reduced to 2D space.
         """
-        pca = PCA(n_components=2)
+        pca = PCA(n_components=2,random_state=42)
         pca_result = pca.fit_transform(df.values)
         pca_df = pd.DataFrame(data=pca_result)
         pca_centers = pca.transform(centers)

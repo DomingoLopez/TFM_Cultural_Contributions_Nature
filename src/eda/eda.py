@@ -110,7 +110,7 @@ class EDA:
         PCA Dim reduction. 
         """
         logger.info(f"Using PCA Dim. reduction. {dimensions=}")
-        pca = PCA(n_components=dimensions)
+        pca = PCA(n_components=dimensions, random_state=42)
         pca_result = pca.fit_transform(embeddings_df.values)
         pca_df = pd.DataFrame(data=pca_result)
         # Eigenvectors
@@ -136,7 +136,7 @@ class EDA:
         More info in https://umap-learn.readthedocs.io/en/latest/
         """
         logger.info(f"Using UMAP Dim. reduction. {dimensions=}")
-        reducer = umap.UMAP(n_components=dimensions)
+        reducer = umap.UMAP(n_components=dimensions, random_state=42)
         umap_result = reducer.fit_transform(embeddings_df.values)
         umap_df = pd.DataFrame(data=umap_result)
         # Show only 2 dimensions in plots

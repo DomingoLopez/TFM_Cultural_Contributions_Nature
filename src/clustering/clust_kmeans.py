@@ -82,8 +82,7 @@ class KMeansClustering(ClusteringModel):
                 n_clusters=trial.suggest_int('n_clusters', 2, 10),
                 init=trial.suggest_categorical('init', ['k-means++', 'random']),
                 n_init=trial.suggest_int('n_init', 10, 20),
-                max_iter=trial.suggest_int('max_iter', 100, 300),
-                random_state=1234
+                max_iter=trial.suggest_int('max_iter', 100, 300)
             )
 
         # Call the generic Optuna optimization method
