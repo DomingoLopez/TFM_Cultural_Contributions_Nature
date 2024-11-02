@@ -63,26 +63,26 @@ if __name__ == "__main__":
     # Variables initialization
     scalers = ["standard","minmax","robust","maxabs"]
     dim_red = "umap"
-    clustering = "hdbscan"
+    clustering = "agglomerative"
     eval_method = "silhouette"
-    penalty = "proportional" 
+    penalty = None 
     penalty_range = None
-    cache = False
-    result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results_optuna/{clustering}_{eval_method}_penalty_{penalty}_images_{len(images)}"
+    cache = True
+    result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results_optuna/{clustering}/{eval_method}_penalty_{penalty}_images_{len(images)}"
     os.makedirs(result_dir_cache_path, exist_ok=True)
     result_file_cache_path = Path(__file__).resolve().parent / result_dir_cache_path / "result.pkl"
     result_file_cache_path_csv = Path(__file__).resolve().parent / result_dir_cache_path / "result.csv"
     results = []
-
+    
     # If file with results doesnt exists
     if not os.path.isfile(result_file_cache_path) or not cache:
         for scaler in scalers:
             embeddings_scaled = eda.run_scaler(scaler)
-            for dim in range(3, 14):
+            for dim in range(15, 25):
                 embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=dim_red, show_plots=False)
                 clustering_model = ClusteringFactory.create_clustering_model(clustering, embeddings_after_dimred)
                 # Execute optuna
-                study = clustering_model.run_optuna(evaluation_method=eval_method, n_trials=200, penalty=penalty, penalty_range=penalty_range)
+                study = clustering_model.run_optuna(evaluation_method=eval_method, n_trials=100, penalty=penalty, penalty_range=penalty_range)
                 # Access best trial n_cluster
                 best_trial = study.best_trial
                 n_clusters_best = best_trial.user_attrs.get("n_clusters", None)  # Extract clusters
