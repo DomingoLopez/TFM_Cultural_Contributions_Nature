@@ -60,63 +60,63 @@ if __name__ == "__main__":
     # BIG STUDY
     # ##############################################################
 
-    # Variables initialization
-    scalers = ["standard","minmax","robust","maxabs"]
-    dim_red = "umap"
-    clustering = "agglomerative"
-    eval_method = "silhouette"
-    penalty = None 
-    penalty_range = None
-    cache = True
-    result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results_optuna/{clustering}/{eval_method}_penalty_{penalty}_images_{len(images)}"
-    os.makedirs(result_dir_cache_path, exist_ok=True)
-    result_file_cache_path = Path(__file__).resolve().parent / result_dir_cache_path / "result.pkl"
-    result_file_cache_path_csv = Path(__file__).resolve().parent / result_dir_cache_path / "result.csv"
-    results = []
+    # # Variables initialization
+    # scalers = ["standard","minmax","robust","maxabs"]
+    # dim_red = "umap"
+    # clustering = "agglomerative"
+    # eval_method = "silhouette"
+    # penalty = None 
+    # penalty_range = None
+    # cache = True
+    # result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results_optuna/{clustering}/{eval_method}_penalty_{penalty}_images_{len(images)}"
+    # os.makedirs(result_dir_cache_path, exist_ok=True)
+    # result_file_cache_path = Path(__file__).resolve().parent / result_dir_cache_path / "result.pkl"
+    # result_file_cache_path_csv = Path(__file__).resolve().parent / result_dir_cache_path / "result.csv"
+    # results = []
     
-    # If file with results doesnt exists
-    if not os.path.isfile(result_file_cache_path) or not cache:
-        for scaler in scalers:
-            embeddings_scaled = eda.run_scaler(scaler)
-            for dim in range(15, 25):
-                embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=dim_red, show_plots=False)
-                clustering_model = ClusteringFactory.create_clustering_model(clustering, embeddings_after_dimred)
-                # Execute optuna
-                study = clustering_model.run_optuna(evaluation_method=eval_method, n_trials=100, penalty=penalty, penalty_range=penalty_range)
-                # Access best trial n_cluster
-                best_trial = study.best_trial
-                n_clusters_best = best_trial.user_attrs.get("n_clusters", None)  # Extract clusters
-                centers_best = best_trial.user_attrs.get("centers", None)  # Extract centers
-                score_best = best_trial.user_attrs.get("score_original", None)  # Extract original score
-                # Store results
-                results.append({
-                    "scaler": scaler,
-                    "dim_reduction":dim_red,
-                    "dimension": dim,
-                    "n_clusters": n_clusters_best,
-                    "best_params": str(study.best_params),
-                    "centers": centers_best,
-                    "best_value": study.best_value,
-                    "best_original_value": score_best
-                })
+    # # If file with results doesnt exists
+    # if not os.path.isfile(result_file_cache_path) or not cache:
+    #     for scaler in scalers:
+    #         embeddings_scaled = eda.run_scaler(scaler)
+    #         for dim in range(15, 25):
+    #             embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=dim_red, show_plots=False)
+    #             clustering_model = ClusteringFactory.create_clustering_model(clustering, embeddings_after_dimred)
+    #             # Execute optuna
+    #             study = clustering_model.run_optuna(evaluation_method=eval_method, n_trials=100, penalty=penalty, penalty_range=penalty_range)
+    #             # Access best trial n_cluster
+    #             best_trial = study.best_trial
+    #             n_clusters_best = best_trial.user_attrs.get("n_clusters", None)  # Extract clusters
+    #             centers_best = best_trial.user_attrs.get("centers", None)  # Extract centers
+    #             score_best = best_trial.user_attrs.get("score_original", None)  # Extract original score
+    #             # Store results
+    #             results.append({
+    #                 "scaler": scaler,
+    #                 "dim_reduction":dim_red,
+    #                 "dimension": dim,
+    #                 "n_clusters": n_clusters_best,
+    #                 "best_params": str(study.best_params),
+    #                 "centers": centers_best,
+    #                 "best_value": study.best_value,
+    #                 "best_original_value": score_best
+    #             })
 
-        # Store results as dataframe and csv in cache
-        results_df = pd.DataFrame(results)
-        results_df.to_csv(result_file_cache_path_csv,sep=";")
-        # Save study as object in cache.
-        results_cache_path = ""
-        pickle.dump(
-            results_df,
-            open(str(result_file_cache_path), "wb"),
-        )
-    else:
-        try:
-            results_df = pickle.load(
-                open(str(result_file_cache_path), "rb")
-            )
-            results_df.to_csv(result_file_cache_path_csv,sep=";")
-        except:
-            FileNotFoundError("Couldnt find provided file with results from experiments. Please, ensure that file exists.")
+    #     # Store results as dataframe and csv in cache
+    #     results_df = pd.DataFrame(results)
+    #     results_df.to_csv(result_file_cache_path_csv,sep=";")
+    #     # Save study as object in cache.
+    #     results_cache_path = ""
+    #     pickle.dump(
+    #         results_df,
+    #         open(str(result_file_cache_path), "wb"),
+    #     )
+    # else:
+    #     try:
+    #         results_df = pickle.load(
+    #             open(str(result_file_cache_path), "rb")
+    #         )
+    #         results_df.to_csv(result_file_cache_path_csv,sep=";")
+    #     except:
+    #         FileNotFoundError("Couldnt find provided file with results from experiments. Please, ensure that file exists.")
 
     # With results we can make final experiment with desired params
     # For example give me experiment where it got 4 clusters with best
@@ -147,6 +147,8 @@ if __name__ == "__main__":
 
 
     # Use single experiment 
+    # TODO: ESTO se puede poner como un print o el __str__ del experiment una vez completado
+    # HACER UN MÉTODO SHOW_RESULTS que muestre de forma formateada y con plots los resultados. 
     # single_experiment = clustering_model.run_single_experiment()
     eda = EDA(embeddings=embeddings, verbose=False)
     embeddings_scaled = eda.run_scaler(best_scaler)

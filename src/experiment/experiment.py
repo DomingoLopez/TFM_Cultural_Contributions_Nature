@@ -9,6 +9,7 @@ from loguru import logger
 from sklearn.cluster import KMeans
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.datasets import make_blobs
+from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering.clustering_model import ClusteringModel
 from src.eda.eda import EDA
 
@@ -60,13 +61,13 @@ class Experiment():
         # Dirs and files
         self.main_result_dir = Path(__file__).resolve().parent / \
                                 f"results/{self.clustering}" / \
-                                f"{"optuna" if self.optimizer == "optuna" else "gridsearch"}" 
+                                f"{"optuna" if self.optimizer == "optuna" else "gridsearch"}" / \
+                                f"dim_red_{self.dim_reduction}" 
         self.result_path_csv = os.path.join(self.main_result_dir, f"{self.eval_method}_penalty_{self.penalty}.csv")
         self.result_path_pkl = os.path.join(self.main_result_dir, f"{self.eval_method}_penalty_{self.penalty}.pkl")
         os.makedirs(self.main_result_dir, exist_ok=True)
                                 
        
-
 
 
     def run_experiment(self):
@@ -79,7 +80,6 @@ class Experiment():
         else:
             raise ValueError("optimizer not supported. Valid options are 'optuna' or 'gridsearch' ")
     
-
 
 
     def run_experiment_optuna(self):
@@ -96,13 +96,15 @@ class Experiment():
                 FileNotFoundError("Couldnt find provided file with results from experiment. Please, ensure that file exists.")
         # If no cache or no file found
         else:
+            # results var
+            results = []
             for scaler in self.scalers:
-                embeddings_scaled = eda.run_scaler(scaler)
-                for dim in range(15, 25):
-                    embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=dim_red, show_plots=False)
-                    clustering_model = ClusteringFactory.create_clustering_model(clustering, embeddings_after_dimred)
+                embeddings_scaled = self.eda.run_scaler(scaler)
+                for dim in self.dim_reduction_range:
+                    embeddings_after_dimred = self.eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=self.dim_reduction, show_plots=False)
+                    clustering_model = ClusteringFactory.create_clustering_model(self.clustering, embeddings_after_dimred)
                     # Execute optuna
-                    study = clustering_model.run_optuna(evaluation_method=eval_method, n_trials=100, penalty=penalty, penalty_range=penalty_range)
+                    study = clustering_model.run_optuna(evaluation_method=self.eval_method, n_trials=100, penalty=self.penalty, penalty_range=self.penalty_range)
                     # Access best trial n_cluster
                     best_trial = study.best_trial
                     n_clusters_best = best_trial.user_attrs.get("n_clusters", None)  # Extract clusters
@@ -111,27 +113,27 @@ class Experiment():
                     # Store results
                     results.append({
                         "scaler": scaler,
-                        "dim_reduction":dim_red,
-                        "dimension": dim,
+                        "dim_reduction":self.dim_reduction,
+                        "dimensions": dim,
                         "n_clusters": n_clusters_best,
                         "best_params": str(study.best_params),
                         "centers": centers_best,
-                        "best_value": study.best_value,
-                        "best_original_value": score_best
+                        "best_value_w_penalty": study.best_value,
+                        "best_value_w/o_penalty": score_best
                     })
 
-            # Store results as dataframe and csv in cache
+            # Store results as dataframe and csv in result folder
             results_df = pd.DataFrame(results)
-            results_df.to_csv(result_file_cache_path_csv,sep=";")
-            # Save study as object in cache.
-            results_cache_path = ""
+            results_df.to_csv(self.result_path_csv,sep=";")
+            # Save study as object.
             pickle.dump(
                 results_df,
-                open(str(result_file_cache_path), "wb")
+                open(str(self.result_path_pkl), "wb")
             )
        
 
-
+    def run_experiment_gridsearch(self):
+        pass
 
 
 
