@@ -7,6 +7,7 @@ import json
 
 from src.clustering.clust_hdbscan import HDBSCANClustering
 from src.clustering.clustering_factory import ClusteringFactory
+from src.experiment.experiment import Experiment
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
 from src.eda.eda import EDA
@@ -53,8 +54,36 @@ if __name__ == "__main__":
     # Loading images and getting embeddings
     dinomodel = Dinov2Inference(model_name="small", images=images, disable_cache=False)
     embeddings = dinomodel.run()
-    # Create Eda object and apply or not dim reduction
-    eda = EDA(embeddings=embeddings, verbose=False)
+
+    # Load json file with all experiments
+    with open('src/experiment/json/all_experiments.json', 'r') as f:
+        experiments_config = json.load(f)
+
+    for config in experiments_config:
+        optimizer = config.get("optimizer", "optuna")
+        dim_red_range = config.get("dim_red_range", [2, 15])
+        scalers = config.get("scalers", ["standard", "minmax", "robust", "maxabs"])
+        dim_red = config.get("dim_red", "umap")
+        clustering = config.get("clustering", "hdbscan")
+        eval_method = config.get("eval_method", "silhouette")
+        penalty = config.get("penalty", None)
+        penalty_range = config.get("penalty_range", None)
+        cache = config.get("cache", False)
+        # Make and Run Experiment
+        experiment = Experiment(
+            embeddings,
+            optimizer,
+            dim_red,
+            dim_red_range,
+            scalers,
+            clustering,
+            eval_method,
+            None if penalty == "" else penalty,
+            None if penalty_range== "" else penalty_range,
+            False if cache == 0 else True
+        )
+        experiment.run_experiment()
+
 
     # ##############################################################
     # BIG STUDY
@@ -123,67 +152,74 @@ if __name__ == "__main__":
     # value of its metric (davies or silhouette)
     # For now, we could take best result
 
-    if eval_method == "silhouette":
-        best_experiment = results_df.loc[results_df['best_original_value'].idxmax()]
-    else:
-        best_experiment = results_df.loc[results_df['best_original_value'].idxmin()]
+
+
+
+
+
+
+
+
+
+
+    # if eval_method == "silhouette":
+    #     best_experiment = results_df.loc[results_df['best_value_w/o_penalty'].idxmax()]
+    # else:
+    #     best_experiment = results_df.loc[results_df['best_value_w/o_penalty'].idxmin()]
         
-    # Gest data from best experiment
-    best_centers = best_experiment["centers"]
-    best_scaler = best_experiment["scaler"]
-    best_dimension = best_experiment["dimension"]
-    best_dim_red = best_experiment["dim_reduction"]
-    # Convert to dictionary
-    best_params = best_experiment["best_params"].replace("'", "\"").replace("True", "true").replace("False", "false")
+    # # Gest data from best experiment
+    # best_centers = best_experiment["centers"]
+    # best_scaler = best_experiment["scaler"]
+    # best_dimension = best_experiment["dimension"]
+    # best_dim_red = best_experiment["dim_reduction"]
+    # # Convert to dictionary
+    # best_params = best_experiment["best_params"].replace("'", "\"").replace("True", "true").replace("False", "false")
 
-    print(f"Best parameters raw: {best_params}")
+    # print(f"Best parameters raw: {best_params}")
 
-    try:
-        best_params_dict = json.loads(best_params)
-    except json.JSONDecodeError as e:
-        print("Error decoding JSON params:", e)
-        print("Parameters are not correct:", best_params)
-        raise
+    # try:
+    #     best_params_dict = json.loads(best_params)
+    # except json.JSONDecodeError as e:
+    #     print("Error decoding JSON params:", e)
+    #     print("Parameters are not correct:", best_params)
+    #     raise
 
 
-    # Use single experiment 
-    # TODO: ESTO se puede poner como un print o el __str__ del experiment una vez completado
-    # HACER UN MÉTODO SHOW_RESULTS que muestre de forma formateada y con plots los resultados. 
-    # single_experiment = clustering_model.run_single_experiment()
-    eda = EDA(embeddings=embeddings, verbose=False)
-    embeddings_scaled = eda.run_scaler(best_scaler)
-    embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=best_dimension, dim_reduction=best_dim_red, show_plots=False)
-    clustering_model = ClusteringFactory.create_clustering_model(clustering, embeddings_after_dimred)
-    # Run single Experiment
-    labels, centers, score = clustering_model.run_single_experiment(best_params_dict,eval_method)
+    # # Use single experiment 
+    # # TODO: ESTO se puede poner como un print o el __str__ del experiment una vez completado
+    # # HACER UN MÉTODO SHOW_RESULTS que muestre de forma formateada y con plots los resultados. 
+    # # single_experiment = clustering_model.run_single_experiment()
+    # eda = EDA(embeddings=embeddings, verbose=False)
+    # embeddings_scaled = eda.run_scaler(best_scaler)
+    # embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=best_dimension, dim_reduction=best_dim_red, show_plots=False)
+    # clustering_model = ClusteringFactory.create_clustering_model(clustering, embeddings_after_dimred)
+    # # Run single Experiment
+    # labels, centers, score = clustering_model.run_single_experiment(best_params_dict,eval_method)
     
-    unique_labels, counts = np.unique(labels, return_counts=True)
-    conteo_clusters = dict(zip(unique_labels, counts))
-    print(f"Mejores parámetros: {best_params_dict}")
-    print(f"Score {eval_method} tras single experiment: {score}")
-    print(f"N. Clusters: {len(set(labels)) - (1 if -1 in labels else 0)}")
-    print(f"Conteo de imágenes por cluster: {conteo_clusters}")
-    # Plot experiment  
-    # TODO: move this pca calculation to eda object. Give more sense to eda object
-    pca_df, pca_centers = clustering_model.do_PCA_for_representation(embeddings_after_dimred, centers)
-    clustering_model.plot_single_experiment(pca_df, labels, pca_centers, i=0, j=1)
-    # Obtain knn image index for each cluster
-    # Lets suppose that the dim reduction is the same for every case, and the centers are the same.
-    # Lets calculate similarities
-    knn_similarity_df = clustering_model.find_clustering_knn_points(5, best_params_dict.get("metric"), best_centers, labels)
-    cosine_similarity_df = clustering_model.find_clustering_cosine_similarity_points(5, best_centers, labels)
-    # print closests points to center based on knn
-    print("Closest points to center based on knn:")
-    print(knn_similarity_df)
-    print("\nClosest points to center based on cosine similarity:")
-    print(cosine_similarity_df)
+    # unique_labels, counts = np.unique(labels, return_counts=True)
+    # conteo_clusters = dict(zip(unique_labels, counts))
+    # print(f"Mejores parámetros: {best_params_dict}")
+    # print(f"Score {eval_method} tras single experiment: {score}")
+    # print(f"N. Clusters: {len(set(labels)) - (1 if -1 in labels else 0)}")
+    # print(f"Conteo de imágenes por cluster: {conteo_clusters}")
+    # # Plot experiment  
+    # # TODO: move this pca calculation to eda object. Give more sense to eda object
+    # pca_df, pca_centers = clustering_model.do_PCA_for_representation(embeddings_after_dimred, centers)
+    # clustering_model.plot_single_experiment(pca_df, labels, pca_centers, i=0, j=1)
+    # # Obtain knn image index for each cluster
+    # # Lets suppose that the dim reduction is the same for every case, and the centers are the same.
+    # # Lets calculate similarities
+    # knn_similarity_df = clustering_model.find_clustering_knn_points(5, best_params_dict.get("metric"), best_centers, labels)
+    # cosine_similarity_df = clustering_model.find_clustering_cosine_similarity_points(5, best_centers, labels)
+    # # print closests points to center based on knn
+    # print("Closest points to center based on knn:")
+    # print(knn_similarity_df)
+    # print("\nClosest points to center based on cosine similarity:")
+    # print(cosine_similarity_df)
 
-    print("\n\n[KNN] - Showing images related (x nn) to each cluster:")
-    show_images_per_cluster(images, knn_similarity_df)
-    print("\n\n[COSINE] - Showing images related (x nn) to each cluster:")
-    show_images_per_cluster(images, cosine_similarity_df)
-    
-    
-    # TODO: Show representation of clusters using pca and pca_centers, etc. 
+    # print("\n\n[KNN] - Showing images related (x nn) to each cluster:")
+    # show_images_per_cluster(images, knn_similarity_df)
+    # print("\n\n[COSINE] - Showing images related (x nn) to each cluster:")
+    # show_images_per_cluster(images, cosine_similarity_df)
     
     

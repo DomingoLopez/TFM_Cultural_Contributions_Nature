@@ -10,6 +10,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.datasets import make_blobs
 from src.clustering.clustering_model import ClusteringModel
+from src.utils.decorators import deprecated
 
 
 class AgglomerativeClusteringModel(ClusteringModel):
@@ -83,7 +84,8 @@ class AgglomerativeClusteringModel(ClusteringModel):
          # Call generic class method
         return self.run_optuna_generic(model_builder, evaluation_method, n_trials, penalty, penalty_range)
         
-
+        
+    @deprecated("This method was developed only for testing uses")
     def run_basic_experiment(self):
         """
         Execute the Agglomerative Clustering process on the dataset.

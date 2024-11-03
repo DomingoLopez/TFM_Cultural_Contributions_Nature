@@ -9,6 +9,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.datasets import make_blobs
 from src.clustering.clustering_model import ClusteringModel
+from src.utils.decorators import deprecated
 
 
 class KMeansClustering(ClusteringModel):
@@ -88,8 +89,45 @@ class KMeansClustering(ClusteringModel):
         # Call the generic Optuna optimization method
         return self.run_optuna_generic(model_builder, evaluation_method, n_trials,penalty, penalty_range)
         
-        
 
+
+
+    def run_gridsearch(self, evaluation_method="silhouette"):
+        """
+        Run GridSearchCV for the KMeans clustering model with a specified evaluation method.
+
+        This method defines the hyperparameter grid specific to KMeans clustering and 
+        calls the generic run_grid_search_generic method to perform the grid search.
+
+        Parameters
+        ----------
+        evaluation_method : str, optional
+            The evaluation metric to optimize. Can be either 'silhouette' for maximizing 
+            the silhouette score, or 'davies_bouldin' for minimizing the Davies-Bouldin score.
+            Defaults to 'silhouette'.
+        
+        Returns
+        -------
+        GridSearchCV
+            The GridSearchCV object containing details of the best hyperparameters found and 
+            the associated evaluation score.
+        """
+        # Define the parameter grid for KMeans
+        param_grid = {
+            'n_clusters': [10,15,17,19,23,26,28],
+            'init': ['k-means++', 'random'],
+            'n_init': [10, 20],
+            'max_iter': [100, 300]
+        }
+    
+        
+        # Call the generic grid search method
+        return self.run_grid_search_generic(param_grid, evaluation_method)
+
+
+
+
+    @deprecated("This method was developed only for testing uses")
     def run_basic_experiment(self):
         """
         Execute the KMeans clustering process on the dataset.

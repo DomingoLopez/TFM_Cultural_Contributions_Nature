@@ -4,6 +4,7 @@ import os
 import hdbscan
 import pickle
 from pathlib import Path
+from sklearn.model_selection import GridSearchCV
 from tqdm import tqdm
 import seaborn as sns
 import pandas as pd
@@ -18,7 +19,7 @@ from typing import Optional, Tuple
 from matplotlib.colors import ListedColormap
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.decomposition import PCA
-from sklearn.metrics import davies_bouldin_score, silhouette_score
+from sklearn.metrics import davies_bouldin_score, make_scorer, silhouette_score
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -148,7 +149,9 @@ class ClusteringModel(ABC):
                 
             if self.model_name in ["hdbscan", "dbscan"]:  # Density-based methods
                 # Find the point with highest density within the cluster
-                nbrs = NearestNeighbors(n_neighbors=min(5, len(cluster_points))).fit(cluster_points)
+                # Check if cluster has less values than neighbors
+                n_neighbors_cluster = min(5, max(1, len(cluster_points) - 1))
+                nbrs = NearestNeighbors(n_neighbors=n_neighbors_cluster).fit(cluster_points)
                 densities = np.mean(nbrs.kneighbors()[0], axis=1)
                 densest_point_idx = np.argmin(densities)  # Lower distance to neighbors = higher density
                 cluster_center = cluster_points[densest_point_idx]
@@ -162,7 +165,7 @@ class ClusteringModel(ABC):
         
         return centers
             
-            
+     
     
     def run_optuna_generic(self, model_builder, evaluation_method="silhouette", n_trials=50, penalty="linear", penalty_range=(2,8)):
         """
@@ -263,6 +266,73 @@ class ClusteringModel(ABC):
         pbar.close()
 
         return study
+
+
+
+    def run_grid_search_generic(self, param_grid, evaluation_method="silhouette"):
+        """
+        Generic GridSearchCV for clustering models with a specified evaluation method.
+
+        Parameters
+        ----------
+        param_grid : dict
+            Dictionary with parameters names as keys and lists of parameter settings 
+            to try as values.
+        evaluation_method : str, optional
+            The evaluation metric to optimize. Can be either 'silhouette' for maximizing 
+            the silhouette score, or 'davies_bouldin' for minimizing the Davies-Bouldin score.
+            Defaults to 'silhouette'.
+
+        Returns
+        -------
+        GridSearchCV
+            The GridSearchCV object after fitting, containing details of the best model 
+            and its evaluation score.
+        """
+        # Select the scoring function
+        if evaluation_method == "silhouette":
+            scorer = make_scorer(silhouette_score)
+        elif evaluation_method == "davies_bouldin":
+            scorer = make_scorer(davies_bouldin_score, greater_is_better=False)
+        else:
+            raise ValueError("Evaluation method not supported. Use 'silhouette' or 'davies_bouldin'.")
+
+
+        if self.model_name == "kmeans":
+            # KMeans clustering
+            model = KMeans()
+        elif self.model_name == "hdbscan":
+            # HDBSCAN clustering
+            model = hdbscan.HDBSCAN()
+        elif self.model_name == "agglomerative":
+            # Agglomerative clustering
+            model = AgglomerativeClustering()
+        else:
+            raise ValueError(f"Model '{self.model_name}' is not supported. Choose from 'kmeans', 'hdbscan', or 'agglomerative'.")
+
+
+        # Create and fit the GridSearchCV object
+        grid_search = GridSearchCV(
+            estimator=model,  # Se espera que cada clase específica defina `self.model_instance`
+            param_grid=param_grid,
+            scoring=scorer,
+            cv=[(slice(None), slice(None))],  # Usamos todos los datos sin CV
+            n_jobs=-1
+        )
+
+        # Ejecuta la búsqueda
+        grid_search.fit(self.data)
+        
+        # Log the best parameters and score
+        # logger.info(f"Best Parameters: {grid_search.best_params_}")
+        # logger.info(f"Best Score ({evaluation_method}): {grid_search.best_score_}")
+
+        return grid_search
+
+
+
+
+
 
 
     def plot_single_experiment(
