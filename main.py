@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import json
+from loguru import logger
 
 from src.clustering.clust_hdbscan import HDBSCANClustering
 from src.clustering.clustering_factory import ClusteringFactory
@@ -70,6 +71,7 @@ if __name__ == "__main__":
         penalty_range = config.get("penalty_range", None)
         cache = config.get("cache", False)
         # Make and Run Experiment
+        logger.info(f"LOADING EXPERIMENT: {config.get('_comment')}")
         experiment = Experiment(
             embeddings,
             optimizer,
