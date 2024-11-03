@@ -9,7 +9,7 @@
         "eval_method" : "silhouette",
         "penalty" : "",
         "penalty_range" : "",
-        "cache" : 0
+        "cache" : 1
     },
     {
         "_comment" : "Experimento 2: HDBSCAN OPTUNA Davies Bouldin",
@@ -21,7 +21,7 @@
         "eval_method" : "davies_bouldin",
         "penalty" : "",
         "penalty_range" : "",
-        "cache" : 0
+        "cache" : 1
     },
     {
         "_comment" : "Experimento 3: AGGLOMERATIVE OPTUNA Silhouette",
@@ -33,7 +33,7 @@
         "eval_method" : "silhouette",
         "penalty" : "",
         "penalty_range" : "",
-        "cache" : 0
+        "cache" : 1
     },
     {
         "_comment" : "Experimento 4: AGGLOMERATIVE OPTUNA Davies Bouldin",
@@ -45,7 +45,7 @@
         "eval_method" : "davies_bouldin",
         "penalty" : "",
         "penalty_range" : "",
-        "cache" : 0
+        "cache" : 1
     },
     {
         "_comment" : "Experimento 5: KMEANS OPTUNA Silhouette",
@@ -57,7 +57,7 @@
         "eval_method" : "silhouette",
         "penalty" : "",
         "penalty_range" : "",
-        "cache" : 0
+        "cache" : 1
     },
     {
         "_comment" : "Experimento 6: KMEANS OPTUNA Davies Bouldin",
@@ -69,6 +69,6 @@
         "eval_method" : "davies_bouldin",
         "penalty" : "",
         "penalty_range" : "",
-        "cache" : 0
+        "cache" : 1
     }
 ]

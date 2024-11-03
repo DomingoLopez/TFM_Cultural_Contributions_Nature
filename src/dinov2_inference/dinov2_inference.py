@@ -97,8 +97,8 @@ class Dinov2Inference:
             # cache_root_folder = Path(
             #     appdirs.user_cache_dir(appname="dinov2_inference", appauthor="domi")
             # )
-            project_root = Path(__file__).resolve().parent.parent.parent  # Un nivel hacia arriba desde src/
-            cache_root_folder = project_root / "cache"
+            parent_root = Path(__file__).resolve().parent  # Un nivel hacia arriba desde src/
+            cache_root_folder = parent_root / "cache"
             cache_root_folder.mkdir(parents=True, exist_ok=True)
             self.embeddings_cache_path = cache_root_folder / (
                 "embeddings_" + self.model_name + "_" + str(len(self.images)) + ".pkl"

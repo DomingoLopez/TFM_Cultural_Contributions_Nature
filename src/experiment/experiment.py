@@ -48,7 +48,7 @@ class Experiment():
         self.penalty_range = penalty_range
         self.cache = cache
         # Eda object
-        self.eda = EDA(self.data, verbose=False)
+        self.eda = EDA(self.data, verbose=False, cache=self.cache)
 
         # Setup logging
         logger.remove()
@@ -59,7 +59,7 @@ class Experiment():
         
 
         # Dirs and files
-        self.main_result_dir = Path(__file__).resolve().parent.parent.parent / \
+        self.main_result_dir = Path(__file__).resolve().parent / \
                                 f"results/{self.clustering}" / \
                                 "optuna" if self.optimizer == "optuna" else "gridsearch" / \
                                 f"dim_red_{self.dim_reduction}" 
@@ -99,8 +99,8 @@ class Experiment():
             results = []
             for scaler in self.scalers:
                 embeddings_scaled = self.eda.run_scaler(scaler)
-                for dim in self.dim_reduction_range:
-                    embeddings_after_dimred = self.eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=self.dim_reduction, show_plots=False)
+                for dim in range(self.dim_reduction_range[0],self.dim_reduction_range[1], 1):
+                    embeddings_after_dimred = self.eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=self.dim_reduction, scaler=scaler, show_plots=False)
                     clustering_model = ClusteringFactory.create_clustering_model(self.clustering, embeddings_after_dimred)
                     # Execute optuna
                     study = clustering_model.run_optuna(evaluation_method=self.eval_method, n_trials=100, penalty=self.penalty, penalty_range=self.penalty_range)

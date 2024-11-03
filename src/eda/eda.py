@@ -25,8 +25,11 @@ class EDA:
     def __init__(self, 
                  embeddings=None,
                  verbose=False,
+                 cache = True,
                  ):
         
+
+        self.cache = cache
         # Setup logging
         logger.remove()
         if verbose:
@@ -53,6 +56,11 @@ class EDA:
             self.embeddings = embeddings
             
         self.embeddings_df = pd.DataFrame(self.embeddings)
+
+        # Dirs and files
+        self.cache_dir = Path(__file__).resolve().parent / "cache" 
+        os.makedirs(self.cache_dir, exist_ok=True)
+
 
 
     def __simple_eda(self, show_plots=False):
@@ -84,71 +92,115 @@ class EDA:
         embeddings_scaled : pd.DataFrame
             The scaled embeddings as a DataFrame.
         """
-        # Diccionario de opciones de escaladores
-        scalers = {
-            "standard": StandardScaler(),
-            "minmax": MinMaxScaler(),
-            "robust": RobustScaler(),
-            "maxabs": MaxAbsScaler()
-        }
+        # If cache true and file exists, load embeddings scaled from cache
+        embeddings_scaled_path = os.path.join(self.cache_dir, f"scaled/{type}.pkl")
+        # Create folder if it doesnt exist
+        os.makedirs(os.path.join(self.cache_dir,"scaled"), exist_ok=True)
+        if self.cache and os.path.isfile(embeddings_scaled_path):
+            try:
+                embeddings_scaled = pickle.load(
+                    open(str(embeddings_scaled_path), "rb")
+                )
+            except:
+                FileNotFoundError("Couldnt find provided file with scaled embeddings")
 
-        # Obtener el escalador seleccionado o StandardScaler por defecto
-        scaler = scalers.get(type, StandardScaler())
-        logger.info(f"Applying {type} scaler to embeddings")
-
-        # Aplicar el escalado a las embeddings
-        embeddings = scaler.fit_transform(self.embeddings_df.values)
-
-        # Actualizar el DataFrame de embeddings con los valores escalados
-        embeddings_scaled = pd.DataFrame(embeddings, columns=self.embeddings_df.columns)
-        logger.debug(f"Embeddings scaled using {type.capitalize()}Scaler.")
-        return embeddings_scaled
+            logger.info(f"Retrieving {type} scaler embbeddings from cache")
+            return embeddings_scaled
         
+        else:
+            # Scaler options
+            scalers = {
+                "standard": StandardScaler(),
+                "minmax": MinMaxScaler(),
+                "robust": RobustScaler(),
+                "maxabs": MaxAbsScaler()
+            }
+
+            # Get Scaler
+            scaler = scalers.get(type, StandardScaler())
+            logger.info(f"Applying {type} scaler to embeddings")
+
+            # Apply scaler
+            embeddings = scaler.fit_transform(self.embeddings_df.values)
+
+            # return embeddings_scaled
+            embeddings_scaled = pd.DataFrame(embeddings, columns=self.embeddings_df.columns)
+            logger.debug(f"Embeddings scaled using {type.capitalize()} Scaler.")
+            # Save embbedings_scaled
+            pickle.dump(
+                embeddings_scaled,
+                open(str(embeddings_scaled_path), "wb")
+            )
+            return embeddings_scaled
+            
         
-    def __do_PCA(self, embeddings_df, show_plots=False, dimensions=2):
+    def __do_PCA(self, embeddings_df, dimensions=2, scaler="standard", show_plots=True ):
         """
         PCA Dim reduction. 
         """
-        logger.info(f"Using PCA Dim. reduction. {dimensions=}")
-        pca = PCA(n_components=dimensions, random_state=42)
-        pca_result = pca.fit_transform(embeddings_df.values)
-        pca_df = pd.DataFrame(data=pca_result)
-        # Eigenvectors
-        eigenvectors = pca.components_
-        print("Principal components (Eigenvectors):")
-        print(eigenvectors)
-        # Eigenvalues
-        eigenvalues = pca.explained_variance_ratio_ 
-        print("Explained variance ratio (Eigenvalues):")
-        print(eigenvalues)
-        # Show only 2 dimensions in plots
-        if show_plots:
-            plt.scatter(pca_result[:, 0], pca_result[:, 1], alpha=0.5)
-            plt.title("Embeddings representation in 2D using PCA")
-            plt.show()
 
-        return pca_df
+        # Check if they are available in cache
+        embeddings_dim_red_df = self.__check_reduced_exists_cache(scaler, "pca", dimensions)
+        if embeddings_dim_red_df is None:
+            logger.info(f"Using PCA Dim. reduction. {dimensions=}")
+            pca = PCA(n_components=dimensions, random_state=42)
+            pca_result = pca.fit_transform(embeddings_df.values)
+            pca_df = pd.DataFrame(data=pca_result)
+            # Eigenvectors
+            eigenvectors = pca.components_
+            print("Principal components (Eigenvectors):")
+            print(eigenvectors)
+            # Eigenvalues
+            eigenvalues = pca.explained_variance_ratio_ 
+            print("Explained variance ratio (Eigenvalues):")
+            print(eigenvalues)
+            # Show only 2 dimensions in plots
+            if show_plots:
+                plt.scatter(pca_result[:, 0], pca_result[:, 1], alpha=0.5)
+                plt.title("Embeddings representation in 2D using PCA")
+                plt.show()
+
+            # Save to cache
+            self.__save_reduced_embeddings(pca_df, scaler, "pca", dimensions)
+            return pca_df
+        else:
+            logger.info(f"Retrieving pca reduced embbeddings from cache")
+            return embeddings_dim_red_df
 
     
-    def __do_UMAP(self, embeddings_df, show_plots=False, dimensions=2):
+
+
+
+    def __do_UMAP(self, embeddings_df, dimensions=2, scaler="standard", show_plots=True ):
         """
         UMAP Dim reduction. 
         More info in https://umap-learn.readthedocs.io/en/latest/
         """
-        logger.info(f"Using UMAP Dim. reduction. {dimensions=}")
-        reducer = umap.UMAP(n_components=dimensions, random_state=42)
-        umap_result = reducer.fit_transform(embeddings_df.values)
-        umap_df = pd.DataFrame(data=umap_result)
-        # Show only 2 dimensions in plots
-        if show_plots:
-            plt.scatter(umap_result[:, 0], umap_result[:, 1], alpha=0.5)
-            plt.title("Embeddings representation in 2D using UMAP")
-            plt.show()
+
+        # Check if they are available in cache
+        embeddings_dim_red_df = self.__check_reduced_exists_cache(scaler, "umap", dimensions)
+        if embeddings_dim_red_df is None:
+            logger.info(f"Using UMAP Dim. reduction. {dimensions=}")
+            reducer = umap.UMAP(n_components=dimensions, random_state=42)
+            umap_result = reducer.fit_transform(embeddings_df.values)
+            umap_df = pd.DataFrame(data=umap_result)
+            # Show only 2 dimensions in plots
+            if show_plots:
+                plt.scatter(umap_result[:, 0], umap_result[:, 1], alpha=0.5)
+                plt.title("Embeddings representation in 2D using UMAP")
+                plt.show()
+            
+            # Save to cache
+            self.__save_reduced_embeddings(umap_df, scaler, "umap", dimensions)
+            return umap_df
+        else:
+            logger.info(f"Retrieving umap reduced embbedings from cache")
+            return embeddings_dim_red_df
         
-        return umap_df
         
-        
-    def __do_CVAE(self, embeddings_df, dimensions=2, show_plots=True):
+
+
+    def __do_CVAE(self, embeddings_df, dimensions=2, scaler="standard", show_plots=True ):
         """
         Compression VAE Dim reduction. 
         More info in https://github.com/maxfrenzel/CompressionVAE
@@ -158,42 +210,119 @@ class EDA:
         cd CompressionVAE
         pip install -e .
         """
-        logger.info(f"Using CVAE Dim. reduction: {dimensions=}")
-        # 1: Obtain array of embeddings
-        X = embeddings_df.values
-        # 2: Initialize cvae model with selected dimensions
-        embedder = cvae.CompressionVAE(X, dim_latent=dimensions, verbose = False)
-        # 3: Train cvae model
-        embedder.train()  
-        # 4: Get reduced embeddings
-        embeddings_compressed = embedder.embed(X)  
-        cvae_df = pd.DataFrame(data=embeddings_compressed)
-        # Show only 2 dimensions in plots
-        if show_plots:
-            plt.scatter(embeddings_compressed[:, 0], embeddings_compressed[:, 1], alpha=0.5)
-            plt.title("Embeddings in latent space (CVAE compression)")
-            plt.xlabel("Latent dim 1")
-            plt.ylabel("Latent dim 2")
-            plt.show()
 
-        return cvae_df
+        # Check if they are available in cache
+        embeddings_dim_red_df = self.__check_reduced_exists_cache(scaler, "cvae", dimensions)
+        if embeddings_dim_red_df is None:
+            logger.info(f"Using CVAE Dim. reduction: {dimensions=}")
+            # 1: Obtain array of embeddings
+            X = embeddings_df.values
+            # 2: Initialize cvae model with selected dimensions
+            embedder = cvae.CompressionVAE(X, dim_latent=dimensions, verbose = False)
+            # 3: Train cvae model
+            embedder.train()  
+            # 4: Get reduced embeddings
+            embeddings_compressed = embedder.embed(X)  
+            cvae_df = pd.DataFrame(data=embeddings_compressed)
+            # Show only 2 dimensions in plots
+            if show_plots:
+                plt.scatter(embeddings_compressed[:, 0], embeddings_compressed[:, 1], alpha=0.5)
+                plt.title("Embeddings in latent space (CVAE compression)")
+                plt.xlabel("Latent dim 1")
+                plt.ylabel("Latent dim 2")
+                plt.show()
+
+            # Save to cache
+            self.__save_reduced_embeddings(cvae_df, scaler, "cvae", dimensions)
+            return cvae_df
+        else:
+            logger.info(f"Retrieving cvae reduced embbedings from cache")
+            return embeddings_dim_red_df
 
 
 
-    def run_dim_red(self, embeddings_df, dimensions=2, show_plots=True, dim_reduction ="cvae"):
+    def __check_reduced_exists_cache(self, scaler, dim_reduction, dimensions):
+        """
+        Check if reduced embeddings are available in cache and load them if they are.
+
+        Parameters
+        ----------
+        scaler : str
+            The type of scaler applied (e.g., "standard", "minmax").
+        dim_reduction : str
+            The dimensionality reduction technique (e.g., "umap").
+        dimensions : int
+            The number of dimensions after reduction.
+
+        Returns
+        -------
+        embeddings_dim_red : pd.DataFrame or None
+            The cached reduced embeddings as a DataFrame if available, else None.
+        """
+        # Define the path based on the presence of scaler and dimensionality reduction
+        if scaler is not None and dim_reduction is not None:
+            path = os.path.join(self.cache_dir, f"scaled_and_reduced/{scaler}/{dim_reduction}_{dimensions}.pkl")
+        else:
+            path = os.path.join(self.cache_dir, f"dim_reduced/{dim_reduction}_{dimensions}.pkl")
+
+        # Check if the file exists and load it if available
+        if os.path.isfile(path):
+            try:
+                with open(path, "rb") as f:
+                    embeddings_dim_red = pickle.load(f)
+                return embeddings_dim_red
+            except FileNotFoundError:
+                logger.error("Couldn't find provided file with reduced embeddings.")
+                return None
+        else:
+            return None  # Return None if the file doesn't exist
+                
+
+    def __save_reduced_embeddings(self, df, scaler, dim_reduction, dimensions):
+        """
+        Save reduced embeddings to a cache file.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The DataFrame containing the reduced embeddings.
+        scaler : str
+            The type of scaler applied (e.g., "standard", "minmax").
+        dim_reduction : str
+            The dimensionality reduction technique (e.g., "umap").
+        dimensions : int
+            The number of dimensions after reduction.
+        """
+        # Define the path based on scaler and dimensionality reduction technique
+        if scaler is not None and dim_reduction is not None:
+            path = os.path.join(self.cache_dir, f"scaled_and_reduced/{scaler}/{dim_reduction}_{dimensions}.pkl")
+        else:
+            path = os.path.join(self.cache_dir, f"dim_reduced/{dim_reduction}_{dimensions}.pkl")
+
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        # Save reduced embeddings to cache
+        with open(path, "wb") as f:
+            pickle.dump(df, f)
+        logger.info(f"Reduced embeddings saved to {path}")
+
+            
+
+    def run_dim_red(self, embeddings_df, dimensions=2, dim_reduction ="cvae", scaler = "standard", show_plots=True):
         """
         Execute eda, including plots if selected and other stuff
         """
         # Apply dim reduction if chosen
         if dim_reduction is not None:
             if dim_reduction == "umap":
-                embeddings_dim_red = self.__do_UMAP(embeddings_df,show_plots=show_plots, dimensions=dimensions)
+                embeddings_dim_red = self.__do_UMAP(embeddings_df, dimensions=dimensions, scaler= scaler, show_plots=show_plots)
             elif dim_reduction == "cvae":
-                embeddings_dim_red = self.__do_CVAE(embeddings_df,show_plots=show_plots, dimensions=dimensions)
+                embeddings_dim_red = self.__do_CVAE(embeddings_df, dimensions=dimensions,scaler= scaler, show_plots=show_plots)
             elif dim_reduction == "pca":
-                embeddings_dim_red = self.__do_PCA(embeddings_df,show_plots=show_plots, dimensions=dimensions)
+                embeddings_dim_red = self.__do_PCA(embeddings_df, dimensions=dimensions,scaler= scaler, show_plots=show_plots)
             else:
-                embeddings_dim_red = self.__do_UMAP(embeddings_df,show_plots=show_plots, dimensions=dimensions)
+                embeddings_dim_red = self.__do_UMAP(embeddings_df,dimensions=dimensions,scaler= scaler, show_plots=show_plots)
         else:
             embeddings_dim_red = embeddings_df
             
