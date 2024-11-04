@@ -104,7 +104,7 @@ class EDA:
             except:
                 FileNotFoundError("Couldnt find provided file with scaled embeddings")
 
-            logger.info(f"Retrieving {type} scaler embbeddings from cache")
+            logger.info(f"Retrieving {type} scaler embeddings from cache")
             return embeddings_scaled
         
         else:
@@ -126,7 +126,7 @@ class EDA:
             # return embeddings_scaled
             embeddings_scaled = pd.DataFrame(embeddings, columns=self.embeddings_df.columns)
             logger.debug(f"Embeddings scaled using {type.capitalize()} Scaler.")
-            # Save embbedings_scaled
+            # Save embeddings_scaled
             pickle.dump(
                 embeddings_scaled,
                 open(str(embeddings_scaled_path), "wb")
@@ -164,7 +164,7 @@ class EDA:
             self.__save_reduced_embeddings(pca_df, scaler, "pca", dimensions)
             return pca_df
         else:
-            logger.info(f"Retrieving pca reduced embbeddings from cache")
+            logger.info(f"Retrieving pca reduced embeddings from cache")
             return embeddings_dim_red_df
 
     
@@ -194,7 +194,7 @@ class EDA:
             self.__save_reduced_embeddings(umap_df, scaler, "umap", dimensions)
             return umap_df
         else:
-            logger.info(f"Retrieving umap reduced embbedings from cache")
+            logger.info(f"Retrieving umap reduced embeddings from cache")
             return embeddings_dim_red_df
         
         
@@ -236,7 +236,7 @@ class EDA:
             self.__save_reduced_embeddings(cvae_df, scaler, "cvae", dimensions)
             return cvae_df
         else:
-            logger.info(f"Retrieving cvae reduced embbedings from cache")
+            logger.info(f"Retrieving cvae reduced embeddings from cache")
             return embeddings_dim_red_df
 
 

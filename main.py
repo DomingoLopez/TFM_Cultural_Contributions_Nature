@@ -8,6 +8,7 @@ from loguru import logger
 
 from src.clustering.clust_hdbscan import HDBSCANClustering
 from src.clustering.clustering_factory import ClusteringFactory
+from src.clustering_plot.clust_plot import ClusteringPlot
 from src.experiment.experiment import Experiment
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
@@ -85,6 +86,11 @@ if __name__ == "__main__":
             False if cache == 0 else True
         )
         experiment.run_experiment()
+        if experiment.eval_method == "silhouette":
+            plot = ClusteringPlot(experiment=experiment)
+            plot.show_best_silhouette(show_plots=False)
+            plot.show_best_scatter(show_plots=False)
+            plot.show_best_scatter_with_centers(show_plots=False)
 
 
     # ##############################################################

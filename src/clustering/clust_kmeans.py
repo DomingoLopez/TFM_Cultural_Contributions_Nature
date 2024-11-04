@@ -80,7 +80,7 @@ class KMeansClustering(ClusteringModel):
         # Define the model builder function for KMeans
         def model_builder(trial):
             return KMeans(
-                n_clusters=trial.suggest_int('n_clusters', 10, 30),
+                n_clusters=trial.suggest_int('n_clusters', 10, 60),
                 init=trial.suggest_categorical('init', ['k-means++', 'random']),
                 n_init=trial.suggest_int('n_init', 10, 20),
                 max_iter=trial.suggest_int('max_iter', 100, 300)
@@ -123,98 +123,6 @@ class KMeansClustering(ClusteringModel):
         
         # Call the generic grid search method
         return self.run_grid_search_generic(param_grid, evaluation_method)
-
-
-
-
-    @deprecated("This method was developed only for testing uses")
-    def run_basic_experiment(self):
-        """
-        Execute the KMeans clustering process on the dataset.
-
-        This method performs KMeans clustering across a range of cluster values (k) 
-        from 2 to 9. For each value of k, it calculates the silhouette and Davies-Bouldin 
-        scores, saves plots for each clustering configuration, and stores the results.
-
-        Attributes
-        ----------
-        error : list
-            List to store the inertia (sum of squared distances to closest cluster center) 
-            for each k.
-        k_ : list
-            List of cluster values tested.
-        silhouette_coefficients : list
-            List of silhouette scores for each k.
-        davies_bouldin_coefficients : list
-            List of Davies-Bouldin scores for each k.
-        
-        Side Effects
-        ------------
-        - Saves clustering plots for each configuration in `folder_plots`.
-        - Saves score plots and CSV files in `folder_results`.
-        """
-        
-        # Collect indexes
-        error = []
-        k_ = []
-        silhouette_coefficients = []
-        davies_bouldin_coefficients = []
-
-        # TODO: We could try different metrics too
-        # Perform clustering for each k
-        for k in range(2, 9):
-            # Define params
-            params = {
-                "n_clusters": k,
-                "n_init": 100,
-                "init": "k-means++",
-                "random_state": 1234
-            }
-            # Run KMeans
-            kmeans = KMeans(**params).fit(self.data)
-            error.append(kmeans.inertia_)
-            
-            # Find the 3 nearest neighbors for each centroid and save it in file
-            super().find_and_save_clustering_knn_points(
-                n_neighbors=3, 
-                metric=params.get("metric", "euclidean"),
-                cluster_centers=kmeans.cluster_centers_,
-                save_path = os.path.join(self.folder_plots, f"n_clusters_{k}/knn_points/points.csv")
-            )
-                
-            # CALCULATE RESULT DIRS (PLOTTING + KNN CENTROIDS)
-            file_path_plot = os.path.join(self.folder_plots, f"n_clusters_{k}/plot.png")
-            
-            # REPRESENTATION
-            pca_df, pca_centers = super().do_PCA_for_representation(self.data, kmeans.cluster_centers_)
-            super().save_clustering_plot(pca_df, kmeans.labels_, pca_centers, i=0, j=1, save_path=file_path_plot)
-            
-
-            # SCORERS
-            score_silhouette = silhouette_score(self.data, kmeans.labels_)
-            score_davies = davies_bouldin_score(self.data, kmeans.labels_)
-            silhouette_coefficients.append(score_silhouette)
-            davies_bouldin_coefficients.append(score_davies)
-            k_.append(k)
-
-
-        # CALCULATE RESULT DIRS (RESULTS)
-        file_path_result_csv = os.path.join(self.folder_results, f"result.csv")
-        file_path_result_plot = os.path.join(self.folder_results, f"result.png")
-        file_path_result_error = os.path.join(self.folder_results, f"errors.png")
-        
-
-        # Save the scores and generate plots
-        super().save_clustering_result(
-            k_, 
-            silhouette_coefficients, 
-            davies_bouldin_coefficients, 
-            error,
-            # paths
-            file_path_result_plot,
-            file_path_result_csv,
-            file_path_result_error
-        )
 
 
 if __name__ == "__main__":

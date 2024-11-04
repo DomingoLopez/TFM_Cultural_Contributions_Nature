@@ -70,7 +70,7 @@ class AgglomerativeClusteringModel(ClusteringModel):
         """
          # Param/model builder for Agglomerative
         def model_builder(trial):
-            n_clusters = trial.suggest_int('n_clusters', 10, 30)
+            n_clusters = trial.suggest_int('n_clusters', 10, 60)
             linkage = trial.suggest_categorical('linkage', ['ward', 'complete', 'average', 'single'])
             metric = trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'cosine'])
             custom_metric = metric if linkage != "ward" else "euclidean"
@@ -84,102 +84,58 @@ class AgglomerativeClusteringModel(ClusteringModel):
          # Call generic class method
         return self.run_optuna_generic(model_builder, evaluation_method, n_trials, penalty, penalty_range)
         
-        
-    @deprecated("This method was developed only for testing uses")
-    def run_basic_experiment(self):
+   
+    def run_gridsearch(self, evaluation_method="silhouette"):
         """
-        Execute the Agglomerative Clustering process on the dataset.
+        Run GridSearchCV for the Agglomerative Clustering model with a specified evaluation method.
 
-        This method performs Agglomerative Clustering across a range of cluster 
-        values from 2 to 9, and iterates over different linkage and metric combinations.
+        This method sets up a grid search for hyperparameter tuning for the Agglomerative Clustering 
+        algorithm, using either the silhouette score or Davies-Bouldin score as the evaluation metric. 
+        The search includes parameters specific to Agglomerative Clustering such as `n_clusters`, 
+        `linkage`, and `metric`.
+
+        Parameters
+        ----------
+        evaluation_method : str, optional
+            The evaluation metric to optimize. Can be either 'silhouette' for maximizing 
+            the silhouette score or 'davies_bouldin' for minimizing the Davies-Bouldin score.
+            Defaults to 'silhouette'.
         
-        Side Effects
-        ------------
-        - Saves clustering plots for each configuration in `folder_plots`.
-        - Saves score plots and CSV files in `folder_results`.
+        Returns
+        -------
+        GridSearchCV
+            The GridSearchCV object containing details of the best hyperparameters found and 
+            the associated evaluation score.
+
+        Notes
+        -----
+        - If the `linkage` parameter is set to 'ward', the `metric` is forced to 'euclidean', as 
+        required by the Agglomerative Clustering algorithm.
+        - Calls the `run_grid_search_generic` method from the base class `ClusteringModel` to 
+        manage the grid search process.
         """
-        
-        # Linkage and metric types
-        linkages = ["ward", "complete", "average", "single"]
-        metrics = ["euclidean", "manhattan", "cosine"]
+        # Define the parameter grid for Agglomerative Clustering
+        param_grid = {
+            'n_clusters': [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60],
+            'linkage': ['ward', 'complete', 'average', 'single'],
+            'metric': ['euclidean', 'manhattan', 'cosine']
+        }
 
-        for linkage in linkages:
-            for metric in metrics:
-                
-                # Ensure 'ward' linkage only uses 'euclidean' metric
-                custom_metric = metric if linkage != "ward" else "euclidean"
-                
-                k_ = []
-                silhouette_coefficients = []
-                davies_bouldin_coefficients = []
+        # Remove invalid metric options for 'ward' linkage (must use 'euclidean' for 'ward')
+        valid_params = []
+        for linkage in param_grid['linkage']:
+            for metric in param_grid['metric']:
+                if linkage == 'ward' and metric != 'euclidean':
+                    continue
+                valid_params.append({'linkage': linkage, 'metric': metric})
 
-                for n_clusters in range(2, 9):  # Number of clusters to try
-                    params = {
-                        "linkage": linkage,
-                        "metric": custom_metric,
-                        "n_clusters": n_clusters
-                    }
-                    
-                    # Run AgglomerativeClustering
-                    clustering_model = AgglomerativeClustering(**params).fit(self.data)
-                    labels = clustering_model.labels_
+        # Create a new parameter grid that respects the 'ward'-'euclidean' requirement
+        new_param_grid = {'n_clusters': param_grid['n_clusters'], 'linkage_metric': valid_params}
 
-                    # Count clusters (ignoring noise, if any)
-                    unique_labels = np.unique(labels)
-                    n_clusters_found = len(unique_labels) - (1 if -1 in unique_labels else 0)
-                    k_.append(n_clusters_found)
-
-                    # Define file paths
-                    file_path_plot = os.path.join(self.folder_plots, f"n_clusters_{n_clusters}/linkage_{linkage}/metric_{metric}/plot.png")
-
-                    # If clusters found, save representative plots
-                    if n_clusters_found > 1:
-                        unique_labels = np.unique(labels)
-                        centers = []
-                        for label in unique_labels:
-                            cluster_points = self.data.values[labels == label]
-                            cluster_center = np.mean(cluster_points, axis=0)
-                            centers.append(cluster_center)
-
-                        if centers:
-                            centers = np.array(centers)
-
-                            # Save nearest neighbors of centers
-                            super().find_and_save_clustering_knn_points(
-                                n_neighbors=3, 
-                                metric=custom_metric,
-                                cluster_centers=centers,
-                                save_path=os.path.join(self.folder_plots, f"n_clusters_{n_clusters}/linkage_{linkage}/metric_{metric}/knn_points/points.csv")
-                            )
-
-                            pca_df, pca_centers = super().do_PCA_for_representation(self.data, centers)
-                            super().save_clustering_plot(pca_df, labels, pca_centers, i=0, j=1, save_path=file_path_plot)
-                        
-                        # Calculate and save scores
-                        score_silhouette = silhouette_score(self.data, labels) if n_clusters > 1 else 0
-                        score_davies = davies_bouldin_score(self.data, labels) if n_clusters > 1 else 99
-                        silhouette_coefficients.append(score_silhouette)
-                        davies_bouldin_coefficients.append(score_davies)
-                    else:
-                        silhouette_coefficients.append(0)
-                        davies_bouldin_coefficients.append(99)
-
-                # Save clustering results
-                if k_:
-                    file_path_result_csv = os.path.join(self.folder_results, f"linkage_{linkage}/metric_{metric}/result.csv")
-                    file_path_result_plot = os.path.join(self.folder_results, f"linkage_{linkage}/metric_{metric}/result.png")
-
-                    # Save scores and generate plots
-                    super().save_clustering_result(
-                        k_, 
-                        silhouette_coefficients, 
-                        davies_bouldin_coefficients, 
-                        [],
-                        file_path_result_plot,
-                        file_path_result_csv,
-                        ""
-                    )
-
+        # Call the generic grid search method
+        return self.run_grid_search_generic(new_param_grid, evaluation_method)
+   
+   
 
 if __name__ == "__main__":
     # Test the AgglomerativeClusteringModel class with a sample dataset

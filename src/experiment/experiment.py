@@ -17,9 +17,10 @@ from src.eda.eda import EDA
 class Experiment():
     """
     Experiment Class where we can define which kind of methods, algorithms, 
-    scalers and optimizers we should experiment with
-
-    This is the main class for doing experiments
+    scalers and optimizers we should experiment with.
+    
+    This is the main class for setting up and running clustering experiments 
+    using specified optimizers, dimensionality reduction methods, and evaluation metrics.
     """
 
     def __init__(self, 
@@ -35,46 +36,159 @@ class Experiment():
                  cache:bool= True, 
                  verbose:bool= False,
                  **kwargs):
+        """
+        Initializes an experiment with the specified configuration.
 
+        Args:
+            data (list): The data to be used for the experiment.
+            optimizer (str): The optimization method to use, e.g., 'optuna' or 'gridsearch'.
+            dim_reduction (bool): Whether to apply dimensionality reduction.
+            dim_reduction_range (list): Range of dimensions to reduce the data to.
+            scalers (list): List of scalers to normalize the data.
+            clustering (str): Clustering algorithm to apply.
+            eval_method (str): Evaluation metric for clustering quality.
+            penalty (str): Penalty type to be applied in optimization.
+            penalty_range (tuple): Range of penalty values.
+            cache (bool): If True, caching is enabled.
+            verbose (bool): If True, enables verbose logging.
+            **kwargs: Additional keyword arguments.
+        """
         # Setup attrs
-        self.data = data
-        self.optimizer = optimizer
-        self.dim_reduction = dim_reduction
-        self.dim_reduction_range = dim_reduction_range
-        self.scalers = scalers
-        self.clustering = clustering
-        self.eval_method = eval_method
-        self.penalty = penalty
-        self.penalty_range = penalty_range
-        self.cache = cache
-        # Eda object
-        self.eda = EDA(self.data, verbose=False, cache=self.cache)
+        self._data = data
+        self._optimizer = optimizer
+        self._dim_reduction = dim_reduction
+        self._dim_reduction_range = dim_reduction_range
+        self._scalers = scalers
+        self._clustering = clustering
+        self._eval_method = eval_method
+        self._penalty = penalty
+        self._penalty_range = penalty_range
+        self._cache = cache
+        self._verbose = verbose
+        self._eda = EDA(self._data, verbose=False, cache=self._cache)
+        self._results_df = None
 
-        # Setup logging
         logger.remove()
         if verbose:
             logger.add(sys.stdout, level="DEBUG")
         else:
             logger.add(sys.stdout, level="INFO")
-        
 
-        # Dirs and files
-        self.main_result_dir = Path(__file__).resolve().parent / \
-                                f"results/{self.clustering}" / \
-                                "optuna" if self.optimizer == "optuna" else "gridsearch" / \
-                                f"dim_red_{self.dim_reduction}" 
-        self.result_path_csv = os.path.join(self.main_result_dir, f"{self.eval_method}_penalty_{self.penalty}.csv")
-        self.result_path_pkl = os.path.join(self.main_result_dir, f"{self.eval_method}_penalty_{self.penalty}.pkl")
-        os.makedirs(self.main_result_dir, exist_ok=True)
+        self._main_result_dir = (
+            Path(__file__).resolve().parent
+            / f"results/{self._clustering}"
+            / ("optuna" if self._optimizer == "optuna" else "gridsearch")
+            / f"dim_red_{self._dim_reduction}"
+        )
+        self._result_path_csv = os.path.join(self._main_result_dir, f"{self._eval_method}_penalty_{self._penalty}.csv")
+        self._result_path_pkl = os.path.join(self._main_result_dir, f"{self._eval_method}_penalty_{self._penalty}.pkl")
+        os.makedirs(self._main_result_dir, exist_ok=True)
                                 
+    # Getters and Setters
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        self._data = value
+
+    @property
+    def optimizer(self):
+        return self._optimizer
+
+    @optimizer.setter
+    def optimizer(self, value):
+        self._optimizer = value
+
+    @property
+    def dim_reduction(self):
+        return self._dim_reduction
+
+    @dim_reduction.setter
+    def dim_reduction(self, value):
+        self._dim_reduction = value
+
+    @property
+    def dim_reduction_range(self):
+        return self._dim_reduction_range
+
+    @dim_reduction_range.setter
+    def dim_reduction_range(self, value):
+        self._dim_reduction_range = value
+
+    @property
+    def scalers(self):
+        return self._scalers
+
+    @scalers.setter
+    def scalers(self, value):
+        self._scalers = value
+
+    @property
+    def clustering(self):
+        return self._clustering
+
+    @clustering.setter
+    def clustering(self, value):
+        self._clustering = value
+
+    @property
+    def eval_method(self):
+        return self._eval_method
+
+    @eval_method.setter
+    def eval_method(self, value):
+        self._eval_method = value
+
+    @property
+    def penalty(self):
+        return self._penalty
+
+    @penalty.setter
+    def penalty(self, value):
+        self._penalty = value
+
+    @property
+    def penalty_range(self):
+        return self._penalty_range
+
+    @penalty_range.setter
+    def penalty_range(self, value):
+        self._penalty_range = value
+
+    @property
+    def cache(self):
+        return self._cache
+
+    @cache.setter
+    def cache(self, value):
+        self._cache = value
+
+    @property
+    def results_df(self):
+        return self._results_df
+
+    @results_df.setter
+    def results_df(self, value):
+        self._results_df = value
+    
        
 
     def run_experiment(self):
+        """
+        Executes the experiment based on the chosen optimizer.
         
-        logger.info(f"STARTING EXPERIMENT USING {self.optimizer.upper()} OPTIMIZER")
-        if self.optimizer == "optuna":
+        Calls the appropriate internal method for running an experiment using 
+        either Optuna or Grid Search as specified in the optimizer attribute.
+        
+        Raises:
+            ValueError: If the optimizer specified is not supported.
+        """
+        logger.info(f"STARTING EXPERIMENT USING {self._optimizer.upper()} OPTIMIZER")
+        if self._optimizer == "optuna":
             self.__run_experiment_optuna()
-        elif self.optimizer == "gridsearch":
+        elif self._optimizer == "gridsearch":
             self.__run_experiment_gridsearch()
         else:
             raise ValueError("optimizer not supported. Valid options are 'optuna' or 'gridsearch' ")
@@ -82,85 +196,98 @@ class Experiment():
 
 
     def __run_experiment_optuna(self):
-
+        """
+        Runs the experiment using the Optuna optimizer.
+        
+        If cache is enabled and results exist, it loads them from a pickle file.
+        Otherwise, it performs the optimization and saves results to CSV and pickle.
+        
+        Raises:
+            FileNotFoundError: If the cached results file is not found.
+        """
         # If file exists and cache=True
-        if os.path.isfile(self.result_path_pkl) and self.cache:
+        if os.path.isfile(self._result_path_pkl) and self._cache:
             try:
-                results_df = pickle.load(
-                    open(str(self.result_path_pkl), "rb")
-                )
-                #resave as csv
-                results_df.to_csv(self.result_path_csv,sep=";")
-            except:
-                FileNotFoundError("Couldnt find provided file with results from experiment. Please, ensure that file exists.")
-        # If no cache or no file found
+                results_df = pickle.load(open(str(self._result_path_pkl), "rb"))
+                results_df.to_csv(self._result_path_csv, sep=";")
+                self._results_df = results_df
+            except FileNotFoundError:
+                raise FileNotFoundError("Couldn't find provided file with results from experiment. Please ensure that file exists.")
         else:
-            # results var
             results = []
-            for scaler in self.scalers:
-                embeddings_scaled = self.eda.run_scaler(scaler)
-                for dim in range(self.dim_reduction_range[0],self.dim_reduction_range[1], 1):
-                    embeddings_after_dimred = self.eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=self.dim_reduction, scaler=scaler, show_plots=False)
-                    clustering_model = ClusteringFactory.create_clustering_model(self.clustering, embeddings_after_dimred)
-                    # Execute optuna
-                    study = clustering_model.run_optuna(evaluation_method=self.eval_method, n_trials=100, penalty=self.penalty, penalty_range=self.penalty_range)
-                    # Access best trial n_cluster
+            for scaler in self._scalers:
+                embeddings_scaled = self._eda.run_scaler(scaler)
+                for dim in range(self._dim_reduction_range[0], self._dim_reduction_range[1], 1):
+                    embeddings_after_dimred = self._eda.run_dim_red(
+                        embeddings_scaled, dimensions=dim, dim_reduction=self._dim_reduction, scaler=scaler, show_plots=False
+                    )
+                    clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings_after_dimred)
+                    study = clustering_model.run_optuna(
+                        evaluation_method=self._eval_method, n_trials=100, penalty=self._penalty, penalty_range=self._penalty_range
+                    )
                     best_trial = study.best_trial
-                    n_clusters_best = best_trial.user_attrs.get("n_clusters", None)  # Extract clusters
-                    centers_best = best_trial.user_attrs.get("centers", None)  # Extract centers
-                    score_best = best_trial.user_attrs.get("score_original", None)  # Extract original score
-                    # Store results
+                    n_clusters_best = best_trial.user_attrs.get("n_clusters", None)
+                    centers_best = best_trial.user_attrs.get("centers", None)
+                    labels_best = best_trial.user_attrs.get("labels", None)
+                    score_best = best_trial.user_attrs.get("score_original", None)
                     results.append({
-                        "optimization": self.optimizer,
+                        "optimization": self._optimizer,
                         "scaler": scaler,
-                        "dim_reduction":self.dim_reduction,
+                        "dim_reduction": self._dim_reduction,
                         "dimensions": dim,
+                        "embeddings": embeddings_after_dimred,
                         "n_clusters": n_clusters_best,
                         "best_params": str(study.best_params),
                         "centers": centers_best,
-                        "penalty": self.penalty,
-                        "penalty_range": self.penalty_range if self.penalty is not None else None,
+                        "labels": labels_best,
+                        "penalty": self._penalty,
+                        "penalty_range": self._penalty_range if self._penalty is not None else None,
                         "best_value_w_penalty": study.best_value,
                         "best_value_w/o_penalty": score_best
                     })
             logger.info(f"ENDING EXPERIMENT...STORING RESULTS.")
-            # Store results as dataframe and csv in result folder
             results_df = pd.DataFrame(results)
-            results_df.to_csv(self.result_path_csv,sep=";")
-            # Save study as object.
-            pickle.dump(
-                results_df,
-                open(str(self.result_path_pkl), "wb")
-            )
+            results_df.to_csv(self._result_path_csv, sep=";")
+            self._results_df = results_df
+            pickle.dump(results_df, open(str(self._result_path_pkl), "wb"))
             logger.info(f"EXPERIMENT ENDED.")
        
 
     def __run_experiment_gridsearch(self):
+        """
+        Runs the experiment using Grid Search.
 
+        If cache is enabled and results exist, it loads them from a pickle file.
+        Otherwise, it performs the grid search and saves results to CSV and pickle.
+        
+        Raises:
+            FileNotFoundError: If the cached results file is not found.
+        """
         # If file exists and cache=True
-        if os.path.isfile(self.result_path_pkl) and self.cache:
+        if os.path.isfile(self._result_path_pkl) and self._cache:
             try:
-                results_df = pickle.load(
-                    open(str(self.result_path_pkl), "rb")
-                )
-                #resave as csv
-                results_df.to_csv(self.result_path_csv,sep=";")
-            except:
-                FileNotFoundError("Couldnt find provided file with results from experiment. Please, ensure that file exists.")
-        # If no cache or no file found
+                results_df = pickle.load(open(str(self._result_path_pkl), "rb"))
+                # Resave as CSV
+                results_df.to_csv(self._result_path_csv, sep=";")
+                # Update results
+                self._results_df = results_df
+            except FileNotFoundError:
+                raise FileNotFoundError("Couldn't find provided file with results from experiment. Please ensure that file exists.")
         else:
             results = []
-            for scaler in self.scalers:
-                embeddings_scaled = self.eda.run_scaler(scaler)
-                for dim in self.dim_reduction_range:
-                    embeddings_after_dimred = self.eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=self.dim_reduction, show_plots=False)
-                    clustering_model = ClusteringFactory.create_clustering_model(self.clustering, embeddings_after_dimred)
-                    # Execute gridSearch
-                    grid_search = clustering_model.run_gridsearch(evaluation_method=self.eval_method)
+            for scaler in self._scalers:
+                embeddings_scaled = self._eda.run_scaler(scaler)
+                for dim in self._dim_reduction_range:
+                    embeddings_after_dimred = self._eda.run_dim_red(
+                        embeddings_scaled, dimensions=dim, dim_reduction=self._dim_reduction, show_plots=False
+                    )
+                    clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings_after_dimred)
+                    # Execute Grid Search
+                    grid_search = clustering_model.run_gridsearch(evaluation_method=self._eval_method)
                     # Get Best Results
                     best_params = grid_search.best_params_
                     best_score = grid_search.best_score_
-                    
+
                     # Get n clusters
                     n_clusters_best = best_params.get("n_clusters", None)
 
@@ -170,29 +297,34 @@ class Experiment():
                         n_clusters_best = len(set(grid_search.best_estimator_.labels_)) - (1 if -1 in grid_search.best_estimator_.labels_ else 0)
 
                     centers_best = clustering_model.get_cluster_centers(grid_search.best_estimator_.labels_)
+                    labels_best = getattr(grid_search.best_estimator_, 'labels_', None)
 
                     results.append({
-                        "optimization": self.optimizer,
+                        "optimization": self._optimizer,
                         "scaler": scaler,
-                        "dim_reduction": self.dim_reduction,
+                        "dim_reduction": self._dim_reduction,
                         "dimensions": dim,
+                        "embeddings": embeddings_after_dimred,
                         "n_clusters": n_clusters_best,
                         "best_params": str(best_params),
                         "centers": centers_best,
+                        "labels": labels_best,
                         "penalty": None,
                         "penalty_range": None,
-                        "best_value_w_penalty":None,
+                        "best_value_w_penalty": None,
                         "best_value_w/o_penalty": best_score
                     })
 
             logger.info(f"ENDING EXPERIMENT...STORING RESULTS.")
-            # Guardar resultados
+            # Save results as DataFrame and to CSV
             results_df = pd.DataFrame(results)
-            results_df.to_csv(self.result_path_csv, sep=";")
-            pickle.dump(results_df, open(self.result_path_pkl, "wb"))
-            logger.info("Resultados guardados.")
+            results_df.to_csv(self._result_path_csv, sep=";")
+            # Update results
+            self._results_df = results_df
+            # Save results as pickle
+            pickle.dump(results_df, open(self._result_path_pkl, "wb"))
+            logger.info("Results saved.")
             logger.info(f"EXPERIMENT ENDED.")
-
 
 
 
