@@ -137,8 +137,8 @@ class ClusteringPlot():
         plt.xlabel("Silhouette Coefficient")
         plt.ylabel("Cluster Index")
         plt.title(f"Silhouette Coefficient Plot for Best Configuration {optimizer}\n\n"
-                f"Clustering: {self.experiment.clustering} - Dimensionality Reduction: {self.experiment.dim_reduction}\n"
-                f"Params: {params}"
+                f"Clustering: {self.experiment.clustering} - Dimensionality Reduction: {dim_reduction} - Dimensions: {dimensions}\n"
+                f"Params: {params}\n"
                 )
 
         # Save the plot
@@ -165,6 +165,10 @@ class ClusteringPlot():
         # Get best experiment data
         best_experiment = self.experiment.results_df.loc[self.experiment.results_df['best_value_w/o_penalty'].idxmax()]
         best_labels = np.array(best_experiment['labels'])
+        optimizer = best_experiment['optimization']
+        dim_reduction = best_experiment['dim_reduction']
+        dimensions = best_experiment['dimensions']
+        params = best_experiment['best_params']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
 
         # Check if reduction is needed
@@ -194,7 +198,10 @@ class ClusteringPlot():
         # Add colorbar if useful to distinguish clusters
         plt.colorbar(scatter, spacing="proportional", ticks=np.linspace(0, cluster_count, num=10))
         
-        plt.title(f"Scatter Plot of Best Experiment (Noise in Red, Clusters in 2D PCA)")
+        plt.title(f"Scatter Plot of Best Experiment - {optimizer} (Noise in Red, Clusters in 2D PCA) \n\n"
+                f"Clustering: {self.experiment.clustering} - Dim Reduction: {dim_reduction} - Dimensions: {dimensions}\n"
+                f"Params: {params}\n"
+                )
         plt.xlabel("PCA Component 1")
         plt.ylabel("PCA Component 2")
         plt.grid(True, alpha=0.3)
@@ -224,6 +231,10 @@ class ClusteringPlot():
         # Convert embeddings and centers to numpy arrays if they are DataFrames
         data = best_experiment['embeddings'].values if isinstance(best_experiment['embeddings'], pd.DataFrame) else np.array(best_experiment['embeddings'])
         best_centers = best_experiment['centers'].values if isinstance(best_experiment['centers'], pd.DataFrame) else np.array(best_experiment['centers'])
+        optimizer = best_experiment['optimization']
+        dim_reduction = best_experiment['dim_reduction']
+        dimensions = best_experiment['dimensions']
+        params = best_experiment['best_params']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
 
         # Check if reduction is needed
@@ -259,7 +270,10 @@ class ClusteringPlot():
         plt.colorbar(scatter, spacing="proportional", ticks=np.arange(0, cluster_count + 1, max(1, cluster_count // 10)))
 
         
-        plt.title("Scatter Plot of Best Experiment with Cluster Centers (Noise in Red)")
+        plt.title(f"Scatter Plot of Best Experiment with Cluster Centers - {optimizer} (Noise in Red) \n\n"
+                f"Clustering: {self.experiment.clustering} - Dim Reduction: {dim_reduction} - Dimensions: {dimensions}\n"
+                f"Params: {params}\n"
+                )
         plt.xlabel("PCA Component 1")
         plt.ylabel("PCA Component 2")
         plt.grid(True, alpha=0.3)
