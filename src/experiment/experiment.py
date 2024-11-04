@@ -285,7 +285,7 @@ class Experiment():
             results = []
             for scaler in self._scalers:
                 embeddings_scaled = self._eda.run_scaler(scaler)
-                 for dim in range(self._dim_reduction_range[0], self._dim_reduction_range[1], 1):
+                for dim in range(self._dim_reduction_range[0], self._dim_reduction_range[1], 1):
                     embeddings_after_dimred = self._eda.run_dim_red(
                         embeddings_scaled, dimensions=dim, dim_reduction=self._dim_reduction, show_plots=False
                     )
