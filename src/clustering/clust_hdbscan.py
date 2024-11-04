@@ -110,12 +110,12 @@ class HDBSCANClustering(ClusteringModel):
         """
         # Define the parameter grid for HDBSCAN
         param_grid = {
-            'min_cluster_size': [5, 10, 15, 20],
-            'min_samples': [2, 5, 10],
-            'cluster_selection_epsilon': [0.01, 0.1, 0.2, 0.5, 0.7, 1.0],
+            'min_cluster_size': [3, 5, 7, 10, 15, 20, 25, 30],
+            'min_samples': [2, 5, 7, 10, 15, 17],
+            'cluster_selection_epsilon': [0.01, 0.05, 0.1, 0.2, 0.5, 0.7, 1.0],
             'alpha' : [0.3, 0.7, 0.9, 1.0, 1.5],
             'metric': ['euclidean', 'manhattan', 'chebyshev'],
-            'cluster_selection_method': 'leaf'
+            'cluster_selection_method': ['eom','leaf']
         }
         
         

@@ -58,7 +58,7 @@ if __name__ == "__main__":
     embeddings = dinomodel.run()
 
     # Load json file with all experiments
-    with open('src/experiment/json/all_experiments.json', 'r') as f:
+    with open('src/experiment/json/experiments_gridsearch_silhouette.json', 'r') as f:
         experiments_config = json.load(f)
 
     for config in experiments_config:
@@ -88,9 +88,12 @@ if __name__ == "__main__":
         experiment.run_experiment()
         if experiment.eval_method == "silhouette":
             plot = ClusteringPlot(experiment=experiment)
-            plot.show_best_silhouette(show_plots=False)
+            plot.show_best_silhouette(show_all=True, show_plots=False)
             plot.show_best_scatter(show_plots=False)
             plot.show_best_scatter_with_centers(show_plots=False)
+            plot.show_best_clusters_counters_comparision(show_plots=False)
+
+
 
 
     # ##############################################################

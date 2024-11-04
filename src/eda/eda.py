@@ -140,7 +140,7 @@ class EDA:
         """
 
         # Check if they are available in cache
-        embeddings_dim_red_df = self.__check_reduced_exists_cache(scaler, "pca", dimensions)
+        embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "pca", dimensions)
         if embeddings_dim_red_df is None:
             logger.info(f"Using PCA Dim. reduction. {dimensions=}")
             pca = PCA(n_components=dimensions, random_state=42)
@@ -178,7 +178,7 @@ class EDA:
         """
 
         # Check if they are available in cache
-        embeddings_dim_red_df = self.__check_reduced_exists_cache(scaler, "umap", dimensions)
+        embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "umap", dimensions)
         if embeddings_dim_red_df is None:
             logger.info(f"Using UMAP Dim. reduction. {dimensions=}")
             reducer = umap.UMAP(n_components=dimensions, random_state=42)
@@ -212,7 +212,7 @@ class EDA:
         """
 
         # Check if they are available in cache
-        embeddings_dim_red_df = self.__check_reduced_exists_cache(scaler, "cvae", dimensions)
+        embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "cvae", dimensions)
         if embeddings_dim_red_df is None:
             logger.info(f"Using CVAE Dim. reduction: {dimensions=}")
             # 1: Obtain array of embeddings
@@ -241,7 +241,7 @@ class EDA:
 
 
 
-    def __check_reduced_exists_cache(self, scaler, dim_reduction, dimensions):
+    def check_reduced_exists_cache(self, scaler, dim_reduction, dimensions):
         """
         Check if reduced embeddings are available in cache and load them if they are.
 

@@ -38,6 +38,7 @@ class ClusteringPlot():
                                 ("optuna" if self.experiment.optimizer == "optuna" else "gridsearch") / \
                                 f"dim_red_{self.experiment.dim_reduction}/{self.experiment.eval_method}_penalty_{self.experiment.penalty}" 
         os.makedirs(self.main_plot_dir, exist_ok=True)
+
     
     
     def add_path_type(self,type):
@@ -58,7 +59,7 @@ class ClusteringPlot():
         
 
     
-    def show_best_silhouette(self, top_n=15, min_clusters=30, show_plots=False):
+    def show_best_silhouette(self, show_all=False, top_n=15, min_clusters=30, show_cluster_index=False, show_plots=False):
         """
         Displays the top `top_n` clusters with the highest silhouette average and the 
         `top_n` clusters with the lowest silhouette average, only if the total cluster 
@@ -87,6 +88,7 @@ class ClusteringPlot():
         dimensions = best_experiment['dimensions']
         params = best_experiment['best_params']
         optimizer = best_experiment['optimization']
+        original_silhouette_score = best_experiment['best_value_w/o_penalty']
         
         # Get scaled and reduced data for the best configuration
         scaled_data = self.experiment._eda.run_scaler(scaler)
@@ -94,23 +96,27 @@ class ClusteringPlot():
             scaled_data, dimensions=dimensions, dim_reduction=dim_reduction, show_plots=False
         )
 
-        # Calculate silhouette values for each point
-        silhouette_values = silhouette_samples(reduced_data, best_labels)
-        silhouette_avg = silhouette_score(reduced_data, best_labels)
+        # Exclude noise points with label -1
+        non_noise_mask = best_labels != -1
+        non_noise_labels = best_labels[non_noise_mask]
+        non_noise_data = reduced_data[non_noise_mask]
+
+        # Calculate silhouette values for each non-noise point
+        silhouette_values = silhouette_samples(non_noise_data, non_noise_labels)
 
         # Calculate average silhouette per cluster
-        unique_labels = np.unique(best_labels)
+        unique_labels = np.unique(non_noise_labels)
         cluster_count = len(unique_labels)
 
         # If there are `min_clusters` or fewer clusters, plot all clusters
-        if cluster_count <= min_clusters:
+        if cluster_count <= min_clusters or show_all:
             logger.info(f"The number of clusters ({cluster_count}) is less than or equal to {min_clusters}. "
                         "All clusters will be plotted.")
             selected_clusters = unique_labels
         else:
             # Compute the average silhouette for each cluster
             cluster_silhouette_means = {
-                label: silhouette_values[best_labels == label].mean() for label in unique_labels
+                label: silhouette_values[non_noise_labels == label].mean() for label in unique_labels
             }
 
             # Select the top `top_n` clusters with the best and worst silhouette averages
@@ -124,22 +130,27 @@ class ClusteringPlot():
         plt.figure(figsize=(10, 7))
         y_lower = 10
         for i, label in enumerate(selected_clusters):
-            ith_cluster_silhouette_values = silhouette_values[best_labels == label]
+            ith_cluster_silhouette_values = silhouette_values[non_noise_labels == label]
             ith_cluster_silhouette_values.sort()
             size_cluster_i = ith_cluster_silhouette_values.shape[0]
             y_upper = y_lower + size_cluster_i
 
             plt.fill_betweenx(np.arange(y_lower, y_upper), 0, ith_cluster_silhouette_values, alpha=0.7)
-            plt.text(-0.05, y_lower + 0.5 * size_cluster_i, str(label))
+            # Show cluster index if specified
+            if show_cluster_index:
+                plt.text(-0.05, y_lower + 0.5 * size_cluster_i, str(label))
+
             y_lower = y_upper + 10
 
-        plt.axvline(x=silhouette_avg, color="red", linestyle="--")
+        # Add a vertical line for the original silhouette score from the experiment
+        plt.axvline(x=original_silhouette_score, color="red", linestyle="--", label=f"Original Silhouette Score: {original_silhouette_score:.2f}")
         plt.xlabel("Silhouette Coefficient")
         plt.ylabel("Cluster Index")
         plt.title(f"Silhouette Coefficient Plot for Best Configuration {optimizer}\n\n"
                 f"Clustering: {self.experiment.clustering} - Dimensionality Reduction: {dim_reduction} - Dimensions: {dimensions}\n"
                 f"Params: {params}\n"
                 )
+        plt.legend()
 
         # Save the plot
         plt.savefig(self.add_path_type("best_trial_silhouette"), bbox_inches='tight')
@@ -158,18 +169,20 @@ class ClusteringPlot():
         to 2D space using PCA and color-coded for better visual distinction. Points labeled 
         as noise (-1) are always shown in red.
         """
-        
-        # Convert data to numpy array if it's a list
-        data = np.array(self.experiment.data) if isinstance(self.experiment.data, list) else self.experiment.data
+    
         
         # Get best experiment data
         best_experiment = self.experiment.results_df.loc[self.experiment.results_df['best_value_w/o_penalty'].idxmax()]
         best_labels = np.array(best_experiment['labels'])
         optimizer = best_experiment['optimization']
+        scaler = best_experiment['scaler']
         dim_reduction = best_experiment['dim_reduction']
         dimensions = best_experiment['dimensions']
         params = best_experiment['best_params']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
+
+        # Get data reduced from eda object
+        data = self.experiment.eda.check_reduced_exists_cache(scaler, dim_reduction, dimensions).values
 
         # Check if reduction is needed
         if data.shape[1] > 2:
@@ -229,13 +242,15 @@ class ClusteringPlot():
         # TODO Need 
         best_labels = np.array(best_experiment['labels'])
         # Convert embeddings and centers to numpy arrays if they are DataFrames
-        data = best_experiment['embeddings'].values if isinstance(best_experiment['embeddings'], pd.DataFrame) else np.array(best_experiment['embeddings'])
         best_centers = best_experiment['centers'].values if isinstance(best_experiment['centers'], pd.DataFrame) else np.array(best_experiment['centers'])
         optimizer = best_experiment['optimization']
         dim_reduction = best_experiment['dim_reduction']
         dimensions = best_experiment['dimensions']
+        scaler = best_experiment['scaler']
         params = best_experiment['best_params']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
+        # Get data reduced from eda object
+        data = self.experiment.eda.check_reduced_exists_cache(scaler, dim_reduction, dimensions).values
 
         # Check if reduction is needed
         if data.shape[1] > 2:
@@ -284,88 +299,50 @@ class ClusteringPlot():
         if show_plots:
             plt.show()
 
-                           
-    # def scatter_plot(
-    #     self,
-    #     X,
-    #     labels: Optional[np.ndarray] = None, 
-    #     centers: Optional[np.ndarray] = None,
-    #     i: int = 0, 
-    #     j: int = 0, 
-    #     figs: Tuple[int, int] = (9, 7)
-    # ):
-    #     """
-    #     Plots a 2D representation of the dataset and its associated clusters.
 
-    #     This method saves a plot showing the clustering of the 2D-reduced data points,
-    #     optionally marking the cluster centroids if provided.
+    def show_best_clusters_counters_comparision(self, show_plots=False):
+        """
+        Displays a bar chart comparing the number of points in each cluster for the best configuration.
+        
+        The method retrieves the cluster sizes (number of points per cluster) from `label_counter`
+        for the best experiment configuration and displays a bar chart to compare cluster sizes.
 
-    #     Parameters
-    #     ----------
-    #     c : Optional[np.ndarray]
-    #         Cluster labels for each point.
-    #     centroids : Optional[np.ndarray]
-    #         Coordinates of cluster centroids in 2D space.
-    #     i : int
-    #         Index of the feature for the x-axis.
-    #     j : int
-    #         Index of the feature for the y-axis.
-    #     figs : Tuple[int, int]
-    #         Size of the figure in inches.
-    #     save_path : str
-    #         Path to store the plot image.
-    #     """
+        Parameters
+        ----------
+        show_plots : bool, optional
+            If True, displays the plot. Default is False.
+        """
+        # Check if results_df contains results
+        if self.experiment.results_df is None or self.experiment.results_df.empty:
+            logger.warning("No results found in the experiment DataFrame.")
+            return
 
-    #     X = self.experiment.data
+        # Get the best experiment based on the silhouette score or other criteria
+        best_experiment = self.experiment.results_df.loc[self.experiment.results_df['best_value_w/o_penalty'].idxmax()]
+        label_counter = best_experiment['label_counter']
+        
+        if not label_counter:
+            logger.warning("No label counter found for the best experiment.")
+            return
+        
+        # Extract cluster indices and their respective counts from label_counter
+        cluster_indices = list(label_counter.keys())
+        cluster_sizes = list(label_counter.values())
+        
+        # Plot the bar chart
+        plt.figure(figsize=(12, 6))
+        sns.barplot(x=cluster_indices, y=cluster_sizes, palette="viridis")
+        plt.xlabel("Cluster Index")
+        plt.ylabel("Number of Points")
+        plt.title("Comparison of Cluster Sizes for Best Experiment")
+        plt.xticks(rotation=45)
+        
+        # Save and show plot
+        plt.savefig(self.add_path_type("best_clusters_counter_comparison"), bbox_inches='tight')
+        if show_plots:
+            plt.show()
 
-    #     # color mapping for clusters
-    #     colors = ['#FF0000', '#00FF00', '#FFFF00', '#0000FF', '#FF9D0A', '#00B6FF', '#F200FF', '#FF6100']
-    #     cmap_bold = ListedColormap(colors)
-    #     # Plotting frame
-    #     plt.figure(figsize=figs)
-    #     # Plotting points with seaborn
-    #     sns.scatterplot(x=X.iloc[:, i], y=X.iloc[:, j], hue=labels, palette=cmap_bold.colors, s=30, hue_order=sorted(set(labels)))  # Ensures that -1 appears first in the legend if present)
-    #     # Plotting centroids
-    #     if centers is not None:
-    #         sns.scatterplot(x=centers[:, i], y=centers[:, j], marker='D',palette=colors[1:] if -1 in set(labels) else colors[:], hue=range(centers.shape[0]), s=100,edgecolors='black')
-    #     # Save plot making 
-    #     plt.savefig(self.replace_path_type("scatter"), bbox_inches='tight')
-    
-    
-    
-    
-    
-    # def do_PCA_for_representation(self, df, centers):
-    #     """
-    #     Performs PCA to reduce data and cluster centers to 2D for plotting.
-
-    #     This function applies PCA (Principal Component Analysis) to the data and 
-    #     optionally to the cluster centers, reducing them to 2D space for visualization 
-    #     purposes.
-
-    #     Parameters
-    #     ----------
-    #     df : pd.DataFrame
-    #         Data points to reduce, where each row represents a sample.
-    #     centers : np.ndarray
-    #         Coordinates of cluster centroids before dimensionality reduction.
-
-    #     Returns
-    #     -------
-    #     pca_df : pd.DataFrame
-    #         Data points reduced to 2D space.
-    #     pca_centers : np.ndarray
-    #         Cluster centroids reduced to 2D space.
-    #     """
-    #     if df.shape[1] > 2:
-    #         pca = PCA(n_components=2,random_state=42)
-    #         pca_result = pca.fit_transform(df.values)
-    #         pca_df = pd.DataFrame(data=pca_result)
-    #         pca_centers = pca.transform(centers)
-    #         return pca_df, pca_centers
-    #     else:
-    #         return df, centers
-
+        logger.info("Cluster size comparison plot generated for the best experiment.")
     
     
 if __name__ == "__main__":

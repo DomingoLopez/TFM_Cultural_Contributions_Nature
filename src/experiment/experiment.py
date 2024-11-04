@@ -1,3 +1,4 @@
+from collections import Counter
 import os
 from pathlib import Path
 import pickle
@@ -92,6 +93,10 @@ class Experiment():
     @data.setter
     def data(self, value):
         self._data = value
+
+    @property
+    def eda(self):
+        return self._eda
 
     @property
     def optimizer(self):
@@ -229,7 +234,9 @@ class Experiment():
                     n_clusters_best = best_trial.user_attrs.get("n_clusters", None)
                     centers_best = best_trial.user_attrs.get("centers", None)
                     labels_best = best_trial.user_attrs.get("labels", None)
+                    label_counter = Counter(labels_best)
                     score_best = best_trial.user_attrs.get("score_original", None)
+
                     results.append({
                         "optimization": self._optimizer,
                         "scaler": scaler,
@@ -240,6 +247,7 @@ class Experiment():
                         "best_params": str(study.best_params),
                         "centers": centers_best,
                         "labels": labels_best,
+                        "label_counter": label_counter,
                         "penalty": self._penalty,
                         "penalty_range": self._penalty_range if self._penalty is not None else None,
                         "best_value_w_penalty": study.best_value,
@@ -284,36 +292,39 @@ class Experiment():
                     clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings_after_dimred)
                     # Execute Grid Search
                     grid_search = clustering_model.run_gridsearch(evaluation_method=self._eval_method)
-                    # Get Best Results
-                    best_params = grid_search.best_params_
-                    best_score = grid_search.best_score_
 
-                    # Get n clusters
-                    n_clusters_best = best_params.get("n_clusters", None)
+                    # Iterate over all grid search results
+                    for i in range(len(grid_search.cv_results_['params'])):
+                        params = grid_search.cv_results_['params'][i]
+                        score = grid_search.cv_results_['mean_test_score'][i]
 
-                    # If no number of clusters provided
-                    if n_clusters_best is None and hasattr(grid_search.best_estimator_, 'labels_'):
-                        # Get number of clusters avoiding noise (-1)
-                        n_clusters_best = len(set(grid_search.best_estimator_.labels_)) - (1 if -1 in grid_search.best_estimator_.labels_ else 0)
+                        # Get n_clusters from params or estimate it from labels if available
+                        n_clusters = params.get("n_clusters", None)
+                        estimator = grid_search.estimator.set_params(**params).fit(embeddings_after_dimred)
+                        labels = getattr(estimator, 'labels_', None)
+                        if n_clusters is None and labels is not None:
+                            # Count clusters excluding noise (-1)
+                            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
 
-                    centers_best = clustering_model.get_cluster_centers(grid_search.best_estimator_.labels_)
-                    labels_best = getattr(grid_search.best_estimator_, 'labels_', None)
+                        centers = clustering_model.get_cluster_centers(labels)
+                        label_counter = Counter(labels)
 
-                    results.append({
-                        "optimization": self._optimizer,
-                        "scaler": scaler,
-                        "dim_reduction": self._dim_reduction,
-                        "dimensions": dim,
-                        "embeddings": embeddings_after_dimred,
-                        "n_clusters": n_clusters_best,
-                        "best_params": str(best_params),
-                        "centers": centers_best,
-                        "labels": labels_best,
-                        "penalty": None,
-                        "penalty_range": None,
-                        "best_value_w_penalty": None,
-                        "best_value_w/o_penalty": best_score
-                    })
+                        results.append({
+                            "optimization": self._optimizer,
+                            "scaler": scaler,
+                            "dim_reduction": self._dim_reduction,
+                            "dimensions": dim,
+                            "embeddings": embeddings_after_dimred,
+                            "n_clusters": n_clusters,
+                            "params": str(params),
+                            "centers": centers,
+                            "labels": labels,
+                            "label_counter": label_counter,
+                            "penalty": None,
+                            "penalty_range": None,
+                            "value_with_penalty": None,
+                            "value_without_penalty": score
+                        })
 
             logger.info(f"ENDING EXPERIMENT...STORING RESULTS.")
             # Save results as DataFrame and to CSV

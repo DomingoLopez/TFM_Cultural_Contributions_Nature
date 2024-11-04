@@ -114,7 +114,7 @@ class KMeansClustering(ClusteringModel):
         """
         # Define the parameter grid for KMeans
         param_grid = {
-            'n_clusters': [10,15,17,19,23,26,28],
+            'n_clusters': [10,15,17,19,23,26,28,30,35,37,40,45,50,55],
             'init': ['k-means++', 'random'],
             'n_init': [10, 20],
             'max_iter': [100, 300]

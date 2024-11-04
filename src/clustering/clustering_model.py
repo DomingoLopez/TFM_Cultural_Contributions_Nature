@@ -25,6 +25,29 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from ..utils.decorators import deprecated
 
+# TODO: 
+# tienen que estar fuera, si no GridSearch no funciona bien. Definir archivo con estas funciones fuera, o en utils
+def silhouette_scorer(estimator, X, y=None):
+    # Obtiene las etiquetas predichas por el modelo y filtra el ruido (-1)
+    if hasattr(estimator, 'labels_'):
+        labels = estimator.labels_
+    else:
+        labels = estimator.fit_predict(X)
+    if len(set(labels)) > 1 and np.all(labels != -1):
+        return silhouette_score(X, labels)
+    return -1  # Valor por defecto si no se puede calcular
+
+def davies_bouldin_scorer(estimator, X, y=None):
+    # Obtiene las etiquetas predichas por el modelo y filtra el ruido (-1)
+    if hasattr(estimator, 'labels_'):
+        labels = estimator.labels_
+    else:
+        labels = estimator.fit_predict(X)
+    if len(set(labels)) > 1 and np.all(labels != -1):
+        return davies_bouldin_score(X, labels)
+    return float('inf')  # Valor alto si no se puede calcular
+
+
 class ClusteringModel(ABC):
     """
     Base abstract class for clustering models.
@@ -269,14 +292,6 @@ class ClusteringModel(ABC):
             The GridSearchCV object after fitting, containing details of the best model 
             and its evaluation score.
         """
-        # Select the scoring function
-        if evaluation_method == "silhouette":
-            scorer = make_scorer(silhouette_score)
-        elif evaluation_method == "davies_bouldin":
-            scorer = make_scorer(davies_bouldin_score, greater_is_better=False)
-        else:
-            raise ValueError("Evaluation method not supported. Use 'silhouette' or 'davies_bouldin'.")
-
 
         if self.model_name == "kmeans":
             # KMeans clustering
@@ -295,7 +310,7 @@ class ClusteringModel(ABC):
         grid_search = GridSearchCV(
             estimator=model,  # Se espera que cada clase específica defina `self.model_instance`
             param_grid=param_grid,
-            scoring=scorer,
+            scoring=silhouette_scorer if evaluation_method == "silhouette" else davies_bouldin_scorer,
             cv=[(slice(None), slice(None))],  # Usamos todos los datos sin CV
             n_jobs=-1
         )
