@@ -237,6 +237,13 @@ class Experiment():
                     label_counter = Counter(labels_best)
                     score_best = best_trial.user_attrs.get("score_original", None)
 
+                    noise_not_noise = {
+                        -1: label_counter.get(-1, 0),
+                        1: sum(v for k, v in label_counter.items() if k != -1)
+                    }
+
+                    silhouette_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
+                    
                     results.append({
                         "optimization": self._optimizer,
                         "scaler": scaler,
@@ -248,6 +255,8 @@ class Experiment():
                         "centers": centers_best,
                         "labels": labels_best,
                         "label_counter": label_counter,
+                        "noise_not_noise": noise_not_noise,
+                        "silhouette_noise_ratio": silhouette_noise_ratio,
                         "penalty": self._penalty,
                         "penalty_range": self._penalty_range if self._penalty is not None else None,
                         "best_value_w_penalty": study.best_value,
@@ -309,6 +318,13 @@ class Experiment():
                         centers = clustering_model.get_cluster_centers(labels)
                         label_counter = Counter(labels)
 
+                        noise_not_noise = {
+                            -1: label_counter.get(-1, 0),
+                            1: sum(v for k, v in label_counter.items() if k != -1)
+                        }
+
+                        silhouette_noise_ratio = score / (noise_not_noise.get(-1) + 1)
+
                         results.append({
                             "optimization": self._optimizer,
                             "scaler": scaler,
@@ -320,10 +336,12 @@ class Experiment():
                             "centers": centers,
                             "labels": labels,
                             "label_counter": label_counter,
+                            "noise_not_noise": noise_not_noise,
+                            "silhouette_noise_ratio": silhouette_noise_ratio,
                             "penalty": None,
                             "penalty_range": None,
-                            "value_with_penalty": None,
-                            "value_without_penalty": score
+                            "value_w_penalty": None,
+                            "value_w/o_penalty": score
                         })
 
             logger.info(f"ENDING EXPERIMENT...STORING RESULTS.")

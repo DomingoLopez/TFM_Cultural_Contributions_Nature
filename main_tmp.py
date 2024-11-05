@@ -50,33 +50,40 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 if __name__ == "__main__":
     
     try:
-        # Cargar el archivo usando un contexto para garantizar su cierre
-        with open("src/experiment/results/kmeans/optuna/dim_red_umap/silhouette_penalty_None.pkl", "rb") as f:
+        # Load the file using a context to ensure it closes properly
+        with open("src/experiment/results/hdbscan/gridsearch/dim_red_umap/silhouette_penalty_None.pkl", "rb") as f:
             result = pickle.load(f)
         
-        # Asegurarnos de que `result` es un DataFrame y contiene la columna "labels"
-        if isinstance(result, pd.DataFrame) and "labels" in result.columns:
-            # Aplicar Counter a cada fila en la columna "labels"
-            label_counter_series = result["labels"].apply(lambda x: Counter(x) if isinstance(x, (list, np.ndarray)) else None)
-            
-            # Obtener el índice de la columna "labels"
-            labels_index = result.columns.get_loc("labels") + 1
-            
-            # Insertar la nueva columna "label_counter" justo después de "labels"
-            result.insert(labels_index, "label_counter", label_counter_series)
+        # Ensure `result` is a DataFrame and contains the "label_counter" column
+        if isinstance(result, pd.DataFrame) and "label_counter" in result.columns:
+            # Check if `noise_not_noise` already exists
+            if "noise_not_noise" in result.columns:
+                # Calculate `silhouette_noise_ratio` as silhouette score / (noise + 1)
+                silhouette_noise_ratio_series = result.apply(
+                    lambda row: row["best_value_w/o_penalty"] / (row["noise_not_noise"][-1] + 1), axis=1
+                )
+
+                # Insert `silhouette_noise_ratio` column right after `noise_not_noise`
+                noise_not_noise_index = result.columns.get_loc("noise_not_noise") + 1
+                result.insert(noise_not_noise_index, "silhouette_noise_ratio", silhouette_noise_ratio_series)
+
+                # Display result for verification
+                print(result[["label_counter", "noise_not_noise", "silhouette_noise_ratio"]].head())
+            else:
+                print("Error: 'noise_not_noise' column does not exist.")
         else:
-            print("Error: 'result' no es un DataFrame o no contiene la columna 'labels'.")
+            print("Error: 'result' is not a DataFrame or does not contain the 'label_counter' column.")
 
     except FileNotFoundError:
-        print("Error: El archivo especificado no existe.")
+        print("Error: The specified file does not exist.")
     except pickle.UnpicklingError:
-        print("Error: No se pudo cargar el archivo. Puede estar dañado o no es un archivo de pickle válido.")
+        print("Error: Could not load the file. It may be corrupted or not a valid pickle file.")
     except KeyError:
-        print("Error: La clave 'labels' no se encontró en el diccionario 'result'.")
+        print("Error: The 'label_counter' key was not found in the DataFrame 'result'.")
 
-    pickle.dump(
-        result,
-        open(str("src/experiment/results/kmeans/optuna/dim_red_umap/silhouette_penalty_None.pkl"), "wb")
-    )
+    # Save the updated DataFrame back to pickle and CSV
+    with open("src/experiment/results/hdbscan/gridsearch/dim_red_umap/silhouette_penalty_None.pkl", "wb") as f:
+        pickle.dump(result, f)
 
-    result.to_csv("src/experiment/results/kmeans/optuna/dim_red_umap/silhouette_penalty_None.csv", sep=";")
+    result.to_csv("src/experiment/results/hdbscan/gridsearch/dim_red_umap/silhouette_penalty_None.csv", sep=";")
+

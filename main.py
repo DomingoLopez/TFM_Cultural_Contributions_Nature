@@ -48,7 +48,7 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 
 
 
-if __name__ == "__main__":
+def actual_main():
     # Finding images
     # image_loader = ImageLoader(folder="./data/Small_Data")
     image_loader = ImageLoader(folder="./data/Data")
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     embeddings = dinomodel.run()
 
     # Load json file with all experiments
-    with open('src/experiment/json/experiments_gridsearch_silhouette.json', 'r') as f:
+    with open('src/experiment/json/experiments_optuna_silhouette.json', 'r') as f:
         experiments_config = json.load(f)
 
     for config in experiments_config:
@@ -88,80 +88,39 @@ if __name__ == "__main__":
         experiment.run_experiment()
         if experiment.eval_method == "silhouette":
             plot = ClusteringPlot(experiment=experiment)
-            plot.show_best_silhouette(show_all=True, show_plots=False)
-            plot.show_best_scatter(show_plots=False)
-            plot.show_best_scatter_with_centers(show_plots=False)
-            plot.show_best_clusters_counters_comparision(show_plots=False)
+            plot.show_best_silhouette(experiment="silhouette_noise_ratio", show_all=True, show_plots=False)
+            plot.show_best_scatter(experiment="silhouette_noise_ratio",show_plots=False)
+            plot.show_best_scatter_with_centers(experiment="silhouette_noise_ratio",show_plots=False)
+            plot.show_best_clusters_counters_comparision(experiment="silhouette_noise_ratio",show_plots=False)
+            plot.show_top_noise_silhouette(priority="eval_method", show_plots=False)
+            plot.show_top_noise_silhouette(priority="noise", show_plots=False)
+            plot.show_top_silhouette_noise_ratio(show_plots=False)
 
 
 
 
-    # ##############################################################
-    # BIG STUDY
-    # ##############################################################
 
-    # # Variables initialization
-    # scalers = ["standard","minmax","robust","maxabs"]
-    # dim_red = "umap"
-    # clustering = "agglomerative"
-    # eval_method = "silhouette"
-    # penalty = None 
-    # penalty_range = None
-    # cache = True
-    # result_dir_cache_path = Path(__file__).resolve().parent / f"cache/results_optuna/{clustering}/{eval_method}_penalty_{penalty}_images_{len(images)}"
-    # os.makedirs(result_dir_cache_path, exist_ok=True)
-    # result_file_cache_path = Path(__file__).resolve().parent / result_dir_cache_path / "result.pkl"
-    # result_file_cache_path_csv = Path(__file__).resolve().parent / result_dir_cache_path / "result.csv"
-    # results = []
+if __name__ == "__main__":
+    # actual_main()
     
-    # # If file with results doesnt exists
-    # if not os.path.isfile(result_file_cache_path) or not cache:
-    #     for scaler in scalers:
-    #         embeddings_scaled = eda.run_scaler(scaler)
-    #         for dim in range(15, 25):
-    #             embeddings_after_dimred = eda.run_dim_red(embeddings_scaled, dimensions=dim, dim_reduction=dim_red, show_plots=False)
-    #             clustering_model = ClusteringFactory.create_clustering_model(clustering, embeddings_after_dimred)
-    #             # Execute optuna
-    #             study = clustering_model.run_optuna(evaluation_method=eval_method, n_trials=100, penalty=penalty, penalty_range=penalty_range)
-    #             # Access best trial n_cluster
-    #             best_trial = study.best_trial
-    #             n_clusters_best = best_trial.user_attrs.get("n_clusters", None)  # Extract clusters
-    #             centers_best = best_trial.user_attrs.get("centers", None)  # Extract centers
-    #             score_best = best_trial.user_attrs.get("score_original", None)  # Extract original score
-    #             # Store results
-    #             results.append({
-    #                 "scaler": scaler,
-    #                 "dim_reduction":dim_red,
-    #                 "dimension": dim,
-    #                 "n_clusters": n_clusters_best,
-    #                 "best_params": str(study.best_params),
-    #                 "centers": centers_best,
-    #                 "best_value": study.best_value,
-    #                 "best_original_value": score_best
-    #             })
+    # Once we get the experiments and representations, etc 
+    # we should choose the best experiment with best silhouette/noise ratio
+    # in order to pick the best silhouette with less noise ratio (it could be just the best silhouette)
 
-    #     # Store results as dataframe and csv in cache
-    #     results_df = pd.DataFrame(results)
-    #     results_df.to_csv(result_file_cache_path_csv,sep=";")
-    #     # Save study as object in cache.
-    #     results_cache_path = ""
-    #     pickle.dump(
-    #         results_df,
-    #         open(str(result_file_cache_path), "wb"),
-    #     )
-    # else:
-    #     try:
-    #         results_df = pickle.load(
-    #             open(str(result_file_cache_path), "rb")
-    #         )
-    #         results_df.to_csv(result_file_cache_path_csv,sep=";")
-    #     except:
-    #         FileNotFoundError("Couldnt find provided file with results from experiments. Please, ensure that file exists.")
+    # Given that hdbscan is getting the best results, we should just take hdbscan
+    hdbscan_experiment_optuna = pickle.load(open("src/experiment/results/hdbscan/optuna/dim_red_umap/silhouette_penalty_None.pkl", "rb"))
+    # Show experiment with best silhouette/noise ratio
+    max_row = hdbscan_experiment_optuna.loc[hdbscan_experiment_optuna["silhouette_noise_ratio"].idxmax()]
+    # TODO:
+    # Assign each image to corresponding cluster, even the noise.
+    # Process each cluster (each image or we could even get knn images closests to each cluster to avoid such computational resources) 
+    # on Llava-1.5 with prompt. See if it  matches the same images as same categories.
+    # If not we are fu**ed up. Silhouette score is not bad, if it doesnt match we should try
+    # others dimensionality reduction or even with no dim reduction. We should go back to embedding from dinov2, see if 
+    # there is something bad. 
+    
 
-    # With results we can make final experiment with desired params
-    # For example give me experiment where it got 4 clusters with best
-    # value of its metric (davies or silhouette)
-    # For now, we could take best result
+    
 
 
 

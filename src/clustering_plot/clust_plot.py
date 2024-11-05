@@ -31,6 +31,10 @@ class ClusteringPlot():
 
         # Setup attrs
         self.experiment = experiment
+
+        # Common attrs
+        self.string_silhouette = "best_value_w/o_penalty" if self.experiment.optimizer == "optuna" else "value_w/o_penalty"
+
         
         # Dirs and files
         self.main_plot_dir = Path(__file__).resolve().parent / \
@@ -58,8 +62,32 @@ class ClusteringPlot():
         return os.path.join(self.main_plot_dir,f"{type}.png")
         
 
+
+
+    def get_experiment_data(self, experiment_type):
+        """
+        Helper function to get the best experiment based on `experiment_type`.
+
+        Parameters
+        ----------
+        experiment_type : str
+            "best" for best silhouette or "silhouette_noise_ratio" for best silhouette-to-noise ratio.
+
+        Returns
+        -------
+        pd.Series
+            The row in the DataFrame corresponding to the best experiment.
+        """
+        if experiment_type == "best":
+            return self.experiment.results_df.loc[self.experiment.results_df[self.string_silhouette].idxmax()]
+        elif experiment_type == "silhouette_noise_ratio":
+            return self.experiment.results_df.loc[self.experiment.results_df["silhouette_noise_ratio"].idxmax()]
+        else:
+            raise ValueError("Invalid experiment type. Choose 'best' or 'silhouette_noise_ratio'.")
+
+
     
-    def show_best_silhouette(self, show_all=False, top_n=15, min_clusters=30, show_cluster_index=False, show_plots=False):
+    def show_best_silhouette(self, experiment="best", show_all=False, top_n=15, min_clusters=30, show_cluster_index=False, show_plots=False):
         """
         Displays the top `top_n` clusters with the highest silhouette average and the 
         `top_n` clusters with the lowest silhouette average, only if the total cluster 
@@ -78,8 +106,9 @@ class ClusteringPlot():
             logger.warning("No results found in the experiment DataFrame.")
             return
 
-        # Filter to get the experiment with the best silhouette score
-        best_experiment = self.experiment.results_df.loc[self.experiment.results_df['best_value_w/o_penalty'].idxmax()]
+        # Get the experiment data based on the specified `experiment` type
+        best_experiment = self.get_experiment_data(experiment)
+ 
 
         # Extract information for the best configuration
         best_labels = best_experiment['labels']
@@ -88,7 +117,7 @@ class ClusteringPlot():
         dimensions = best_experiment['dimensions']
         params = best_experiment['best_params']
         optimizer = best_experiment['optimization']
-        original_silhouette_score = best_experiment['best_value_w/o_penalty']
+        original_silhouette_score = best_experiment[self.string_silhouette]
         
         # Get scaled and reduced data for the best configuration
         scaled_data = self.experiment._eda.run_scaler(scaler)
@@ -153,17 +182,18 @@ class ClusteringPlot():
         plt.legend()
 
         # Save the plot
-        plt.savefig(self.add_path_type("best_trial_silhouette"), bbox_inches='tight')
+        file_suffix = "best_trial_silhouette" if experiment == "best" else "sil_noise_ratio_trial_silhouette"
+        plt.savefig(self.add_path_type(file_suffix), bbox_inches='tight')
         if show_plots:
             plt.show()
 
-        logger.info("Silhouette plot generated for the selected clusters.")
+        logger.info(f"Scatter plot generated for the selected experiment ({experiment}).")
 
     
     
     
     
-    def show_best_scatter(self, show_plots=False):
+    def show_best_scatter(self, experiment="best", show_plots=False):
         """
         Plots a 2D scatter plot for the best experiment configuration, with clusters reduced 
         to 2D space using PCA and color-coded for better visual distinction. Points labeled 
@@ -171,8 +201,8 @@ class ClusteringPlot():
         """
     
         
-        # Get best experiment data
-        best_experiment = self.experiment.results_df.loc[self.experiment.results_df['best_value_w/o_penalty'].idxmax()]
+        # Get the experiment data based on the specified `experiment` type
+        best_experiment = self.get_experiment_data(experiment)
         best_labels = np.array(best_experiment['labels'])
         optimizer = best_experiment['optimization']
         scaler = best_experiment['scaler']
@@ -221,24 +251,27 @@ class ClusteringPlot():
         plt.legend(loc='upper right')
 
         # Save and show plot
-        plt.savefig(self.add_path_type("best_experiment_scatter"), bbox_inches='tight')
+        file_suffix = "best_experiment_scatter" if experiment == "best" else "sil_noise_ratio_experiment_scatter"
+        plt.savefig(self.add_path_type(file_suffix), bbox_inches='tight')
         if show_plots:
             plt.show()
+        logger.info(f"Scatter plot generated for the selected experiment ({experiment}).")
+
         
     
     
     
     
     
-    def show_best_scatter_with_centers(self, show_plots=False):
+    def show_best_scatter_with_centers(self, experiment="best", show_plots=False):
         """
         Plots a 2D scatter plot for the best experiment configuration, with clusters reduced 
         to 2D space using PCA and color-coded for better visual distinction. Points labeled 
         as noise (-1) are always shown in red.
         """
         
-        # Get best experiment data
-        best_experiment = self.experiment.results_df.loc[self.experiment.results_df['best_value_w/o_penalty'].idxmax()]
+        # Get the experiment data based on the specified `experiment` type
+        best_experiment = self.get_experiment_data(experiment)
         # TODO Need 
         best_labels = np.array(best_experiment['labels'])
         # Convert embeddings and centers to numpy arrays if they are DataFrames
@@ -295,12 +328,15 @@ class ClusteringPlot():
         plt.legend(loc='upper right')
 
         # Save and show plot
-        plt.savefig(self.add_path_type("best_experiment_scatter_with_centers"), bbox_inches='tight')
+        file_suffix = "best_experiment_with_centers" if experiment == "best" else "sil_noise_ratio_experiment_with_centers"
+        plt.savefig(self.add_path_type(file_suffix), bbox_inches='tight')
         if show_plots:
             plt.show()
+        logger.info(f"Scatter plot with centers generated for the selected experiment ({experiment}).")
 
 
-    def show_best_clusters_counters_comparision(self, show_plots=False):
+
+    def show_best_clusters_counters_comparision(self, experiment="best", show_plots=False):
         """
         Displays a bar chart comparing the number of points in each cluster for the best configuration.
         
@@ -317,33 +353,217 @@ class ClusteringPlot():
             logger.warning("No results found in the experiment DataFrame.")
             return
 
-        # Get the best experiment based on the silhouette score or other criteria
-        best_experiment = self.experiment.results_df.loc[self.experiment.results_df['best_value_w/o_penalty'].idxmax()]
+        # Get the experiment data based on the specified `experiment` type
+        best_experiment = self.get_experiment_data(experiment)
         label_counter = best_experiment['label_counter']
         
         if not label_counter:
             logger.warning("No label counter found for the best experiment.")
             return
         
+        label_counter_filtered = {k: v for k, v in label_counter.items() if k != -1}
+
         # Extract cluster indices and their respective counts from label_counter
-        cluster_indices = list(label_counter.keys())
-        cluster_sizes = list(label_counter.values())
+        cluster_indices = list(label_counter_filtered.keys())
+        cluster_sizes = list(label_counter_filtered.values())
+
+        # Count total with noise and without noise
+        total_minus_one = label_counter.get(-1, 0)
+        total_rest = sum(v for k, v in label_counter.items() if k != -1)
         
         # Plot the bar chart
         plt.figure(figsize=(12, 6))
         sns.barplot(x=cluster_indices, y=cluster_sizes, palette="viridis")
         plt.xlabel("Cluster Index")
         plt.ylabel("Number of Points")
-        plt.title("Comparison of Cluster Sizes for Best Experiment")
+        plt.title("Comparison of Cluster Sizes for Best Experiment\n\n" \
+                  f"Total cluster points: {total_rest}\n"   \
+                  f"Total noise points: {total_minus_one}\n")
         plt.xticks(rotation=45)
         
-        # Save and show plot
-        plt.savefig(self.add_path_type("best_clusters_counter_comparison"), bbox_inches='tight')
+        # Save the plot with a name based on the `experiment` type
+        file_suffix = "clusters_counter_comparison" if experiment == "best" else "sil_noise_ratio_clusters_counter_comparision"
+        plt.savefig(self.add_path_type(file_suffix), bbox_inches='tight')
+        if show_plots:
+            plt.show()
+        logger.info(f"Cluster counter comparison plot generated for the selected experiment ({experiment}).")
+    
+
+
+
+    def show_top_noise_silhouette(self, top_n=20, priority="eval_method", show_plots=False):
+        """
+        Sorts results based on the specified priority: either by the highest noise level (`noise_not_noise` 
+        with the highest -1 key) or by the highest silhouette score (`best_value_w/o_penalty`).
+        Generates a bar plot showing noise levels with a scatter overlay for silhouette values 
+        and cluster counts, each scaled to its own maximum.
+
+        Parameters
+        ----------
+        top_n : int, optional
+            Number of top experiments to display in the plot, default is 20.
+        priority : str, optional
+            Sorting priority: "noise" to sort first by noise count, "eval_method" to sort first by silhouette score.
+            Default is "eval_method".
+        show_plots : bool, optional
+            If True, displays the plot. Default is False.
+        """
+        # Check if `results_df` contains data
+        if self.experiment.results_df is None or self.experiment.results_df.empty:
+            logger.warning("No results found in the experiment DataFrame.")
+            return
+
+        # Create temporary columns for sorting and extracting data
+        self.experiment.results_df['noise_count'] = self.experiment.results_df["noise_not_noise"].apply(lambda x: x[-1])
+        self.experiment.results_df['silhouette_score'] = self.experiment.results_df["best_value_w/o_penalty"]
+        self.experiment.results_df['cluster_count'] = self.experiment.results_df["label_counter"].apply(lambda x: len(x) - (1 if -1 in x else 0))
+
+        # Define sorting order based on the priority parameter
+        if priority == "noise":
+            # Sort first by noise count, then by silhouette score
+            sorted_experiments = self.experiment.results_df.sort_values(
+                by=["noise_count", "silhouette_score"],
+                ascending=[False, False]
+            ).head(top_n)
+        elif priority == "eval_method":
+            # Sort first by silhouette score, then by noise count
+            sorted_experiments = self.experiment.results_df.sort_values(
+                by=["silhouette_score", "noise_count"],
+                ascending=[False, False]
+            ).head(top_n)
+        else:
+            logger.warning("Invalid priority specified. Choose 'noise' or 'eval_method'.")
+            return
+
+        # Extract and normalize data for plotting
+        noise_counts = sorted_experiments["noise_count"].values
+        silhouette_scores = sorted_experiments["silhouette_score"].values
+        cluster_counts = sorted_experiments["cluster_count"].values
+
+        # Normalize values for proportional representation
+        max_noise = max(noise_counts) if max(noise_counts) > 0 else 1
+        max_silhouette = max(silhouette_scores) if max(silhouette_scores) > 0 else 1
+        max_clusters = max(cluster_counts) if max(cluster_counts) > 0 else 1
+
+        normalized_noise = noise_counts / max_noise
+        normalized_silhouette = silhouette_scores / max_silhouette
+        normalized_clusters = cluster_counts / max_clusters
+
+        # Set up the plot
+        plt.figure(figsize=(12, 6))
+
+        # Bar plot for normalized noise counts
+        plt.bar(range(top_n), normalized_noise, color="skyblue", label="Normalized Noise Count (-1)")
+
+        # Scatter plot for normalized silhouette scores
+        plt.scatter(range(top_n), normalized_silhouette, color="orange", label="Normalized Silhouette Score", zorder=5)
+
+        # Scatter plot for normalized cluster counts
+        plt.scatter(range(top_n), normalized_clusters, color="green", marker='x', label="Normalized Cluster Count", zorder=6)
+
+        # Labels and title
+        plt.xlabel("Experiment Rank (Top Noise-Silhouette)")
+        plt.ylabel("Normalized Counts / Scores")
+        plt.title("Top Experiments by Noise Level, Silhouette Score, and Cluster Count")
+        plt.xticks(range(top_n), labels=range(1, top_n + 1))
+        plt.legend(loc="upper right")
+
+        # Save and display the plot
+        if priority == "eval_method":
+            plt.savefig(self.add_path_type("top_silhouette_noise_clusters"), bbox_inches="tight")
+        else:
+            plt.savefig(self.add_path_type("top_noise_silhouette_clusters"), bbox_inches="tight")
+            
         if show_plots:
             plt.show()
 
-        logger.info("Cluster size comparison plot generated for the best experiment.")
-    
+        # Clean up the temporary columns
+        self.experiment.results_df.drop(columns=["noise_count", "silhouette_score", "cluster_count"], inplace=True)
+
+        logger.info(f"Top experiments plot generated with priority on {priority}.")
+
+
+
+
+    def show_top_silhouette_noise_ratio(self, top_n=20, show_plots=False):
+        """
+        Calculates the ratio of silhouette score to noise count (silhouette / (noise + 1)), sorts experiments by this ratio,
+        and generates a bar plot showing the silhouette-to-noise ratio with scatter overlays for the silhouette score and noise count.
+
+        Parameters
+        ----------
+        top_n : int, optional
+            Number of top experiments to display in the plot, default is 20.
+        show_plots : bool, optional
+            If True, displays the plot. Default is False.
+        """
+        # Check if `results_df` contains data
+        if self.experiment.results_df is None or self.experiment.results_df.empty:
+            logger.warning("No results found in the experiment DataFrame.")
+            return
+
+        # Calculate noise count and silhouette score columns for easy access
+        self.experiment.results_df['noise_count'] = self.experiment.results_df["noise_not_noise"].apply(lambda x: x[-1])
+        self.experiment.results_df['silhouette_score'] = self.experiment.results_df["best_value_w/o_penalty"]
+
+        # Calculate silhouette-to-noise ratio
+        self.experiment.results_df['silhouette_noise_ratio'] = self.experiment.results_df['silhouette_score'] / (self.experiment.results_df['noise_count'] + 1)
+
+        # Sort by silhouette-to-noise ratio in descending order and select the top `top_n`
+        sorted_experiments = self.experiment.results_df.sort_values(
+            by="silhouette_noise_ratio", ascending=False
+        ).head(top_n)
+
+        # Extract data for plotting
+        silhouette_scores = sorted_experiments["silhouette_score"].values
+        noise_counts = sorted_experiments["noise_count"].values
+        silhouette_noise_ratios = sorted_experiments["silhouette_noise_ratio"].values
+        experiment_indices = sorted_experiments.index.tolist()  # Get the indices of the top experiments
+
+        # Normalize values for proportional representation
+        max_ratio = max(silhouette_noise_ratios) if max(silhouette_noise_ratios) > 0 else 1
+        max_silhouette = max(silhouette_scores) if max(silhouette_scores) > 0 else 1
+        max_noise = max(noise_counts) if max(noise_counts) > 0 else 1
+
+        normalized_ratios = silhouette_noise_ratios / max_ratio
+        normalized_silhouette = silhouette_scores / max_silhouette
+        normalized_noise = noise_counts / max_noise
+
+        # Set up the plot
+        plt.figure(figsize=(12, 6))
+
+        # Bar plot for the normalized silhouette-to-noise ratios
+        plt.bar(range(top_n), normalized_ratios, color="skyblue", label="Normalized Silhouette-to-Noise Ratio")
+
+        # Scatter plot for normalized silhouette scores
+        plt.scatter(range(top_n), normalized_silhouette, color="orange", label="Normalized Silhouette Score", zorder=5)
+
+        # Scatter plot for normalized noise counts
+        plt.scatter(range(top_n), normalized_noise, color="red", marker='x', label="Normalized Noise Count", zorder=6)
+
+        # Labels and title
+        plt.xlabel("Experiment Index (Top Silhouette-to-Noise Ratio)")
+        plt.ylabel("Normalized Values")
+        plt.title("Top Experiments by Silhouette-to-Noise Ratio with Silhouette Score and Noise Count")
+        plt.xticks(range(top_n), labels=experiment_indices, rotation=45)
+        plt.legend(loc="upper right")
+
+        # Save and display the plot
+        plt.savefig(self.add_path_type("top_silhouette_noise_ratio"), bbox_inches="tight")
+        if show_plots:
+            plt.show()
+
+        # Clean up the temporary columns
+        self.experiment.results_df.drop(columns=["noise_count", "silhouette_score", "silhouette_noise_ratio"], inplace=True)
+
+        logger.info("Top experiments plot generated by silhouette-to-noise ratio.")
+            
+
+
+
+
+
+
     
 if __name__ == "__main__":
     pass
