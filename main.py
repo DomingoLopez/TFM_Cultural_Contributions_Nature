@@ -120,15 +120,20 @@ if __name__ == "__main__":
     max_row = hdbscan_experiment_optuna.loc[hdbscan_experiment_optuna["silhouette_noise_ratio"].idxmax()]
     trial_result = dict(max_row)
     trial = Trial(images, trial_result)
-    # 3. Assign each image to its corresponding label/cluster
-    # 3.1 ALTERNATIVE: Select 3 or 4 images from each cluster instead of all images
-    
+    # 3. Assign each image to its corresponding label/cluster: format: {0: [path list], 1: [path:list], }, etc
+    # 3.1 ALTERNATIVE: Select 3 or 4 images from each cluster instead of all images format: {0: [path list], 1: [path:list], }, etc
+    cluster_images_dict = trial.get_cluster_images_dict(knn=None, include_noise = True)
+    print(cluster_images_dict)
     
     # 4. Process images to Llava-1.5 and see:
+    #   First Order from bigger cluster to smaller (withoud noise. I want noise to be the last)
+    
     #   - Are all images from each cluster being classfied in same category? Save success ratio per cluster from Llava-1.5
     #   - Are all noise classified as "Others" or "Noise" category?
     #   - Those clusters with bad or low success ratio, examine and plot embeddings and cluster silhouette
     #   - If everithing goes wrong. Instead of Level 3 category, try level 2 category which is more generic.
+    for k,v in cluster_images_dict.items():
+        logger.info(f"Entering cluster {k}")
     
     
 

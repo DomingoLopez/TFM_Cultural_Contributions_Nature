@@ -7,9 +7,9 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from loguru import logger
-from sklearn.cluster import KMeans
-from sklearn.metrics import davies_bouldin_score, silhouette_score
-from sklearn.datasets import make_blobs
+
+from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics.pairwise import cosine_similarity
 from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering.clustering_model import ClusteringModel
 from src.eda.eda import EDA
@@ -23,6 +23,7 @@ class Trial():
     results, etc.
     """
     def __init__(self, 
+                 images: list,
                  trial_result: dict,
                  cache:bool= True, 
                  verbose:bool= False,
@@ -36,7 +37,25 @@ class Trial():
             **kwargs: Additional keyword arguments.
         """
         # Setup attrs
+        # optimization
+        # scaler
+        # dim_reduction
+        # dimensions
+        # embeddings
+        # n_clusters
+        # best_params
+        # centers
+        # labels
+        # label_counter
+        # noise_not_noise
+        # silhouette_noise_ratio
+        # penalty
+        # penalty_range
+        # best_value_w_penalty
+        # best_value_w/o_penalty
+
         self.trial_result = trial_result
+        self.images = images
         for k,v in trial_result.items():
             setattr(self, k, v)
         self._cache = cache
@@ -69,36 +88,78 @@ class Trial():
         """
         # get trial mandatory params
         
+        pass
         
-        
-        closest_neighbors = {}
-        
-        
-        
-        used_metric = metric if metric in ('cityblock', 'cosine','euclidean','haversine','l1','l2','manhattan','nan_euclidean') else 'euclidean'
-        
-        for idx, centroid in enumerate(cluster_centers):
-            # Filter poitns that belongs to cluster. If not
-            # we could end up with points from other clusters
-            cluster_points = self.data.values[labels == idx]
+        # closest_neighbors = {}
+        # used_metric = metric if metric in ('cityblock', 'cosine','euclidean','haversine','l1','l2','manhattan','nan_euclidean') else 'euclidean'
+        # for idx, centroid in enumerate(cluster_centers):
+        #     # Filter poitns that belongs to cluster. If not
+        #     # we could end up with points from other clusters
+        #     cluster_points = self.data.values[labels == idx]
             
-            # Make sure there are more cluster points that neighbors required
-            if len(cluster_points) < n_neighbors:
-                n_neighbors_cluster = len(cluster_points)
-            else:
-                n_neighbors_cluster = n_neighbors
+        #     # Make sure there are more cluster points that neighbors required
+        #     if len(cluster_points) < n_neighbors:
+        #         n_neighbors_cluster = len(cluster_points)
+        #     else:
+        #         n_neighbors_cluster = n_neighbors
             
-            # Do NNeighbors
-            nbrs = NearestNeighbors(n_neighbors=n_neighbors_cluster, metric=used_metric, algorithm='auto').fit(cluster_points)
-            distances, indices = nbrs.kneighbors([centroid])
+        #     # Do NNeighbors
+        #     nbrs = NearestNeighbors(n_neighbors=n_neighbors_cluster, metric=used_metric, algorithm='auto').fit(cluster_points)
+        #     distances, indices = nbrs.kneighbors([centroid])
             
-            closest_neighbors[idx] = indices.flatten()  # Almacenar los índices locales del cluster
+        #     closest_neighbors[idx] = indices.flatten()  # Almacenar los índices locales del cluster
 
-        # Transform to df
-        knn_data = {f"Cluster_{idx}": neighbors for idx, neighbors in closest_neighbors.items()}
-        df_closest_neighbors = pd.DataFrame(knn_data)
+        # # Transform to df
+        # knn_data = {f"Cluster_{idx}": neighbors for idx, neighbors in closest_neighbors.items()}
+        # df_closest_neighbors = pd.DataFrame(knn_data)
 
-        return df_closest_neighbors
+        # return df_closest_neighbors
+    
+    
+    
+    def get_cluster_images_dict(self, knn=None, include_noise = True):
+        
+        cluster_images_dict = {}
+        
+        if knn is not None:
+            closest_neighbors = {}
+            used_metric = self.best_params.get("metric") if self.best_params.get("metric") in ('cityblock', 'cosine','euclidean','haversine','l1','l2','manhattan','nan_euclidean') else 'euclidean'
+            
+            for idx, centroid in enumerate(self.centers):
+                # Filter poitns that belongs to cluster. If not
+                # we could end up with points from other clusters
+                cluster_points = self.embeddings.values[labels == idx]
+                
+                # Make sure there are more cluster points that neighbors required
+                if len(cluster_points) < n_neighbors:
+                    n_neighbors_cluster = len(cluster_points)
+                else:
+                    n_neighbors_cluster = n_neighbors
+                
+                # Do NNeighbors
+                nbrs = NearestNeighbors(n_neighbors=n_neighbors_cluster, metric=used_metric, algorithm='auto').fit(cluster_points)
+                distances, indices = nbrs.kneighbors([centroid])
+                
+                closest_neighbors[idx] = indices.flatten()  # Almacenar los índices locales del cluster
+
+            # Transform to df
+            knn_data = {f"Cluster_{idx}": neighbors for idx, neighbors in closest_neighbors.items()}
+            df_closest_neighbors = pd.DataFrame(knn_data)
+            
+        else: 
+            for i, label in enumerate(self.labels):
+                
+                if not include_noise and label == -1:
+                    continue
+                
+                if label not in cluster_images_dict:
+                    cluster_images_dict[label] = []
+                cluster_images_dict[label].append(self.images[i])
+            
+        return cluster_images_dict
+    
+    
+    
     
     
     
