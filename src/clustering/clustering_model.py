@@ -25,8 +25,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from ..utils.decorators import deprecated
 
-# TODO: 
-# tienen que estar fuera, si no GridSearch no funciona bien. Definir archivo con estas funciones fuera, o en utils
+
+# Tienen que estar fuera, si no GridSearch no funciona bien. Definir archivo con estas funciones fuera, o en utils
 def silhouette_scorer(estimator, X, y=None):
     # Obtiene las etiquetas predichas por el modelo y filtra el ruido (-1)
     if hasattr(estimator, 'labels_'):
@@ -328,8 +328,6 @@ class ClusteringModel(ABC):
 
 
 
-
-
     def plot_single_experiment(
         self,
         X: pd.DataFrame, 
@@ -370,107 +368,3 @@ class ClusteringModel(ABC):
         plt.show()
 
 
-
-    def find_clustering_knn_points(self, n_neighbors, metric, cluster_centers, labels):
-        """
-        Finds the k-nearest neighbors for each centroid of clusters among points that belong to the same cluster.
-        Returns knn points for each cluster in dataframe format.
-
-        Parameters
-        ----------
-        n_neighbors : int
-            Number of nearest neighbors to find for each centroid.
-
-        metric : str
-            Distance metric to use for finding neighbors (e.g., 'euclidean', 'manhattan').
-
-        cluster_centers : array-like of shape (n_clusters, n_features)
-            Coordinates of cluster centroids for which the nearest neighbors are computed.
-
-        labels : array-like of shape (n_samples,)
-            Cluster labels for each data point in the dataset.
-
-        Returns
-        -------
-        df_closest_neighbors : pandas.DataFrame
-            DataFrame where each column corresponds to a cluster index, and rows contain indices
-            of the closest neighbors within that cluster for the centroid.
-        """
-        closest_neighbors = {}
-        used_metric = metric if metric in ('cityblock', 'cosine','euclidean','haversine','l1','l2','manhattan','nan_euclidean') else 'euclidean'
-        
-        for idx, centroid in enumerate(cluster_centers):
-            # Filter poitns that belongs to cluster. If not
-            # we could end up with points from other clusters
-            cluster_points = self.data.values[labels == idx]
-            
-            # Make sure there are more cluster points that neighbors required
-            if len(cluster_points) < n_neighbors:
-                n_neighbors_cluster = len(cluster_points)
-            else:
-                n_neighbors_cluster = n_neighbors
-            
-            # Do NNeighbors
-            nbrs = NearestNeighbors(n_neighbors=n_neighbors_cluster, metric=used_metric, algorithm='auto').fit(cluster_points)
-            distances, indices = nbrs.kneighbors([centroid])
-            
-            closest_neighbors[idx] = indices.flatten()  # Almacenar los índices locales del cluster
-
-        # Transform to df
-        knn_data = {f"Cluster_{idx}": neighbors for idx, neighbors in closest_neighbors.items()}
-        df_closest_neighbors = pd.DataFrame(knn_data)
-
-        return df_closest_neighbors
-    
-    
-    
-    
-    def find_clustering_cosine_similarity_points(self, n_neighbors, cluster_centers, labels):
-        """
-        Finds the k-nearest neighbors for each centroid of clusters within the same cluster, using cosine similarity.
-
-        This method calculates the `n_neighbors` closest points in the dataset to each centroid in 
-        `cluster_centers` using cosine similarity, considering only points in the same cluster.
-
-        Parameters
-        ----------
-        n_neighbors : int
-            Number of nearest neighbors to find for each centroid.
-
-        cluster_centers : array-like of shape (n_clusters, n_features)
-            Coordinates of cluster centroids for which the nearest neighbors are computed.
-
-        labels : array-like of shape (n_samples,)
-            Cluster labels for each data point in the dataset.
-
-        Returns
-        -------
-        df_closest_neighbors : pandas.DataFrame
-            DataFrame where each column corresponds to a cluster index, and rows contain indices
-            of the closest neighbors within that cluster based on cosine similarity for each cluster's centroid.
-        """
-        closest_neighbors = {}
-
-        for idx, centroid in enumerate(cluster_centers):
-            # Filtrar puntos que pertenecen al mismo cluster
-            cluster_points = self.data.values[labels == idx]
-            
-            # Asegurarse de que haya suficientes puntos en el cluster para el número de vecinos solicitado
-            if len(cluster_points) < n_neighbors:
-                n_neighbors_cluster = len(cluster_points)
-            else:
-                n_neighbors_cluster = n_neighbors
-            
-            # Calcular similitud de coseno entre el centroide y los puntos del cluster
-            similarities = cosine_similarity(cluster_points, centroid.reshape(1, -1)).flatten()
-            
-            # Obtener los índices de los puntos más similares en el cluster
-            top_indices = np.argsort(similarities)[-n_neighbors_cluster:]  # Obtener índices de los más altos
-            closest_neighbors[idx] = top_indices[::-1]  # Ordenar de más a menos similar
-
-        # Convertir a DataFrame
-        knn_data = {f"Cluster_{idx}": neighbors for idx, neighbors in closest_neighbors.items()}
-        df_closest_neighbors = pd.DataFrame(knn_data)
-
-        return df_closest_neighbors
-    

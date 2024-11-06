@@ -10,6 +10,7 @@ from src.clustering.clust_hdbscan import HDBSCANClustering
 from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering_plot.clust_plot import ClusteringPlot
 from src.experiment.experiment import Experiment
+from src.experiment.trial import Trial
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
 from src.eda.eda import EDA
@@ -48,17 +49,24 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 
 
 
-def actual_main():
+def load_images(path) -> list:
     # Finding images
     # image_loader = ImageLoader(folder="./data/Small_Data")
-    image_loader = ImageLoader(folder="./data/Data")
+    image_loader = ImageLoader(folder=path)
     images = image_loader.find_images()
-    # Loading images and getting embeddings
-    dinomodel = Dinov2Inference(model_name="small", images=images, disable_cache=False)
-    embeddings = dinomodel.run()
+    return images
 
+def generate_embeddings(images, model) -> list:
+    # Loading images and getting embeddings
+    dinomodel = Dinov2Inference(model_name=model, images=images, disable_cache=False)
+    embeddings = dinomodel.run()
+    return embeddings
+
+
+def run_experiments(file, embeddings) -> None:
+   
     # Load json file with all experiments
-    with open('src/experiment/json/experiments_optuna_silhouette.json', 'r') as f:
+    with open(file, 'r') as f:
         experiments_config = json.load(f)
 
     for config in experiments_config:
@@ -101,23 +109,29 @@ def actual_main():
 
 
 if __name__ == "__main__":
-    # actual_main()
+    # 1. Load images, generate embeddings and run experiments
+    images = load_images("./data/Data")
+    # embeddings = generate_embeddings(images, model="small")
+    # run_experiments("src/experiment/json/experiments_optuna_silhouette.json", embeddings)
     
-    # Once we get the experiments and representations, etc 
-    # we should choose the best experiment with best silhouette/noise ratio
-    # in order to pick the best silhouette with less noise ratio (it could be just the best silhouette)
-
-    # Given that hdbscan is getting the best results, we should just take hdbscan
+    # 2. Analyze and choose from best experiment. In this case, hdbscan with optuna
     hdbscan_experiment_optuna = pickle.load(open("src/experiment/results/hdbscan/optuna/dim_red_umap/silhouette_penalty_None.pkl", "rb"))
     # Show experiment with best silhouette/noise ratio
     max_row = hdbscan_experiment_optuna.loc[hdbscan_experiment_optuna["silhouette_noise_ratio"].idxmax()]
-    # TODO:
-    # Assign each image to corresponding cluster, even the noise.
-    # Process each cluster (each image or we could even get knn images closests to each cluster to avoid such computational resources) 
-    # on Llava-1.5 with prompt. See if it  matches the same images as same categories.
-    # If not we are fu**ed up. Silhouette score is not bad, if it doesnt match we should try
-    # others dimensionality reduction or even with no dim reduction. We should go back to embedding from dinov2, see if 
-    # there is something bad. 
+    trial_result = dict(max_row)
+    trial = Trial(images, trial_result)
+    
+    # 3. Assign each image to its corresponding label/cluster
+    
+    
+    # 3.1 ALTERNATIVE: Select 3 or 4 images from each cluster instead of all images
+    
+    
+    # 4. Process images to Llava-1.5 and see:
+    #   - Are all images from each cluster being classfied in same category? Save success ratio per cluster from Llava-1.5
+    #   - Those clusters with bad or low success ratio, examine and plot embeddings and cluster silhouette
+    #   - If everithing goes wrong. Instead of Level 3 category, try level 2 category which is more generic.
+    
     
 
     
