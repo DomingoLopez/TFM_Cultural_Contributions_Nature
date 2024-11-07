@@ -133,7 +133,7 @@ if __name__ == "__main__":
     #   - Those clusters with bad or low success ratio, examine and plot embeddings and cluster silhouette
     #   - If everithing goes wrong. Instead of Level 3 category, try level 2 category which is more generic.
     for k,v in cluster_images_dict.items():
-        logger.info(f"Entering cluster {k}")
+        print(k, len(v))
     
     
 

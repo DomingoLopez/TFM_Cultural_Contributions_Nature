@@ -124,22 +124,22 @@ class Trial():
         if knn is not None:
             closest_neighbors = {}
             used_metric = self.best_params.get("metric") if self.best_params.get("metric") in ('cityblock', 'cosine','euclidean','haversine','l1','l2','manhattan','nan_euclidean') else 'euclidean'
-            
+            labels = self.trial_result.labels
+
             for idx, centroid in enumerate(self.centers):
                 # Filter poitns that belongs to cluster. If not
                 # we could end up with points from other clusters
                 cluster_points = self.embeddings.values[labels == idx]
                 
                 # Make sure there are more cluster points that neighbors required
-                if len(cluster_points) < n_neighbors:
+                if len(cluster_points) < knn:
                     n_neighbors_cluster = len(cluster_points)
                 else:
-                    n_neighbors_cluster = n_neighbors
+                    n_neighbors_cluster = knn
                 
                 # Do NNeighbors
                 nbrs = NearestNeighbors(n_neighbors=n_neighbors_cluster, metric=used_metric, algorithm='auto').fit(cluster_points)
                 distances, indices = nbrs.kneighbors([centroid])
-                
                 closest_neighbors[idx] = indices.flatten()  # Almacenar los índices locales del cluster
 
             # Transform to df
@@ -156,7 +156,7 @@ class Trial():
                     cluster_images_dict[label] = []
                 cluster_images_dict[label].append(self.images[i])
             
-        return cluster_images_dict
+        return  dict(sorted(cluster_images_dict.items()))
     
     
     
