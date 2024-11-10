@@ -11,7 +11,7 @@ from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering_plot.clust_plot import ClusteringPlot
 from src.experiment.experiment import Experiment
 from src.experiment.trial import Trial
-from src.llava_controler.llava_controller import LlavaController
+from src.llava_inference.llava_inference import LlavaInference
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
 from src.eda.eda import EDA
@@ -107,6 +107,8 @@ def run_experiments(file, embeddings) -> None:
 
 
 
+# Copy files to ngpu
+# rsync -av --exclude='.git' 1_TFM xxxx.xx.es:/mnt/homeGPU/dlopez
 
 
 if __name__ == "__main__":
@@ -128,10 +130,12 @@ if __name__ == "__main__":
     
     # 4. Process images to Llava-1.5 and see:
     # 4.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
-    llava = LlavaController(images_dict_format=cluster_images_dict)
-    #llava.createClusterDirs()
-    # 4.2 Upload those images to NGPU - UGR Gpus
+    llava = LlavaInference(images_dict_format=cluster_images_dict)
+    llava.createClusterDirs()
+    # 4.2 Upload those images to NGPU - UGR Gpus (start manually)
+    # rsync -av llava_inference xxxx.xx.es:/mnt/homeGPU/dlopez
     # 4.3 Make LLava inference over those images (Start with Level 3 categorization). 
+    llava.run()
     # - See if all images from those clusters are classified in same category. Print succes ratio.
     # 4.4 Do same with noise and see if it is categorized as Others or not.
 

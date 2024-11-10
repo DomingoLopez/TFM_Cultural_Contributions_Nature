@@ -9,10 +9,12 @@ import requests
 import time
 import os
 import sys
-from loguru import logger
+
+from src.utils.image_loader import ImageLoader
+#from loguru import logger
 
 
-class LlavaController():
+class LlavaInference():
     """
     LlavaInference allows us to deploy selected Llava model (locally or in NGPU - UGR, but without automation yet)
     We start with Llava1.5-7b params. It can download model, and do some inference given some images and text prompt as inputs.
@@ -27,14 +29,12 @@ class LlavaController():
         """
 
         # Setup logging
-        logger.remove()
-        if verbose:
-            logger.add(sys.stdout, level="DEBUG")
-        else:
-            logger.add(sys.stdout, level="INFO")
+        # logger.remove()
+        # if verbose:
+        #     logger.add(sys.stdout, level="DEBUG")
+        # else:
+        #     logger.add(sys.stdout, level="INFO")
 
-        # Attr inizialization
-        self.images_dict_format = images_dict_format 
 
         # Base dir for moving images from every cluster. 
         # Just in case we decide to move this to ngpu wihout moving whole project.
@@ -43,7 +43,7 @@ class LlavaController():
         self.results_object = Path(__file__).resolve().parent / "results/result.pkl"
         self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
         # Remove all images or files in that cluster images base dir
-        shutil.rmtree(self.base_dir)
+        shutil.rmtree(self.base_dir, ignore_errors=True)
         # Create dirs after cleaning
         os.makedirs(self.base_dir, exist_ok=True)
         os.makedirs(self.results_dir, exist_ok=True)
@@ -51,7 +51,29 @@ class LlavaController():
         self.categories = pd.read_csv(os.path.join(self.classification_lvls_dir,"classification_level_3.csv"), header=None, sep=";").iloc[:, 0].tolist()
 
 
-        logger.info("Created LlavaControler. Cleaning cluster images folder")
+        # Initialize images_dict_format
+        if images_dict_format is None:
+            self.images_dict_format = self.load_images_from_base_dir()
+        else:
+            self.images_dict_format = images_dict_format
+
+
+        # logger.info("Created LlavaControler. Cleaning cluster images folder")
+
+
+
+
+    def load_images_from_base_dir(self):
+        """
+        Loads images from base directory, creating a dictionary with subfolder names as keys
+        and lists of image paths as values.
+        """
+        images_dict = {}
+        for subfolder in self.base_dir.iterdir():
+            if subfolder.is_dir():
+                image_loader = ImageLoader(subfolder)
+                images_dict[subfolder.name] = [str(img_path) for img_path in image_loader.find_images()]
+        return images_dict
 
 
 
@@ -61,7 +83,7 @@ class LlavaController():
         Create a dir for every cluster given in dictionary of images. 
         This is how we are gonna send that folder to ugr gpus
         """
-        logger.info("Copying images from Data path to cluster dirs")
+        # logger.info("Copying images from Data path to cluster dirs")
         # For every key (cluster index)
         try:
             for k,v in self.images_dict_format.items():
@@ -78,7 +100,7 @@ class LlavaController():
 
 
 
-    def run_inference(self):
+    def run(self):
         """
         Run Llava inference for every image in each subfolder of the base path.
         Store % success classifying every cluster in the same category.
@@ -95,7 +117,7 @@ class LlavaController():
         for cluster_name, image_paths in self.images_dict_format.items():
             # ignore noise first
             if cluster_name != -1:
-                logger.info(f"Processing cluster: {cluster_name}")
+                #logger.info(f"Processing cluster: {cluster_name}")
                 
                 start_time = time.time()
                 category_counts = {}
@@ -108,7 +130,7 @@ class LlavaController():
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "Classify this image in one of these categories: " + ", ".join(self.categories) + ", Others"},
+                                {"type": "text", "text": "Classify this image in one of these categories: " + ", ".join(self.categories)},
                                 {"type": "image", "image": image},  
                             ],
                         },
@@ -149,10 +171,7 @@ class LlavaController():
         results_path = self.results_dir / "inference_results.csv"
         results_df.to_csv(results_path, index=False)
         pickle.dump(results_df, open(self.results_object, "wb"))
-        logger.info(f"Results saved to {results_path}")
-
-
-
+        #logger.info(f"Results saved to {results_path}")
 
 
 
@@ -203,4 +222,6 @@ class LlavaController():
 
 
 if __name__ == "__main__":
-    pass
+
+    llava = LlavaInference(images_dict_format=None)
+    llava.run()

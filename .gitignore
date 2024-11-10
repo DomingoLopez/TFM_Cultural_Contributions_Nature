@@ -4,6 +4,8 @@ data/test
 
 /src/results
 
+/src/llava_controler/cluster_images/
+
 /trash/
 trash
 
