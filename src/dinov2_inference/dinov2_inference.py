@@ -120,9 +120,6 @@ class Dinov2Inference:
             return False
             
 
-
-
-
     def __extract_single_image_feature(self, image):
         """
         Extract backbone feature of dino v2 model on a single image

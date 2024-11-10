@@ -11,6 +11,7 @@ from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering_plot.clust_plot import ClusteringPlot
 from src.experiment.experiment import Experiment
 from src.experiment.trial import Trial
+from src.llava_controler.llava_controller import LlavaController
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
 from src.eda.eda import EDA
@@ -126,9 +127,9 @@ if __name__ == "__main__":
     print(cluster_images_dict)
     
     # 4. Process images to Llava-1.5 and see:
-    #   First Order from bigger cluster to smaller (withoud noise. I want noise to be the last)
     # 4.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
-
+    llava = LlavaController(images_dict_format=cluster_images_dict)
+    #llava.createClusterDirs()
     # 4.2 Upload those images to NGPU - UGR Gpus
     # 4.3 Make LLava inference over those images (Start with Level 3 categorization). 
     # - See if all images from those clusters are classified in same category. Print succes ratio.
@@ -136,8 +137,11 @@ if __name__ == "__main__":
 
     #   - Those clusters with bad or low success ratio, examine and plot embeddings and cluster silhouette
     #   - If everithing goes wrong. Instead of Level 3 category, try level 2 category which is more generic.
-    for k,v in cluster_images_dict.items():
-        print(k, len(v))
+
+
+
+    # for k,v in cluster_images_dict.items():
+    #     print(k, len(v))
     
     
 
