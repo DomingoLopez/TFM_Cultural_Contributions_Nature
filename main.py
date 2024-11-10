@@ -118,26 +118,31 @@ if __name__ == "__main__":
     # run_experiments("src/experiment/json/experiments_optuna_silhouette.json", embeddings)
     
     # 2. Analyze and choose from best experiment. In this case, hdbscan with optuna
-    hdbscan_experiment_optuna = pickle.load(open("src/experiment/results/hdbscan/optuna/dim_red_umap/silhouette_penalty_None.pkl", "rb"))
+    # Set which experiment to try after analyze them
+    optimizer = "optuna"
+    dim_red = "umap"
+    clustering = "hdbscan"
+
+    selected_experiment = pickle.load(open(f"src/experiment/results/{clustering}/{optimizer}/dim_red_{dim_red}/silhouette_penalty_None.pkl", "rb"))
     # Show experiment with best silhouette/noise ratio
-    max_row = hdbscan_experiment_optuna.loc[hdbscan_experiment_optuna["silhouette_noise_ratio"].idxmax()]
+    max_row = selected_experiment.loc[selected_experiment["silhouette_noise_ratio"].idxmax()]
     trial_result = dict(max_row)
     trial = Trial(images, trial_result)
     # 3. Assign each image to its corresponding label/cluster: format: {0: [path list], 1: [path:list], }, etc
     # 3.1 ALTERNATIVE: Select 3 or 4 images from each cluster instead of all images format: {0: [path list], 1: [path:list], }, etc
-    cluster_images_dict = trial.get_cluster_images_dict(knn=4)
-    print(cluster_images_dict)
-    
+    cluster_images_dict = trial.get_cluster_images_dict(knn=None)
     # 4. Process images to Llava-1.5 and see:
     # 4.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
-    llava = LlavaInference(images_dict_format=cluster_images_dict)
+    llava = LlavaInference(images_dict_format=cluster_images_dict, classification_lvl=3, experiment_name=trial.get_experiment_name())
     llava.createClusterDirs()
-    # 4.2 Upload those images to NGPU - UGR Gpus (start manually)
-    # rsync -av llava_inference xxxx.xx.es:/mnt/homeGPU/dlopez
-    # 4.3 Make LLava inference over those images (Start with Level 3 categorization). 
+    # # 4.2 Upload those images to NGPU - UGR Gpus (start manually)
+    # # rsync -av llava_inference xxxx.xx.es:/mnt/homeGPU/dlopez
+    # # 4.3 Make LLava inference over those images (Start with Level 3 categorization). 
     llava.run()
-    # - See if all images from those clusters are classified in same category. Print succes ratio.
-    # 4.4 Do same with noise and see if it is categorized as Others or not.
+    # # - See if all images from those clusters are classified in same category. Print succes ratio.
+    llava.create_results_stats()
+    llava.plot_cluster_categories()
+
 
     #   - Those clusters with bad or low success ratio, examine and plot embeddings and cluster silhouette
     #   - If everithing goes wrong. Instead of Level 3 category, try level 2 category which is more generic.

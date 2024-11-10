@@ -245,6 +245,7 @@ class Experiment():
                     silhouette_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
                     
                     results.append({
+                        "clustering": self._clustering,
                         "optimization": self._optimizer,
                         "scaler": scaler,
                         "dim_reduction": self._dim_reduction,
@@ -326,6 +327,7 @@ class Experiment():
                         silhouette_noise_ratio = score / (noise_not_noise.get(-1) + 1)
 
                         results.append({
+                            "clustering": self._clustering,
                             "optimization": self._optimizer,
                             "scaler": scaler,
                             "dim_reduction": self._dim_reduction,

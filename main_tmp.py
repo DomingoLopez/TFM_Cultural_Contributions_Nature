@@ -50,40 +50,28 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 if __name__ == "__main__":
     
     try:
-        # Load the file using a context to ensure it closes properly
-        with open("src/experiment/results/hdbscan/gridsearch/dim_red_umap/silhouette_penalty_None.pkl", "rb") as f:
+        # Cargar el archivo
+        with open("src/experiment/results/kmeans/optuna/dim_red_umap/silhouette_penalty_None.pkl", "rb") as f:
             result = pickle.load(f)
         
-        # Ensure `result` is a DataFrame and contains the "label_counter" column
-        if isinstance(result, pd.DataFrame) and "label_counter" in result.columns:
-            # Check if `noise_not_noise` already exists
-            if "noise_not_noise" in result.columns:
-                # Calculate `silhouette_noise_ratio` as silhouette score / (noise + 1)
-                silhouette_noise_ratio_series = result.apply(
-                    lambda row: row["best_value_w/o_penalty"] / (row["noise_not_noise"][-1] + 1), axis=1
-                )
-
-                # Insert `silhouette_noise_ratio` column right after `noise_not_noise`
-                noise_not_noise_index = result.columns.get_loc("noise_not_noise") + 1
-                result.insert(noise_not_noise_index, "silhouette_noise_ratio", silhouette_noise_ratio_series)
-
-                # Display result for verification
-                print(result[["label_counter", "noise_not_noise", "silhouette_noise_ratio"]].head())
-            else:
-                print("Error: 'noise_not_noise' column does not exist.")
+        # Asegurarse de que `result` es un DataFrame
+        if isinstance(result, pd.DataFrame):
+            # Insertar la columna "algorithm" al principio con el valor "hdbscan"
+            result.insert(0, "clustering", "kmeans")
+            
+            # Mostrar las primeras filas para verificar
+            print(result.head())
         else:
-            print("Error: 'result' is not a DataFrame or does not contain the 'label_counter' column.")
+            print("Error: 'result' no es un DataFrame.")
 
     except FileNotFoundError:
-        print("Error: The specified file does not exist.")
+        print("Error: El archivo especificado no existe.")
     except pickle.UnpicklingError:
-        print("Error: Could not load the file. It may be corrupted or not a valid pickle file.")
-    except KeyError:
-        print("Error: The 'label_counter' key was not found in the DataFrame 'result'.")
-
-    # Save the updated DataFrame back to pickle and CSV
-    with open("src/experiment/results/hdbscan/gridsearch/dim_red_umap/silhouette_penalty_None.pkl", "wb") as f:
+        print("Error: No se pudo cargar el archivo. Puede estar corrupto o no ser un archivo pickle válido.")
+    
+    # Guardar el DataFrame actualizado en pickle y CSV
+    with open("src/experiment/results/kmeans/optuna/dim_red_umap/silhouette_penalty_None.pkl", "wb") as f:
         pickle.dump(result, f)
 
-    result.to_csv("src/experiment/results/hdbscan/gridsearch/dim_red_umap/silhouette_penalty_None.csv", sep=";")
+    result.to_csv("src/experiment/results/kmeans/optuna/dim_red_umap/silhouette_penalty_None.csv", sep=";")
 

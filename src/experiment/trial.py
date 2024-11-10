@@ -37,6 +37,7 @@ class Trial():
             **kwargs: Additional keyword arguments.
         """
         # Setup attrs
+        # clustering
         # optimization
         # scaler
         # dim_reduction
@@ -67,6 +68,11 @@ class Trial():
         else:
             logger.add(sys.stdout, level="INFO")
 
+
+
+    def get_experiment_name(self):
+
+        return f"{self.clustering}_{self.optimization}_{self.dimensions}_dims_{self.dim_reduction}_{round(self.trial_result.get('best_value_w/o_penalty') * 100):03d}"
 
 
 
