@@ -112,6 +112,16 @@ def run_experiments(file, embeddings) -> None:
 
 
 if __name__ == "__main__":
+    
+    # TODO: OPTIMICE HDBSCAN + DIM REDUCTION. 
+    # DO ALL HDBSCAN EXPERIMENTS:
+    #   - WITHOUT DIM REDUCTION AND SCALERS
+    #   - WITH DIM REDUCTION FROM 2 TO 30 FOR EXAMPLE
+    #   - WITH DIM REDUCTION FROM 150 TO 384 
+    #   - AL OF THAT ADJUSTING UMAP PARAMETERS
+    #   - TRY CVAE ALSO. THE THING IS THAT IT CAN BE IMPROVE IMPROVING DIM REDUCTION
+    
+    
     # 1. Load images, generate embeddings and run experiments
     images = load_images("./data/Data")
     # embeddings = generate_embeddings(images, model="small")
