@@ -71,8 +71,9 @@ def run_experiments(file, embeddings) -> None:
         experiments_config = json.load(f)
 
     for config in experiments_config:
+        id = config.get("id")
         optimizer = config.get("optimizer", "optuna")
-        dim_red_range = config.get("dim_red_range", [2, 15])
+        reduction_parameters = config.get("reduction_parameters", {"n_components":2})
         scalers = config.get("scalers", ["standard", "minmax", "robust", "maxabs"])
         dim_red = config.get("dim_red", "umap")
         clustering = config.get("clustering", "hdbscan")
@@ -81,12 +82,13 @@ def run_experiments(file, embeddings) -> None:
         penalty_range = config.get("penalty_range", None)
         cache = config.get("cache", False)
         # Make and Run Experiment
-        logger.info(f"LOADING EXPERIMENT: {config.get('_comment')}")
+        logger.info(f"LOADING EXPERIMENT: {config.get('_id')}")
         experiment = Experiment(
+            id,
             embeddings,
             optimizer,
             dim_red,
-            dim_red_range,
+            reduction_parameters,
             scalers,
             clustering,
             eval_method,
@@ -125,8 +127,8 @@ if __name__ == "__main__":
     
     # 1. Load images, generate embeddings and run experiments
     images = load_images("./data/Data")
-    # embeddings = generate_embeddings(images, model="small")
-    # run_experiments("src/experiment/json/experiments_optuna_silhouette.json", embeddings)
+    embeddings = generate_embeddings(images, model="small")
+    run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
     
     # 2. Analyze and choose from best experiment. In this case, hdbscan with optuna
     # Set which experiment to try after analyze them

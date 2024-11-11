@@ -1,4 +1,5 @@
 from collections import Counter
+from itertools import product
 import os
 from pathlib import Path
 import pickle
@@ -25,10 +26,11 @@ class Experiment():
     """
 
     def __init__(self, 
+                 id: int,
                  data: list, 
                  optimizer: str,
                  dim_reduction: bool, 
-                 dim_reduction_range: list,
+                 reduction_parameters: dict,
                  scalers: list, 
                  clustering: str,
                  eval_method: str,
@@ -43,8 +45,8 @@ class Experiment():
         Args:
             data (list): The data to be used for the experiment.
             optimizer (str): The optimization method to use, e.g., 'optuna' or 'gridsearch'.
-            dim_reduction (bool): Whether to apply dimensionality reduction.
-            dim_reduction_range (list): Range of dimensions to reduce the data to.
+            dim_reduction (str): Dim reduction
+            reduction_parameters (dict): parameters of reduction
             scalers (list): List of scalers to normalize the data.
             clustering (str): Clustering algorithm to apply.
             eval_method (str): Evaluation metric for clustering quality.
@@ -55,10 +57,11 @@ class Experiment():
             **kwargs: Additional keyword arguments.
         """
         # Setup attrs
+        self._id = id
         self._data = data
         self._optimizer = optimizer
         self._dim_reduction = dim_reduction
-        self._dim_reduction_range = dim_reduction_range
+        self._reduction_parameters = reduction_parameters
         self._scalers = scalers
         self._clustering = clustering
         self._eval_method = eval_method
@@ -115,12 +118,8 @@ class Experiment():
         self._dim_reduction = value
 
     @property
-    def dim_reduction_range(self):
-        return self._dim_reduction_range
-
-    @dim_reduction_range.setter
-    def dim_reduction_range(self, value):
-        self._dim_reduction_range = value
+    def reduction_parameters(self):
+        return self._reduction_parameters
 
     @property
     def scalers(self):
@@ -222,11 +221,33 @@ class Experiment():
             results = []
             for scaler in self._scalers:
                 embeddings_scaled = self._eda.run_scaler(scaler)
-                for dim in range(self._dim_reduction_range[0], self._dim_reduction_range[1], 1):
-                    embeddings_after_dimred = self._eda.run_dim_red(
-                        embeddings_scaled, dimensions=dim, dim_reduction=self._dim_reduction, scaler=scaler, show_plots=False
-                    )
-                    clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings_after_dimred)
+
+                # Take param combinations for eda
+                if self._dim_reduction:
+                    param_names = list(self._reduction_parameters.keys())
+                    param_values = list(self._reduction_parameters.values())
+                    param_combinations = product(*param_values)
+                else:
+                    # If no reduction, no combinations
+                    param_combinations = [None]
+
+                for combination in param_combinations:
+                    if combination:
+                        # Create param dict for eda
+                        reduction_params = dict(zip(param_names, combination))
+                        dimension = reduction_params.get("n_components", None)
+                        embeddings = self._eda.run_dim_red(
+                            embeddings_scaled, dim_reduction=self._dim_reduction, scaler=scaler, 
+                            show_plots=False, **reduction_params
+                        )
+                    else:
+                        # If no reduction, no params
+                        embeddings = embeddings_scaled
+                        reduction_params = None  
+                        dimension = embeddings.shape[1]
+
+                    # Exec Optuna Clustering
+                    clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
                     study = clustering_model.run_optuna(
                         evaluation_method=self._eval_method, n_trials=100, penalty=self._penalty, penalty_range=self._penalty_range
                     )
@@ -241,16 +262,17 @@ class Experiment():
                         -1: label_counter.get(-1, 0),
                         1: sum(v for k, v in label_counter.items() if k != -1)
                     }
-
                     silhouette_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
-                    
+
+                    # Store results
                     results.append({
                         "clustering": self._clustering,
                         "optimization": self._optimizer,
                         "scaler": scaler,
-                        "dim_reduction": self._dim_reduction,
-                        "dimensions": dim,
-                        "embeddings": embeddings_after_dimred,
+                        "dim_reduction": self._dim_reduction if self._dim_reduction else None,
+                        "reduction_params": reduction_params,
+                        "dimensions": dimension,
+                        "embeddings": embeddings,
                         "n_clusters": n_clusters_best,
                         "best_params": str(study.best_params),
                         "centers": centers_best,
@@ -263,12 +285,15 @@ class Experiment():
                         "best_value_w_penalty": study.best_value,
                         "best_value_w/o_penalty": score_best
                     })
+                    
             logger.info(f"ENDING EXPERIMENT...STORING RESULTS.")
             results_df = pd.DataFrame(results)
             results_df.to_csv(self._result_path_csv, sep=";")
             self._results_df = results_df
             pickle.dump(results_df, open(str(self._result_path_pkl), "wb"))
             logger.info(f"EXPERIMENT ENDED.")
+
+            
        
 
     def __run_experiment_gridsearch(self):
@@ -281,13 +306,11 @@ class Experiment():
         Raises:
             FileNotFoundError: If the cached results file is not found.
         """
-        # If file exists and cache=True
+         # If file exists and cache=True
         if os.path.isfile(self._result_path_pkl) and self._cache:
             try:
                 results_df = pickle.load(open(str(self._result_path_pkl), "rb"))
-                # Resave as CSV
                 results_df.to_csv(self._result_path_csv, sep=";")
-                # Update results
                 self._results_df = results_df
             except FileNotFoundError:
                 raise FileNotFoundError("Couldn't find provided file with results from experiment. Please ensure that file exists.")
@@ -295,26 +318,43 @@ class Experiment():
             results = []
             for scaler in self._scalers:
                 embeddings_scaled = self._eda.run_scaler(scaler)
-                for dim in range(self._dim_reduction_range[0], self._dim_reduction_range[1], 1):
-                    embeddings_after_dimred = self._eda.run_dim_red(
-                        embeddings_scaled, dimensions=dim, dim_reduction=self._dim_reduction, show_plots=False
-                    )
-                    clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings_after_dimred)
+
+                # Handle dimensionality reduction parameter combinations
+                if self._dim_reduction:
+                    param_names = list(self._reduction_parameters.keys())
+                    param_values = list(self._reduction_parameters.values())
+                    param_combinations = product(*param_values)
+                else:
+                    param_combinations = [None]  # If no reduction, single pass
+
+                for combination in param_combinations:
+                    if combination:
+                        reduction_params = dict(zip(param_names, combination))
+                        dimension = reduction_params.get("n_components", None)
+                        embeddings = self._eda.run_dim_red(
+                            embeddings_scaled, dim_reduction=self._dim_reduction, scaler=scaler, 
+                            show_plots=False, **reduction_params
+                        )
+                    else:
+                        embeddings = embeddings_scaled  # If no reduction
+                        reduction_params = None
+                        dimension = embeddings.shape[1]
+
                     # Execute Grid Search
+                    clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
                     grid_search = clustering_model.run_gridsearch(evaluation_method=self._eval_method)
 
-                    # Iterate over all grid search results
+                    # Iterate over grid search results
                     for i in range(len(grid_search.cv_results_['params'])):
                         params = grid_search.cv_results_['params'][i]
                         score = grid_search.cv_results_['mean_test_score'][i]
 
-                        # Get n_clusters from params or estimate it from labels if available
+                        # Get n_clusters or estimate from labels if not provided
                         n_clusters = params.get("n_clusters", None)
-                        estimator = grid_search.estimator.set_params(**params).fit(embeddings_after_dimred)
+                        estimator = grid_search.estimator.set_params(**params).fit(embeddings)
                         labels = getattr(estimator, 'labels_', None)
                         if n_clusters is None and labels is not None:
-                            # Count clusters excluding noise (-1)
-                            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+                            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)  # Exclude noise
 
                         centers = clustering_model.get_cluster_centers(labels)
                         label_counter = Counter(labels)
@@ -323,16 +363,17 @@ class Experiment():
                             -1: label_counter.get(-1, 0),
                             1: sum(v for k, v in label_counter.items() if k != -1)
                         }
-
                         silhouette_noise_ratio = score / (noise_not_noise.get(-1) + 1)
 
+                        # Append results
                         results.append({
                             "clustering": self._clustering,
                             "optimization": self._optimizer,
                             "scaler": scaler,
-                            "dim_reduction": self._dim_reduction,
-                            "dimensions": dim,
-                            "embeddings": embeddings_after_dimred,
+                            "dim_reduction": self._dim_reduction if self._dim_reduction else None,
+                            "reduction_params": reduction_params,
+                            "dimensions": dimension,
+                            "embeddings": embeddings,
                             "n_clusters": n_clusters,
                             "params": str(params),
                             "centers": centers,
@@ -346,13 +387,11 @@ class Experiment():
                             "value_w/o_penalty": score
                         })
 
+            # Store results in CSV and pickle
             logger.info(f"ENDING EXPERIMENT...STORING RESULTS.")
-            # Save results as DataFrame and to CSV
             results_df = pd.DataFrame(results)
             results_df.to_csv(self._result_path_csv, sep=";")
-            # Update results
             self._results_df = results_df
-            # Save results as pickle
             pickle.dump(results_df, open(self._result_path_pkl, "wb"))
             logger.info("Results saved.")
             logger.info(f"EXPERIMENT ENDED.")
