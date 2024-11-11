@@ -134,16 +134,18 @@ class EDA:
             return embeddings_scaled
             
         
-    def __do_PCA(self, embeddings_df, dimensions=2, scaler="standard", show_plots=True ):
+    def __do_PCA(self, embeddings_df, scaler="standard", show_plots=True , reduction_params=None):
         """
         PCA Dim reduction. 
         """
 
+        if reduction_params is None:
+            reduction_params = {}
         # Check if they are available in cache
         embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "pca", dimensions)
         if embeddings_dim_red_df is None:
             logger.info(f"Using PCA Dim. reduction. {dimensions=}")
-            pca = PCA(n_components=dimensions, random_state=42)
+            pca = PCA(random_state=42, **reduction_params)
             pca_result = pca.fit_transform(embeddings_df.values)
             pca_df = pd.DataFrame(data=pca_result)
             # Eigenvectors
@@ -171,17 +173,18 @@ class EDA:
 
 
 
-    def __do_UMAP(self, embeddings_df, dimensions=2, scaler="standard", show_plots=True ):
+    def __do_UMAP(self, embeddings_df, scaler="standard", show_plots=True , reduction_params=None):
         """
         UMAP Dim reduction. 
         More info in https://umap-learn.readthedocs.io/en/latest/
         """
-
+        if reduction_params is None:
+            reduction_params = {}
         # Check if they are available in cache
         embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "umap", dimensions)
         if embeddings_dim_red_df is None:
             logger.info(f"Using UMAP Dim. reduction. {dimensions=}")
-            reducer = umap.UMAP(n_components=dimensions, random_state=42)
+            reducer = umap.UMAP(random_state=42, **reduction_params)
             umap_result = reducer.fit_transform(embeddings_df.values)
             umap_df = pd.DataFrame(data=umap_result)
             # Show only 2 dimensions in plots
@@ -200,7 +203,7 @@ class EDA:
         
 
 
-    def __do_CVAE(self, embeddings_df, dimensions=2, scaler="standard", show_plots=True ):
+    def __do_CVAE(self, embeddings_df, scaler="standard", show_plots=True , reduction_params=None):
         """
         Compression VAE Dim reduction. 
         More info in https://github.com/maxfrenzel/CompressionVAE
@@ -210,7 +213,8 @@ class EDA:
         cd CompressionVAE
         pip install -e .
         """
-
+        if reduction_params is None:
+            reduction_params = {}
         # Check if they are available in cache
         embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "cvae", dimensions)
         if embeddings_dim_red_df is None:
@@ -218,7 +222,8 @@ class EDA:
             # 1: Obtain array of embeddings
             X = embeddings_df.values
             # 2: Initialize cvae model with selected dimensions
-            embedder = cvae.CompressionVAE(X, dim_latent=dimensions, verbose = False)
+            # embedder = cvae.CompressionVAE(X, dim_latent=dimensions, verbose = False)
+            embedder = cvae.CompressionVAE(X, **reduction_params, verbose = False)
             # 3: Train cvae model
             embedder.train()  
             # 4: Get reduced embeddings
@@ -241,7 +246,7 @@ class EDA:
 
 
 
-    def check_reduced_exists_cache(self, scaler, dim_reduction, dimensions):
+    def check_reduced_exists_cache(self, scaler, dim_reduction, reduction_params):
         """
         Check if reduced embeddings are available in cache and load them if they are.
 
@@ -278,7 +283,7 @@ class EDA:
             return None  # Return None if the file doesn't exist
                 
 
-    def __save_reduced_embeddings(self, df, scaler, dim_reduction, dimensions):
+    def __save_reduced_embeddings(self, df, scaler, dim_reduction, reduction_params):
         """
         Save reduced embeddings to a cache file.
 
@@ -309,20 +314,20 @@ class EDA:
 
             
 
-    def run_dim_red(self, embeddings_df, dimensions=2, dim_reduction ="cvae", scaler = "standard", show_plots=True):
+    def run_dim_red(self, embeddings_df, dim_reduction ="umap", scaler = "standard", show_plots=True, reduction_params=None):
         """
         Execute eda, including plots if selected and other stuff
         """
         # Apply dim reduction if chosen
         if dim_reduction is not None:
             if dim_reduction == "umap":
-                embeddings_dim_red = self.__do_UMAP(embeddings_df, dimensions=dimensions, scaler= scaler, show_plots=show_plots)
+                embeddings_dim_red = self.__do_UMAP(embeddings_df, scaler= scaler, show_plots=show_plots, reduction_params=reduction_params)
             elif dim_reduction == "cvae":
-                embeddings_dim_red = self.__do_CVAE(embeddings_df, dimensions=dimensions,scaler= scaler, show_plots=show_plots)
+                embeddings_dim_red = self.__do_CVAE(embeddings_df, scaler= scaler, show_plots=show_plots, reduction_params=reduction_params)
             elif dim_reduction == "pca":
-                embeddings_dim_red = self.__do_PCA(embeddings_df, dimensions=dimensions,scaler= scaler, show_plots=show_plots)
+                embeddings_dim_red = self.__do_PCA(embeddings_df, scaler= scaler, show_plots=show_plots, reduction_params=reduction_params)
             else:
-                embeddings_dim_red = self.__do_UMAP(embeddings_df,dimensions=dimensions,scaler= scaler, show_plots=show_plots)
+                embeddings_dim_red = self.__do_UMAP(embeddings_df,scaler= scaler, show_plots=show_plots, reduction_params=reduction_params)
         else:
             embeddings_dim_red = embeddings_df
             
