@@ -125,6 +125,12 @@ if __name__ == "__main__":
     #   - TRY CVAE ALSO. THE THING IS THAT IT CAN BE IMPROVE IMPROVING DIM REDUCTION
     
     
+    # PRBAR LO SIGUIENTE:
+    # SI METRICA ES COSENO EN UMAP, NORMALIZAR y aplicar UMAP
+    # SI ES EUCLIDEAN, NO NORMALIZAR y APLICAR UMAP
+    # CON HDBSCAN NO ESCALAR. PROBAR. SI ES KMNEANS ESCALAR STANDARD. 
+    # PROBAR TODO ESTO
+    
     # 1. Load images, generate embeddings and run experiments
     images = load_images("./data/Data")
     embeddings = generate_embeddings(images, model="small")

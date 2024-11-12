@@ -1,4 +1,5 @@
 
+from itertools import product
 from loguru import logger
 import numpy as np
 import sys
@@ -39,7 +40,7 @@ class EDA:
 
         # Take embeddings from cache if they dont exists
         if embeddings == None:
-            cache_root_folder = Path(__file__).resolve().parent.parent.parent / "cache"  
+            cache_root_folder = Path(__file__).resolve().parent.parent / "dinov2_inference/cache"  
             if Path(cache_root_folder).is_dir():
                 logger.info("Accessing cache to recover latest embeddings generated.")
                 files = [f for f in Path(cache_root_folder).glob('*') if f.is_file()]
@@ -115,16 +116,21 @@ class EDA:
                 "robust": RobustScaler(),
                 "maxabs": MaxAbsScaler()
             }
-
-            # Get Scaler
-            scaler = scalers.get(type, StandardScaler())
+            
             logger.info(f"Applying {type} scaler to embeddings")
+            if(type !="no_scaler"):
+                # Get Scaler
+                scaler = scalers.get(type, StandardScaler())
+                
 
-            # Apply scaler
-            embeddings = scaler.fit_transform(self.embeddings_df.values)
+                # Apply scaler
+                embeddings = scaler.fit_transform(self.embeddings_df.values)
 
-            # return embeddings_scaled
-            embeddings_scaled = pd.DataFrame(embeddings, columns=self.embeddings_df.columns)
+                # return embeddings_scaled
+                embeddings_scaled = pd.DataFrame(embeddings, columns=self.embeddings_df.columns)
+            else:
+                embeddings_scaled = self.embeddings_df
+                
             logger.debug(f"Embeddings scaled using {type.capitalize()} Scaler.")
             # Save embeddings_scaled
             pickle.dump(
@@ -142,9 +148,9 @@ class EDA:
         if reduction_params is None:
             reduction_params = {}
         # Check if they are available in cache
-        embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "pca", dimensions)
+        embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "pca", reduction_params)
         if embeddings_dim_red_df is None:
-            logger.info(f"Using PCA Dim. reduction. {dimensions=}")
+            logger.info(f"Using PCA Dim. reduction. Params: {', '.join([f'{key}={value}' for key, value in reduction_params.items()])}")
             pca = PCA(random_state=42, **reduction_params)
             pca_result = pca.fit_transform(embeddings_df.values)
             pca_df = pd.DataFrame(data=pca_result)
@@ -163,7 +169,7 @@ class EDA:
                 plt.show()
 
             # Save to cache
-            self.__save_reduced_embeddings(pca_df, scaler, "pca", dimensions)
+            self.__save_reduced_embeddings(pca_df, scaler, "pca", reduction_params)
             return pca_df
         else:
             logger.info(f"Retrieving pca reduced embeddings from cache")
@@ -181,9 +187,9 @@ class EDA:
         if reduction_params is None:
             reduction_params = {}
         # Check if they are available in cache
-        embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "umap", dimensions)
+        embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "umap", reduction_params)
         if embeddings_dim_red_df is None:
-            logger.info(f"Using UMAP Dim. reduction. {dimensions=}")
+            logger.info(f"Using UMAP Dim. reduction. Params: {', '.join([f'{key}={value}' for key, value in reduction_params.items()])}")
             reducer = umap.UMAP(random_state=42, **reduction_params)
             umap_result = reducer.fit_transform(embeddings_df.values)
             umap_df = pd.DataFrame(data=umap_result)
@@ -194,7 +200,7 @@ class EDA:
                 plt.show()
             
             # Save to cache
-            self.__save_reduced_embeddings(umap_df, scaler, "umap", dimensions)
+            self.__save_reduced_embeddings(umap_df, scaler, "umap", reduction_params)
             return umap_df
         else:
             logger.info(f"Retrieving umap reduced embeddings from cache")
@@ -216,9 +222,9 @@ class EDA:
         if reduction_params is None:
             reduction_params = {}
         # Check if they are available in cache
-        embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "cvae", dimensions)
+        embeddings_dim_red_df = self.check_reduced_exists_cache(scaler, "cvae", reduction_params)
         if embeddings_dim_red_df is None:
-            logger.info(f"Using CVAE Dim. reduction: {dimensions=}")
+            logger.info(f"Using CVAE Dim. reduction: Params: {', '.join([f'{key}={value}' for key, value in reduction_params.items()])}")
             # 1: Obtain array of embeddings
             X = embeddings_df.values
             # 2: Initialize cvae model with selected dimensions
@@ -238,7 +244,7 @@ class EDA:
                 plt.show()
 
             # Save to cache
-            self.__save_reduced_embeddings(cvae_df, scaler, "cvae", dimensions)
+            self.__save_reduced_embeddings(cvae_df, scaler, "cvae", reduction_params)
             return cvae_df
         else:
             logger.info(f"Retrieving cvae reduced embeddings from cache")
@@ -266,9 +272,9 @@ class EDA:
         """
         # Define the path based on the presence of scaler and dimensionality reduction
         if scaler is not None and dim_reduction is not None:
-            path = os.path.join(self.cache_dir, f"scaled_and_reduced/{scaler}/{dim_reduction}_{dimensions}.pkl")
+            path = os.path.join(self.cache_dir, f"scaled_and_reduced/{scaler}/{dim_reduction}_{'_'.join([f'{key}={value}' for key, value in reduction_params.items()])}.pkl")
         else:
-            path = os.path.join(self.cache_dir, f"dim_reduced/{dim_reduction}_{dimensions}.pkl")
+            path = os.path.join(self.cache_dir, f"dim_reduced/{dim_reduction}_{dim_reduction}_{'_'.join([f'{key}={value}' for key, value in reduction_params.items()])}.pkl")
 
         # Check if the file exists and load it if available
         if os.path.isfile(path):
@@ -300,9 +306,9 @@ class EDA:
         """
         # Define the path based on scaler and dimensionality reduction technique
         if scaler is not None and dim_reduction is not None:
-            path = os.path.join(self.cache_dir, f"scaled_and_reduced/{scaler}/{dim_reduction}_{dimensions}.pkl")
+            path = os.path.join(self.cache_dir, f"scaled_and_reduced/{scaler}/{dim_reduction}_{'_'.join([f'{key}={value}' for key, value in reduction_params.items()])}.pkl")
         else:
-            path = os.path.join(self.cache_dir, f"dim_reduced/{dim_reduction}_{dimensions}.pkl")
+            path = os.path.join(self.cache_dir, f"dim_reduced/{dim_reduction}_{'_'.join([f'{key}={value}' for key, value in reduction_params.items()])}.pkl")
 
         # Ensure the directory exists
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -338,8 +344,26 @@ class EDA:
 if __name__ == "__main__":
     # Objeto EDA.
     eda = EDA(embeddings=None, verbose=False)
-    # devolemos los embeddings, con reducción o sin reducción según hayamos escogido
-    embeddings_df = eda.run_eda(show_plots=False, dim_reduction="umap", dimensions=3)
-    print(embeddings_df.shape)
+    scalers = ["no_scaler","standard","minmax","robust","maxabs"]
+    reduction_parameters = {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,5,7,9,11,13,15],
+            "n_neighbors": [2, 5, 10, 20, 50, 100, 200],
+            "min_dist": [0.0, 0.1, 0.25, 0.5, 0.8, 0.99]
+    }
+    for scaler in scalers:
+        embeddings_scaled = eda.run_scaler(scaler)
+        param_names = list(reduction_parameters.keys())
+        param_values = list(reduction_parameters.values())
+        param_combinations = product(*param_values)
+
+        for combination in param_combinations:
+            reduction_params = dict(zip(param_names, combination))
+            dimension = reduction_params.get("n_components", None)
+            embeddings = eda.run_dim_red(
+                embeddings_scaled, dim_reduction="umap", scaler=scaler, 
+                show_plots=False, reduction_params = reduction_params)
     
+
+
 
