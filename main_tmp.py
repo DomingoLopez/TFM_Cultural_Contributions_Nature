@@ -13,7 +13,7 @@ from src.clustering_plot.clust_plot import ClusteringPlot
 from src.experiment.experiment import Experiment
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
-from src.eda.eda import EDA
+from src.preprocess.preprocess import EDA
 
 import matplotlib.pyplot as plt
 import cv2

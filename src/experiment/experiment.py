@@ -13,7 +13,7 @@ from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.datasets import make_blobs
 from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering.clustering_model import ClusteringModel
-from src.eda.eda import EDA
+from src.preprocess.preprocess import EDA
 
 
 class Experiment():

@@ -14,7 +14,7 @@ from src.experiment.trial import Trial
 from src.llava_inference.llava_inference import LlavaInference
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
-from src.eda.eda import EDA
+from src.preprocess.preprocess import EDA
 
 import matplotlib.pyplot as plt
 import cv2
