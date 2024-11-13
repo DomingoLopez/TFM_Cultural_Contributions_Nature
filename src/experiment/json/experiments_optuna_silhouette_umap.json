@@ -13,8 +13,8 @@
         },
         "clustering" : "hdbscan",
         "eval_method" : "silhouette",
-        "penalty" : "",
-        "penalty_range" : "",
+        "penalty" : null,
+        "penalty_range" : null,
         "cache" : 1
     },
     {
@@ -26,8 +26,8 @@
         "reduction_parameters": null,
         "clustering" : "hdbscan",
         "eval_method" : "silhouette",
-        "penalty" : "",
-        "penalty_range" : "",
+        "penalty" : null,
+        "penalty_range" : null,
         "cache" : 1
     },
     {
@@ -44,8 +44,8 @@
         },
         "clustering" : "hdbscan",
         "eval_method" : "silhouette",
-        "penalty" : "",
-        "penalty_range" : "",
+        "penalty" : null,
+        "penalty_range" : null,
         "cache" : 1
     },
     {
@@ -62,8 +62,8 @@
         },
         "clustering" : "hdbscan",
         "eval_method" : "silhouette",
-        "penalty" : "",
-        "penalty_range" : "",
+        "penalty" : null,
+        "penalty_range" : null,
         "cache" : 1
     }
 ]
