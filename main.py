@@ -73,28 +73,30 @@ def run_experiments(file, embeddings) -> None:
     for config in experiments_config:
         id = config.get("id")
         optimizer = config.get("optimizer", "optuna")
-        reduction_parameters = config.get("reduction_parameters", {"n_components":2})
-        scalers = config.get("scalers", ["standard", "minmax", "robust", "maxabs"])
-        dim_red = config.get("dim_red", "umap")
+        normalization = config.get("normalization", True)
+        scaler = config.get("scaler", None)
+        dim_red = config.get("dim_red", None)
+        reduction_parameters = config.get("reduction_parameters", None)
         clustering = config.get("clustering", "hdbscan")
         eval_method = config.get("eval_method", "silhouette")
         penalty = config.get("penalty", None)
         penalty_range = config.get("penalty_range", None)
-        cache = config.get("cache", False)
+        cache = config.get("cache", True)
         # Make and Run Experiment
-        logger.info(f"LOADING EXPERIMENT: {config.get('_id')}")
+        logger.info(f"LOADING EXPERIMENT: {id}")
         experiment = Experiment(
             id,
             embeddings,
             optimizer,
+            normalization,
+            scaler,
             dim_red,
             reduction_parameters,
-            scalers,
             clustering,
             eval_method,
-            None if penalty == "" else penalty,
-            None if penalty_range== "" else penalty_range,
-            False if cache == 0 else True
+            penalty,
+            penalty_range,
+            cache
         )
         experiment.run_experiment()
         if experiment.eval_method == "silhouette":
@@ -106,7 +108,9 @@ def run_experiments(file, embeddings) -> None:
             plot.show_top_noise_silhouette(priority="eval_method", show_plots=False)
             plot.show_top_noise_silhouette(priority="noise", show_plots=False)
             plot.show_top_silhouette_noise_ratio(show_plots=False)
-
+        elif experiment.eval_method == "silhouette_noise_ratio":
+            # TODO plots noise
+            pass
 
 
 # Copy files to ngpu

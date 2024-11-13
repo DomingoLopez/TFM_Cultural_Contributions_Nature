@@ -283,10 +283,14 @@ class Preprocess:
 
 if __name__ == "__main__":
     
+    # FALTA GENERAR, SIN REDUCIR, SIN ESCALAR, PERO NORMALIZANDO, 
+    # SIN REDUCIR, SIN NORMALIZAR , PERO ESCALANDO
+    
+    
     experiment = {
         "id": 1,
         "optimizer" : "optuna",
-        "normalization": False,
+        "normalization": True,
         "scaler" : None,
         "dim_red" : "umap",
         "reduction_parameters": {
