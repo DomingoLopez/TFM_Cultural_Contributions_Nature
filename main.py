@@ -14,7 +14,7 @@ from src.experiment.trial import Trial
 from src.llava_inference.llava_inference import LlavaInference
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
-from src.preprocess.preprocess import EDA
+from src.preprocess.preprocess import Preprocess
 
 import matplotlib.pyplot as plt
 import cv2
@@ -89,9 +89,9 @@ def run_experiments(file, embeddings) -> None:
             embeddings,
             optimizer,
             normalization,
-            scaler,
             dim_red,
             reduction_parameters,
+            scaler,
             clustering,
             eval_method,
             penalty,
@@ -99,18 +99,18 @@ def run_experiments(file, embeddings) -> None:
             cache
         )
         experiment.run_experiment()
-        if experiment.eval_method == "silhouette":
-            plot = ClusteringPlot(experiment=experiment)
-            plot.show_best_silhouette(experiment="silhouette_noise_ratio", show_all=True, show_plots=False)
-            plot.show_best_scatter(experiment="silhouette_noise_ratio",show_plots=False)
-            plot.show_best_scatter_with_centers(experiment="silhouette_noise_ratio",show_plots=False)
-            plot.show_best_clusters_counters_comparision(experiment="silhouette_noise_ratio",show_plots=False)
-            plot.show_top_noise_silhouette(priority="eval_method", show_plots=False)
-            plot.show_top_noise_silhouette(priority="noise", show_plots=False)
-            plot.show_top_silhouette_noise_ratio(show_plots=False)
-        elif experiment.eval_method == "silhouette_noise_ratio":
-            # TODO plots noise
-            pass
+        # if experiment.eval_method == "silhouette":
+        #     plot = ClusteringPlot(experiment=experiment)
+        #     plot.show_best_silhouette(experiment="silhouette_noise_ratio", show_all=True, show_plots=False)
+        #     plot.show_best_scatter(experiment="silhouette_noise_ratio",show_plots=False)
+        #     plot.show_best_scatter_with_centers(experiment="silhouette_noise_ratio",show_plots=False)
+        #     plot.show_best_clusters_counters_comparision(experiment="silhouette_noise_ratio",show_plots=False)
+        #     plot.show_top_noise_silhouette(priority="eval_method", show_plots=False)
+        #     plot.show_top_noise_silhouette(priority="noise", show_plots=False)
+        #     plot.show_top_silhouette_noise_ratio(show_plots=False)
+        # elif experiment.eval_method == "silhouette_noise_ratio":
+        #     # TODO plots noise
+        #     pass
 
 
 # Copy files to ngpu
@@ -138,42 +138,45 @@ if __name__ == "__main__":
     # 1. Load images, generate embeddings and run experiments
     images = load_images("./data/Data")
     embeddings = generate_embeddings(images, model="small")
+    #run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
     run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
     
-    # 2. Analyze and choose from best experiment. In this case, hdbscan with optuna
-    # Set which experiment to try after analyze them
-    optimizer = "optuna"
-    dim_red = "umap"
-    clustering = "hdbscan"
-
-    selected_experiment = pickle.load(open(f"src/experiment/results/{clustering}/{optimizer}/dim_red_{dim_red}/silhouette_penalty_None.pkl", "rb"))
-    # Show experiment with best silhouette/noise ratio
-    max_row = selected_experiment.loc[selected_experiment["silhouette_noise_ratio"].idxmax()]
-    trial_result = dict(max_row)
-    trial = Trial(images, trial_result)
-    # 3. Assign each image to its corresponding label/cluster: format: {0: [path list], 1: [path:list], }, etc
-    # 3.1 ALTERNATIVE: Select 3 or 4 images from each cluster instead of all images format: {0: [path list], 1: [path:list], }, etc
-    cluster_images_dict = trial.get_cluster_images_dict(knn=None)
-    # 4. Process images to Llava-1.5 and see:
-    # 4.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
-    llava = LlavaInference(images_dict_format=cluster_images_dict, classification_lvl=3, experiment_name=trial.get_experiment_name())
-    llava.createClusterDirs()
-    # # 4.2 Upload those images to NGPU - UGR Gpus (start manually)
-    # # rsync -av llava_inference xxxx.xx.es:/mnt/homeGPU/dlopez
-    # # 4.3 Make LLava inference over those images (Start with Level 3 categorization). 
-    llava.run()
-    # # - See if all images from those clusters are classified in same category. Print succes ratio.
-    llava.create_results_stats()
-    llava.plot_cluster_categories()
 
 
-    #   - Those clusters with bad or low success ratio, examine and plot embeddings and cluster silhouette
-    #   - If everithing goes wrong. Instead of Level 3 category, try level 2 category which is more generic.
+    # # 2. Analyze and choose from best experiment. In this case, hdbscan with optuna
+    # # Set which experiment to try after analyze them
+    # optimizer = "optuna"
+    # dim_red = "umap"
+    # clustering = "hdbscan"
+
+    # selected_experiment = pickle.load(open(f"src/experiment/results/{clustering}/{optimizer}/dim_red_{dim_red}/silhouette_penalty_None.pkl", "rb"))
+    # # Show experiment with best silhouette/noise ratio
+    # max_row = selected_experiment.loc[selected_experiment["silhouette_noise_ratio"].idxmax()]
+    # trial_result = dict(max_row)
+    # trial = Trial(images, trial_result)
+    # # 3. Assign each image to its corresponding label/cluster: format: {0: [path list], 1: [path:list], }, etc
+    # # 3.1 ALTERNATIVE: Select 3 or 4 images from each cluster instead of all images format: {0: [path list], 1: [path:list], }, etc
+    # cluster_images_dict = trial.get_cluster_images_dict(knn=None)
+    # # 4. Process images to Llava-1.5 and see:
+    # # 4.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
+    # llava = LlavaInference(images_dict_format=cluster_images_dict, classification_lvl=3, experiment_name=trial.get_experiment_name())
+    # llava.createClusterDirs()
+    # # # 4.2 Upload those images to NGPU - UGR Gpus (start manually)
+    # # # rsync -av llava_inference xxxx.xx.es:/mnt/homeGPU/dlopez
+    # # # 4.3 Make LLava inference over those images (Start with Level 3 categorization). 
+    # llava.run()
+    # # # - See if all images from those clusters are classified in same category. Print succes ratio.
+    # llava.create_results_stats()
+    # llava.plot_cluster_categories()
+
+
+    # #   - Those clusters with bad or low success ratio, examine and plot embeddings and cluster silhouette
+    # #   - If everithing goes wrong. Instead of Level 3 category, try level 2 category which is more generic.
 
 
 
-    # for k,v in cluster_images_dict.items():
-    #     print(k, len(v))
+    # # for k,v in cluster_images_dict.items():
+    # #     print(k, len(v))
     
     
 

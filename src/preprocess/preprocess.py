@@ -186,8 +186,8 @@ class Preprocess:
             "maxabs": MaxAbsScaler()
         }
         
-        logger.info(f"Applying {type} scaler to embeddings")
-        scaler = scalers.get(type, StandardScaler())
+        logger.info(f"Applying {self.scaler} scaler to embeddings")
+        scaler = scalers.get(self.scaler, StandardScaler())
         # Apply scaler
         embeddings = scaler.fit_transform(embeddings_df.values)
         # return embeddings_scaled
@@ -291,12 +291,12 @@ if __name__ == "__main__":
         "id": 1,
         "optimizer" : "optuna",
         "normalization": True,
-        "scaler" : None,
-        "dim_red" : "umap",
-        "reduction_parameters": {
+        "scaler" : "standard",
+        "dim_red" : None,
+        "reduction_parameters" : {
             "metric": ["euclidean","cosine"],
             "n_components": [2,5,7,9,11,13,15],
-            "n_neighbors": [2, 5, 10, 20, 50, 100, 200],
+            "n_neighbors": [2, 5, 10, 15, 20, 50, 100, 200],
             "min_dist": [0.0, 0.1, 0.25, 0.5, 0.8, 0.99]
         },
         "clustering" : "hdbscan",
@@ -313,17 +313,25 @@ if __name__ == "__main__":
 
         
     # For every single combination of params to apply to dim reduction technique
-    param_names = list(reduction_params.keys())
-    param_values = list(reduction_params.values())
-    param_combinations = product(*param_values)
-    
-    for combination in param_combinations:
-        reduction_params = dict(zip(param_names, combination))
+    if reduction_params is not None:
+        param_names = list(reduction_params.keys())
+        param_values = list(reduction_params.values())
+        param_combinations = product(*param_values)
+        
+        for combination in param_combinations:
+            reduction_params = dict(zip(param_names, combination))
+            preprocces_obj = Preprocess(embeddings=None, 
+                                scaler=scaler, 
+                                normalization=normalization,
+                                dim_red=dim_red,
+                                reduction_params=reduction_params)
+            preprocces_obj.run_preprocess()
+    else:
         preprocces_obj = Preprocess(embeddings=None, 
-                            scaler=scaler, 
-                            normalization=normalization,
-                            dim_red=dim_red,
-                            reduction_params=reduction_params)
+                    scaler=scaler, 
+                    normalization=normalization,
+                    dim_red=dim_red,
+                    reduction_params=reduction_params)
         preprocces_obj.run_preprocess()
     
     # Objeto EDA.

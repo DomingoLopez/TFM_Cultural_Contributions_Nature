@@ -13,7 +13,7 @@ from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.datasets import make_blobs
 from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering.clustering_model import ClusteringModel
-from src.preprocess.preprocess import EDA
+from src.preprocess.preprocess import Preprocess
 
 
 class Experiment():
@@ -26,26 +26,28 @@ class Experiment():
     """
 
     def __init__(self, 
-                 id: int,
-                 data: list, 
-                 optimizer: str,
-                 dim_reduction: bool, 
-                 reduction_parameters: dict,
-                 scalers: list, 
-                 clustering: str,
-                 eval_method: str,
-                 penalty: str,
-                 penalty_range: tuple,
-                 cache:bool= True, 
-                 verbose:bool= False,
+                 id:int = 0,
+                 data:pd.DataFrame = None, 
+                 optimizer:str = "optuna",
+                 normalization:bool = True,
+                 dim_red:str = None, 
+                 reduction_params:dict = None,
+                 scaler:str = None, 
+                 clustering:str = "hdbscan",
+                 eval_method:str = "silhouette",
+                 penalty = None,
+                 penalty_range = None,
+                 cache= True, 
+                 verbose= False,
                  **kwargs):
+    
         """
         Initializes an experiment with the specified configuration.
 
         Args:
             data (list): The data to be used for the experiment.
             optimizer (str): The optimization method to use, e.g., 'optuna' or 'gridsearch'.
-            dim_reduction (str): Dim reduction
+            dim_red (str): Dim reduction
             reduction_parameters (dict): parameters of reduction
             scalers (list): List of scalers to normalize the data.
             clustering (str): Clustering algorithm to apply.
@@ -60,16 +62,16 @@ class Experiment():
         self._id = id
         self._data = data
         self._optimizer = optimizer
-        self._dim_reduction = dim_reduction
-        self._reduction_parameters = reduction_parameters
-        self._scalers = scalers
+        self._normalization = normalization
+        self._dim_red = dim_red
+        self._reduction_params = reduction_params
+        self._scaler = scaler
         self._clustering = clustering
         self._eval_method = eval_method
         self._penalty = penalty
         self._penalty_range = penalty_range
         self._cache = cache
         self._verbose = verbose
-        self._eda = EDA(self._data, verbose=False, cache=self._cache)
         self._results_df = None
 
         logger.remove()
@@ -80,14 +82,16 @@ class Experiment():
 
         self._main_result_dir = (
             Path(__file__).resolve().parent
-            / f"results/{self._clustering}"
-            / ("optuna" if self._optimizer == "optuna" else "gridsearch")
-            / f"dim_red_{self._dim_reduction}"
+            # TODO: Add penalty to silhouette folder name
+            / f"results/{self._clustering}/{self._eval_method}"
+            / f"{self._id}"
         )
-        self._result_path_csv = os.path.join(self._main_result_dir, f"{self._eval_method}_penalty_{self._penalty}.csv")
-        self._result_path_pkl = os.path.join(self._main_result_dir, f"{self._eval_method}_penalty_{self._penalty}.pkl")
+        self._result_path_csv = os.path.join(self._main_result_dir, "result.csv")
+        self._result_path_pkl = os.path.join(self._main_result_dir, "result.pkl")
         os.makedirs(self._main_result_dir, exist_ok=True)
-                                
+
+
+
     # Getters and Setters
     @property
     def data(self):
@@ -98,10 +102,6 @@ class Experiment():
         self._data = value
 
     @property
-    def eda(self):
-        return self._eda
-
-    @property
     def optimizer(self):
         return self._optimizer
 
@@ -110,24 +110,36 @@ class Experiment():
         self._optimizer = value
 
     @property
-    def dim_reduction(self):
-        return self._dim_reduction
+    def normalization(self):
+        return self._normalization
 
-    @dim_reduction.setter
-    def dim_reduction(self, value):
-        self._dim_reduction = value
-
-    @property
-    def reduction_parameters(self):
-        return self._reduction_parameters
+    @normalization.setter
+    def normalization(self, value):
+        self._normalization = value
 
     @property
-    def scalers(self):
-        return self._scalers
+    def dim_red(self):
+        return self._dim_red
 
-    @scalers.setter
-    def scalers(self, value):
-        self._scalers = value
+    @dim_red.setter
+    def dim_red(self, value):
+        self._dim_red = value
+
+    @property
+    def reduction_params(self):
+        return self._reduction_params
+
+    @reduction_params.setter
+    def reduction_params(self, value):
+        self._reduction_params = value
+
+    @property
+    def scaler(self):
+        return self._scaler
+
+    @scaler.setter
+    def scaler(self, value):
+        self._scaler = value
 
     @property
     def clustering(self):
@@ -219,33 +231,22 @@ class Experiment():
                 raise FileNotFoundError("Couldn't find provided file with results from experiment. Please ensure that file exists.")
         else:
             results = []
-            for scaler in self._scalers:
-                embeddings_scaled = self._eda.run_scaler(scaler)
-
-                # Take param combinations for eda
-                if self._dim_reduction:
-                    param_names = list(self._reduction_parameters.keys())
-                    param_values = list(self._reduction_parameters.values())
-                    param_combinations = product(*param_values)
-                else:
-                    # If no reduction, no combinations
-                    param_combinations = [None]
+            # Take param combinations 
+            if self._dim_red is not None and self._reduction_params is not None:
+                param_names = list(self._reduction_params.keys())
+                param_values = list(self._reduction_params.values())
+                param_combinations = product(*param_values)
 
                 for combination in param_combinations:
-                    if combination:
-                        # Create param dict for eda
-                        reduction_params = dict(zip(param_names, combination))
-                        dimension = reduction_params.get("n_components", None)
-                        embeddings = self._eda.run_dim_red(
-                            embeddings_scaled, dim_reduction=self._dim_reduction, scaler=scaler, 
-                            show_plots=False, **reduction_params
-                        )
-                    else:
-                        # If no reduction, no params
-                        embeddings = embeddings_scaled
-                        reduction_params = None  
-                        dimension = embeddings.shape[1]
-
+                    # Create param dict for preprocess
+                    reduction_params = dict(zip(param_names, combination))
+                    preprocces_obj = Preprocess(embeddings=self._data, 
+                                        scaler=self._scaler, 
+                                        normalization=self._normalization,
+                                        dim_red=self._dim_red,
+                                        reduction_params=reduction_params)
+                    # Run preprocess
+                    embeddings = preprocces_obj.run_preprocess()
                     # Exec Optuna Clustering
                     clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
                     study = clustering_model.run_optuna(
@@ -268,10 +269,11 @@ class Experiment():
                     results.append({
                         "clustering": self._clustering,
                         "optimization": self._optimizer,
-                        "scaler": scaler,
-                        "dim_reduction": self._dim_reduction if self._dim_reduction else None,
+                        "normalization": self._normalization,
+                        "scaler": self._scaler,
+                        "dim_red": self._dim_red,
                         "reduction_params": reduction_params,
-                        "dimensions": dimension,
+                        "dimensions": reduction_params.get("n_components", None),  
                         "embeddings": embeddings,
                         "n_clusters": n_clusters_best,
                         "best_params": str(study.best_params),
@@ -285,6 +287,54 @@ class Experiment():
                         "best_value_w_penalty": study.best_value,
                         "best_value_w/o_penalty": score_best
                     })
+            else:
+                    preprocces_obj = Preprocess(embeddings=self._data, 
+                                        scaler=self._scaler, 
+                                        normalization=self._normalization,
+                                        dim_red=self._dim_red,
+                                        reduction_params=self._reduction_params)
+                    embeddings = preprocces_obj.run_preprocess()
+                    # Exec Optuna Clustering
+                    clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
+                    study = clustering_model.run_optuna(
+                        evaluation_method=self._eval_method, n_trials=100, penalty=self._penalty, penalty_range=self._penalty_range
+                    )
+                    best_trial = study.best_trial
+                    n_clusters_best = best_trial.user_attrs.get("n_clusters", None)
+                    centers_best = best_trial.user_attrs.get("centers", None)
+                    labels_best = best_trial.user_attrs.get("labels", None)
+                    label_counter = Counter(labels_best)
+                    score_best = best_trial.user_attrs.get("score_original", None)
+
+                    noise_not_noise = {
+                        -1: label_counter.get(-1, 0),
+                        1: sum(v for k, v in label_counter.items() if k != -1)
+                    }
+                    silhouette_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
+
+                    # Store results
+                    results.append({
+                        "clustering": self._clustering,
+                        "optimization": self._optimizer,
+                        "normalization": self._normalization,
+                        "scaler": self._scaler,
+                        "dim_red": self._dim_red,
+                        "reduction_params": self._reduction_params,
+                        "dimensions": embeddings.shape[1],
+                        "embeddings": embeddings,
+                        "n_clusters": n_clusters_best,
+                        "best_params": str(study.best_params),
+                        "centers": centers_best,
+                        "labels": labels_best,
+                        "label_counter": label_counter,
+                        "noise_not_noise": noise_not_noise,
+                        "silhouette_noise_ratio": silhouette_noise_ratio,
+                        "penalty": self._penalty,
+                        "penalty_range": self._penalty_range if self._penalty is not None else None,
+                        "best_value_w_penalty": study.best_value,
+                        "best_value_w/o_penalty": score_best
+                    })
+            
                     
             logger.info(f"ENDING EXPERIMENT...STORING RESULTS.")
             results_df = pd.DataFrame(results)
@@ -320,7 +370,7 @@ class Experiment():
                 embeddings_scaled = self._eda.run_scaler(scaler)
 
                 # Handle dimensionality reduction parameter combinations
-                if self._dim_reduction:
+                if self._dim_red:
                     param_names = list(self._reduction_parameters.keys())
                     param_values = list(self._reduction_parameters.values())
                     param_combinations = product(*param_values)
@@ -332,7 +382,7 @@ class Experiment():
                         reduction_params = dict(zip(param_names, combination))
                         dimension = reduction_params.get("n_components", None)
                         embeddings = self._eda.run_dim_red(
-                            embeddings_scaled, dim_reduction=self._dim_reduction, scaler=scaler, 
+                            embeddings_scaled, dim_red=self._dim_red, scaler=scaler, 
                             show_plots=False, **reduction_params
                         )
                     else:
@@ -370,7 +420,7 @@ class Experiment():
                             "clustering": self._clustering,
                             "optimization": self._optimizer,
                             "scaler": scaler,
-                            "dim_reduction": self._dim_reduction if self._dim_reduction else None,
+                            "dim_red": self._dim_red if self._dim_red else None,
                             "reduction_params": reduction_params,
                             "dimensions": dimension,
                             "embeddings": embeddings,
