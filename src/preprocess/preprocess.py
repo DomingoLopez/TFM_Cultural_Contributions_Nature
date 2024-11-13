@@ -1,5 +1,6 @@
 
 from itertools import product
+import json
 from loguru import logger
 import numpy as np
 import sys
@@ -84,6 +85,7 @@ class Preprocess:
             emb_s_df = self.do_scaler(emb_n_df) if self.scaler else emb_n_df
             emb_d_df = self.do_dim_red(emb_s_df) if self.dim_red else emb_s_df
             # save preprocess
+            self.save_preprocess_embeddings(emb_d_df)
 
             return emb_d_df
 
@@ -93,8 +95,8 @@ class Preprocess:
         """
         Get path to store or recover embeddings in cache
         """
-        return os.path.join(self.cache_dir, f'norm={self.normalization}_scaler={self.scaler}_dimred={self.dim_red}_' + \
-                            '_'.join([f'{key}={value}' for key, value in self.reduction_params.items()]) if self.dim_red is not None else f'reduction_params={self.reduction_params}' + '.pkl')
+        return os.path.join(self.cache_dir, f'norm_{self.normalization}--scaler_{self.scaler}--dimred_{self.dim_red}--' + \
+                            'reduction_params_'+('_'.join([f'{key}={value}' for key, value in self.reduction_params.items()]) if self.reduction_params is not None else "None") + '.pkl')
 
 
     def check_preprocess_embeddings_on_cache(self):
@@ -121,7 +123,7 @@ class Preprocess:
 
 
              
-    def save_reduced_embeddings(self, embeddings_df):
+    def save_preprocess_embeddings(self, embeddings_df):
         """
         Save reduced embeddings to a cache file.
 
@@ -141,7 +143,6 @@ class Preprocess:
         logger.info(f"Preprocess embeddings saved to {path}")
 
             
-
 
 
 
@@ -231,8 +232,6 @@ class Preprocess:
         eigenvalues = pca.explained_variance_ratio_ 
         print("Explained variance ratio (Eigenvalues):")
         print(eigenvalues)
-        # Save to cache
-        self.save_reduced_embeddings(pca_df)
         return pca_df
 
 
@@ -249,7 +248,6 @@ class Preprocess:
         reducer = umap.UMAP(random_state=42, **self.reduction_params)
         umap_result = reducer.fit_transform(embeddings_df.values)
         umap_df = pd.DataFrame(data=umap_result)
-        self.save_reduced_embeddings(umap_df)
         return umap_df
 
     
@@ -279,34 +277,72 @@ class Preprocess:
         # 4: Get reduced embeddings
         embeddings_compressed = embedder.embed(X)  
         cvae_df = pd.DataFrame(data=embeddings_compressed)
-        # Save to cache
-        self.save_reduced_embeddings(cvae_df)
         return cvae_df
 
 
 
 if __name__ == "__main__":
-    # Objeto EDA.
-    eda = Preprocess(embeddings=None, verbose=False)
-    scalers = ["no_scaler","standard","minmax","robust","maxabs"]
-    reduction_parameters = {
+    
+    experiment = {
+        "id": 1,
+        "optimizer" : "optuna",
+        "normalization": False,
+        "scaler" : None,
+        "dim_red" : "umap",
+        "reduction_parameters": {
             "metric": ["euclidean","cosine"],
             "n_components": [2,5,7,9,11,13,15],
             "n_neighbors": [2, 5, 10, 20, 50, 100, 200],
             "min_dist": [0.0, 0.1, 0.25, 0.5, 0.8, 0.99]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : "",
+        "penalty_range" : "",
+        "cache" : True
     }
-    for scaler in scalers:
-        embeddings_scaled = eda.run_scaler(scaler)
-        param_names = list(reduction_parameters.keys())
-        param_values = list(reduction_parameters.values())
-        param_combinations = product(*param_values)
+    
+    normalization=experiment.get("normalization",None)
+    scaler=experiment.get("scaler",None)
+    dim_red=experiment.get("dim_red",None)
+    reduction_params=experiment.get("reduction_parameters",None)
 
-        for combination in param_combinations:
-            reduction_params = dict(zip(param_names, combination))
-            dimension = reduction_params.get("n_components", None)
-            embeddings = eda.run_dim_red(
-                embeddings_scaled, dim_reduction="umap", scaler=scaler, 
-                show_plots=False, reduction_params = reduction_params)
+        
+    # For every single combination of params to apply to dim reduction technique
+    param_names = list(reduction_params.keys())
+    param_values = list(reduction_params.values())
+    param_combinations = product(*param_values)
+    
+    for combination in param_combinations:
+        reduction_params = dict(zip(param_names, combination))
+        preprocces_obj = Preprocess(embeddings=None, 
+                            scaler=scaler, 
+                            normalization=normalization,
+                            dim_red=dim_red,
+                            reduction_params=reduction_params)
+        preprocces_obj.run_preprocess()
+    
+    # Objeto EDA.
+    # eda = Preprocess(embeddings=None, verbose=False)
+    # scalers = ["no_scaler","standard","minmax","robust","maxabs"]
+    # reduction_parameters = {
+    #         "metric": ["euclidean","cosine"],
+    #         "n_components": [2,5,7,9,11,13,15],
+    #         "n_neighbors": [2, 5, 10, 20, 50, 100, 200],
+    #         "min_dist": [0.0, 0.1, 0.25, 0.5, 0.8, 0.99]
+    # }
+    # for scaler in scalers:
+    #     embeddings_scaled = eda.run_scaler(scaler)
+    #     param_names = list(reduction_parameters.keys())
+    #     param_values = list(reduction_parameters.values())
+    #     param_combinations = product(*param_values)
+
+    #     for combination in param_combinations:
+    #         reduction_params = dict(zip(param_names, combination))
+    #         dimension = reduction_params.get("n_components", None)
+    #         embeddings = eda.run_dim_red(
+    #             embeddings_scaled, dim_reduction="umap", scaler=scaler, 
+    #             show_plots=False, reduction_params = reduction_params)
     
 
 
