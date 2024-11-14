@@ -41,14 +41,10 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 
 if __name__ == "__main__":
     
-    try:
-        # Cargar el archivo
-        with open("src/preprocess/cache/norm_False--scaler_None--dimred_None--reduction_params_None.pkl", "rb") as f:
-            result = pickle.load(f)
-        print(result.head())
+    # Cargar el archivo
+    with open("src/experiment/results/hdbscan/silhouette/3/result.pkl", "rb") as f:
+        result = pickle.load(f)
+    
+    result.to_csv("src/experiment/results/hdbscan/silhouette/3/result.csv", sep=";")
         
-        with open("src/dinov2_inference/cache/embeddings_dinov2_vits14_5066.pkl", "rb") as f:
-            result = pickle.load(f)
-        print(result[0:1])
-    except:
-        pass
+        
