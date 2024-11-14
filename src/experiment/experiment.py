@@ -83,8 +83,7 @@ class Experiment():
         self._main_result_dir = (
             Path(__file__).resolve().parent
             # TODO: Add penalty to silhouette folder name
-            / f"results/{self._clustering}/{self._eval_method}"
-            / f"{self._id}"
+            / f"results/{self._id}/{self._eval_method}"
         )
         self._result_path_csv = os.path.join(self._main_result_dir, "result.csv")
         self._result_path_pkl = os.path.join(self._main_result_dir, "result.pkl")

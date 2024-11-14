@@ -10,6 +10,7 @@ from src.clustering.clust_hdbscan import HDBSCANClustering
 from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering_plot.clust_plot import ClusteringPlot
 from src.experiment.experiment import Experiment
+from src.experiment.experiment_result_controller import ExperimentResultController
 from src.experiment.trial import Trial
 from src.llava_inference.llava_inference import LlavaInference
 from src.utils.image_loader import ImageLoader
@@ -114,48 +115,29 @@ def run_experiments(file, embeddings) -> None:
 # rsync -av --exclude='.git' 1_TFM xxxx.xx.es:/mnt/homeGPU/dlopez
 
 
-if __name__ == "__main__":
-    
-    # TODO: OPTIMICE HDBSCAN + DIM REDUCTION. 
-    # DO ALL HDBSCAN EXPERIMENTS:
-    #   - DO DIFFERENT SCALERS
-    #   - WITHOUT DIM REDUCTION 
-    #   - WITH DIM REDUCTION FROM 2 TO 80 FOR EXAMPLE
-    #   - WITH DIM REDUCTION FROM 81 TO 150 
-    #   - ALL OF THAT ADJUSTING UMAP PARAMETERS (n_neighbors (2, 3, 5, 10, 15, 20, 50, 100, 200), min_dist (0, 0.1, 0.25, 0.5, 0.8, 0.9, 1))
-    #   - TRY CVAE ALSO. THE THING IS THAT IT CAN BE IMPROVE IMPROVING DIM REDUCTION
-    
-    
-    # PRBAR LO SIGUIENTE:
-    # SI METRICA ES COSENO EN UMAP, NORMALIZAR y aplicar UMAP
-    # SI ES EUCLIDEAN, NO NORMALIZAR y APLICAR UMAP
-    # CON HDBSCAN NO ESCALAR. PROBAR. SI ES KMNEANS ESCALAR STANDARD. 
-    # PROBAR TODO ESTO
-    
+if __name__ == "__main__": 
     
     # 1. Load images, generate embeddings and run experiments
     images = load_images("./data/Data")
     embeddings = generate_embeddings(images, model="small")
-    run_experiments("src/experiment/json/single_experiment.json", embeddings)
+    # experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
+    experiments_file = "src/experiment/json/single_experiment.json"
+    run_experiments(experiments_file, embeddings)
     #run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
     
-
-
-    # 2. Analyze and choose from best experiment. In this case, hdbscan with optuna
-    # Set which experiment to try after analyze them
-    experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
-    with open(experiments_file, 'r') as f:
-        experiments = json.load(f)
-    
-    # For Experiment 1. 
-    experiment_id = 1 
-    experiment = next((item for item in experiments if item["id"] == experiment_id), None)
-    experiment_result = pickle.load(open(f"src/experiment/results/{experiment.get("clustering")}/{experiment.get("eval_method")}/{experiment.get("id")}/result.pkl", "rb"))
+    # 2. Load all available experiments from results folder
+    # 2.1 Define eval method to analyze
+    # 2.2 Load all experiments of given eval method
+    eval_method = "silhouette"
+    experiment_results = ExperimentResultController(eval_method)
     # Need an intermediate figure to load experiment Results where
     # - I could load all results. 
     # - Filter those im interested in
     # - Get selected trial. 
     # - Plots from experiments 
+    # DOING IT RIGHT NOW - EXPERIMENTRESULTCONTROLLER
+
+    # Now select trial to study and generate images from
     
     # Filter results in order to reduce things like n_clusters = 2, etc
     # We could apply more filters
