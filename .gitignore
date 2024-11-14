@@ -9,7 +9,7 @@ data/test
 /trash/
 trash
 
-/src/experiment/results/
+/src/experiment/results/*
 
 # Ignore tmp from CVAE
 temp/
