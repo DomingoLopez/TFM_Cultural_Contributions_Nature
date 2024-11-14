@@ -12,7 +12,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import cosine_similarity
 from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering.clustering_model import ClusteringModel
-from src.eda.eda import EDA
+from src.preprocess.preprocess import Preprocess
 
 
 class Trial():

@@ -7,14 +7,6 @@ import pickle
 import json
 from loguru import logger
 
-from src.clustering.clust_hdbscan import HDBSCANClustering
-from src.clustering.clustering_factory import ClusteringFactory
-from src.clustering_plot.clust_plot import ClusteringPlot
-from src.experiment.experiment import Experiment
-from src.utils.image_loader import ImageLoader
-from src.dinov2_inference.dinov2_inference import Dinov2Inference
-from src.eda.eda import EDA
-
 import matplotlib.pyplot as plt
 import cv2
 
@@ -51,27 +43,12 @@ if __name__ == "__main__":
     
     try:
         # Cargar el archivo
-        with open("src/experiment/results/kmeans/optuna/dim_red_umap/silhouette_penalty_None.pkl", "rb") as f:
+        with open("src/preprocess/cache/norm_False--scaler_None--dimred_None--reduction_params_None.pkl", "rb") as f:
             result = pickle.load(f)
+        print(result.head())
         
-        # Asegurarse de que `result` es un DataFrame
-        if isinstance(result, pd.DataFrame):
-            # Insertar la columna "algorithm" al principio con el valor "hdbscan"
-            result.insert(0, "clustering", "kmeans")
-            
-            # Mostrar las primeras filas para verificar
-            print(result.head())
-        else:
-            print("Error: 'result' no es un DataFrame.")
-
-    except FileNotFoundError:
-        print("Error: El archivo especificado no existe.")
-    except pickle.UnpicklingError:
-        print("Error: No se pudo cargar el archivo. Puede estar corrupto o no ser un archivo pickle válido.")
-    
-    # Guardar el DataFrame actualizado en pickle y CSV
-    with open("src/experiment/results/kmeans/optuna/dim_red_umap/silhouette_penalty_None.pkl", "wb") as f:
-        pickle.dump(result, f)
-
-    result.to_csv("src/experiment/results/kmeans/optuna/dim_red_umap/silhouette_penalty_None.csv", sep=";")
-
+        with open("src/dinov2_inference/cache/embeddings_dinov2_vits14_5066.pkl", "rb") as f:
+            result = pickle.load(f)
+        print(result[0:1])
+    except:
+        pass

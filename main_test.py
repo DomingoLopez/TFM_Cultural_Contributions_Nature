@@ -6,16 +6,10 @@ import pickle
 import json
 from loguru import logger
 
-from src.clustering.clust_hdbscan import HDBSCANClustering
-from src.clustering.clustering_factory import ClusteringFactory
-from src.experiment.experiment import Experiment
-from src.utils.image_loader import ImageLoader
-from src.dinov2_inference.dinov2_inference import Dinov2Inference
-from src.clustering_plot.clust_plot import ClusteringPlot
-from src.eda.eda import EDA
 
 import matplotlib.pyplot as plt
 import cv2
+from sklearn.preprocessing import normalize
 
 
 
@@ -46,48 +40,42 @@ def show_images_per_cluster(images, knn_cluster_result_df):
     plt.show()
 
 
+def rename_umap_files(folder_path):
+    # Recorre todos los archivos de la carpeta
+    for filename in os.listdir(folder_path):
+        # Verifica si el archivo tiene el formato "umap_n_components..."
+        if filename.startswith("umap_n_components"):
+            # Construye el nuevo nombre de archivo
+            new_filename = filename.replace("umap_", "umap_metric=euclidean_", 1)
+            # Obtiene las rutas completas de los archivos
+            old_filepath = os.path.join(folder_path, filename)
+            new_filepath = os.path.join(folder_path, new_filename)
+            # Renombra el archivo
+            os.rename(old_filepath, new_filepath)
+            print(f'Renombrado: "{filename}" a "{new_filename}"')
+
 
 
 if __name__ == "__main__":
-    # Finding images
-    # image_loader = ImageLoader(folder="./data/Small_Data")
-    image_loader = ImageLoader(folder="./data/Small_Data")
-    images = image_loader.find_images()
-    # Loading images and getting embeddings
-    dinomodel = Dinov2Inference(model_name="small", images=images, disable_cache=False)
-    embeddings = dinomodel.run()
-
-    optimizer = "optuna"
-    dim_red_range = [2, 3]
-    scalers =  ["standard"]
-    dim_red =  "umap"
-    clustering = "kmeans"
-    eval_method =  "silhouette"
-    penalty =  None
-    penalty_range =  None
-    cache =  True
-
-    experiment = Experiment(
-        embeddings,
-        optimizer,
-        dim_red,
-        dim_red_range,
-        scalers,
-        clustering,
-        eval_method,
-        penalty,
-        penalty_range,
-        cache
-    )
     
-    experiment.run_experiment()
-    
-    plot = ClusteringPlot(experiment=experiment)
-    plot.show_best_silhouette(show_plots=True)
-    plot.show_best_scatter_with_centers(show_plots=True)
+    # Cargar los embeddings desde el archivo
+    embeddings = pickle.load(open("src/dinov2_inference/cache/embeddings_dinov2_vits14_5066.pkl", "rb"))
 
+    # Calcular la norma L2 de cada embedding
+    l2_norms = np.linalg.norm(embeddings, axis=1)
 
-    
+    # Verificar si están aproximadamente normalizados a 1
+    are_normalized = np.allclose(l2_norms, 1, atol=1e-6)
+    print("Embeddings normalizados L2 (antes de normalizar):", are_normalized)
 
+    # Normalizar manualmente para asegurar L2
+    embeddings_normalized = normalize(embeddings, norm='l2')
+
+    # Calcular la norma L2 de los embeddings normalizados
+    l2_norms_normalized = np.linalg.norm(embeddings_normalized, axis=1)
+    are_normalized_after = np.allclose(l2_norms_normalized, 1, atol=1e-6)
+    print("Embeddings normalizados L2 (después de normalizar):", are_normalized_after)
+    print(embeddings[:1])
+    print(embeddings_normalized[:1])
     
     

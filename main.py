@@ -14,7 +14,7 @@ from src.experiment.trial import Trial
 from src.llava_inference.llava_inference import LlavaInference
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
-from src.eda.eda import EDA
+from src.preprocess.preprocess import Preprocess
 
 import matplotlib.pyplot as plt
 import cv2
@@ -71,40 +71,43 @@ def run_experiments(file, embeddings) -> None:
         experiments_config = json.load(f)
 
     for config in experiments_config:
+        id = config.get("id")
         optimizer = config.get("optimizer", "optuna")
-        dim_red_range = config.get("dim_red_range", [2, 15])
-        scalers = config.get("scalers", ["standard", "minmax", "robust", "maxabs"])
-        dim_red = config.get("dim_red", "umap")
+        normalization = config.get("normalization", True)
+        scaler = config.get("scaler", None)
+        dim_red = config.get("dim_red", None)
+        reduction_parameters = config.get("reduction_parameters", None)
         clustering = config.get("clustering", "hdbscan")
         eval_method = config.get("eval_method", "silhouette")
         penalty = config.get("penalty", None)
         penalty_range = config.get("penalty_range", None)
-        cache = config.get("cache", False)
+        cache = config.get("cache", True)
         # Make and Run Experiment
-        logger.info(f"LOADING EXPERIMENT: {config.get('_comment')}")
+        logger.info(f"LOADING EXPERIMENT: {id}")
         experiment = Experiment(
+            id,
             embeddings,
             optimizer,
+            normalization,
             dim_red,
-            dim_red_range,
-            scalers,
+            reduction_parameters,
+            scaler,
             clustering,
             eval_method,
-            None if penalty == "" else penalty,
-            None if penalty_range== "" else penalty_range,
-            False if cache == 0 else True
+            penalty,
+            penalty_range,
+            cache
         )
         experiment.run_experiment()
-        if experiment.eval_method == "silhouette":
-            plot = ClusteringPlot(experiment=experiment)
-            plot.show_best_silhouette(experiment="silhouette_noise_ratio", show_all=True, show_plots=False)
-            plot.show_best_scatter(experiment="silhouette_noise_ratio",show_plots=False)
-            plot.show_best_scatter_with_centers(experiment="silhouette_noise_ratio",show_plots=False)
-            plot.show_best_clusters_counters_comparision(experiment="silhouette_noise_ratio",show_plots=False)
-            plot.show_top_noise_silhouette(priority="eval_method", show_plots=False)
-            plot.show_top_noise_silhouette(priority="noise", show_plots=False)
-            plot.show_top_silhouette_noise_ratio(show_plots=False)
-
+        # if experiment.eval_method == "silhouette":
+        #     plot = ClusteringPlot(experiment=experiment)
+        #     plot.show_best_silhouette(experiment="silhouette_noise_ratio", show_all=True, show_plots=False)
+        #     plot.show_best_scatter(experiment="silhouette_noise_ratio",show_plots=False)
+        #     plot.show_best_scatter_with_centers(experiment="silhouette_noise_ratio",show_plots=False)
+        #     plot.show_best_clusters_counters_comparision(experiment="silhouette_noise_ratio",show_plots=False)
+        #     plot.show_top_noise_silhouette(priority="eval_method", show_plots=False)
+        #     plot.show_top_noise_silhouette(priority="noise", show_plots=False)
+        #     plot.show_top_silhouette_noise_ratio(show_plots=False)
 
 
 # Copy files to ngpu
@@ -123,22 +126,48 @@ if __name__ == "__main__":
     #   - TRY CVAE ALSO. THE THING IS THAT IT CAN BE IMPROVE IMPROVING DIM REDUCTION
     
     
+    # PRBAR LO SIGUIENTE:
+    # SI METRICA ES COSENO EN UMAP, NORMALIZAR y aplicar UMAP
+    # SI ES EUCLIDEAN, NO NORMALIZAR y APLICAR UMAP
+    # CON HDBSCAN NO ESCALAR. PROBAR. SI ES KMNEANS ESCALAR STANDARD. 
+    # PROBAR TODO ESTO
+    
+    
     # 1. Load images, generate embeddings and run experiments
     images = load_images("./data/Data")
-    # embeddings = generate_embeddings(images, model="small")
-    # run_experiments("src/experiment/json/experiments_optuna_silhouette.json", embeddings)
+    embeddings = generate_embeddings(images, model="small")
+    run_experiments("src/experiment/json/single_experiment.json", embeddings)
+    #run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
     
+
+
     # 2. Analyze and choose from best experiment. In this case, hdbscan with optuna
     # Set which experiment to try after analyze them
-    optimizer = "optuna"
-    dim_red = "umap"
-    clustering = "hdbscan"
-
-    selected_experiment = pickle.load(open(f"src/experiment/results/{clustering}/{optimizer}/dim_red_{dim_red}/silhouette_penalty_None.pkl", "rb"))
-    # Show experiment with best silhouette/noise ratio
-    max_row = selected_experiment.loc[selected_experiment["silhouette_noise_ratio"].idxmax()]
+    experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
+    with open(experiments_file, 'r') as f:
+        experiments = json.load(f)
+    
+    # For Experiment 1. 
+    experiment_id = 1 
+    experiment = next((item for item in experiments if item["id"] == experiment_id), None)
+    experiment_result = pickle.load(open(f"src/experiment/results/{experiment.get("clustering")}/{experiment.get("eval_method")}/{experiment.get("id")}/result.pkl", "rb"))
+    # Need an intermediate figure to load experiment Results where
+    # - I could load all results. 
+    # - Filter those im interested in
+    # - Get selected trial. 
+    # - Plots from experiments 
+    
+    # Filter results in order to reduce things like n_clusters = 2, etc
+    # We could apply more filters
+    filtered_experiment_result = experiment_result[experiment_result["n_clusters"] > 10]
+    # Load experiment trial ir order to get all params used
+    # We will use máx silhouett
+    max_row = filtered_experiment_result.loc[filtered_experiment_result["sil"].idxmax()]
     trial_result = dict(max_row)
     trial = Trial(images, trial_result)
+    
+    
+    
     # 3. Assign each image to its corresponding label/cluster: format: {0: [path list], 1: [path:list], }, etc
     # 3.1 ALTERNATIVE: Select 3 or 4 images from each cluster instead of all images format: {0: [path list], 1: [path:list], }, etc
     cluster_images_dict = trial.get_cluster_images_dict(knn=None)
@@ -155,13 +184,13 @@ if __name__ == "__main__":
     llava.plot_cluster_categories()
 
 
-    #   - Those clusters with bad or low success ratio, examine and plot embeddings and cluster silhouette
-    #   - If everithing goes wrong. Instead of Level 3 category, try level 2 category which is more generic.
+    # #   - Those clusters with bad or low success ratio, examine and plot embeddings and cluster silhouette
+    # #   - If everithing goes wrong. Instead of Level 3 category, try level 2 category which is more generic.
 
 
 
-    # for k,v in cluster_images_dict.items():
-    #     print(k, len(v))
+    # # for k,v in cluster_images_dict.items():
+    # #     print(k, len(v))
     
     
 
