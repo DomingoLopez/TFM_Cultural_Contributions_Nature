@@ -99,18 +99,15 @@ def run_experiments(file, embeddings) -> None:
             cache
         )
         experiment.run_experiment()
-        # if experiment.eval_method == "silhouette":
-        #     plot = ClusteringPlot(experiment=experiment)
-        #     plot.show_best_silhouette(experiment="silhouette_noise_ratio", show_all=True, show_plots=False)
-        #     plot.show_best_scatter(experiment="silhouette_noise_ratio",show_plots=False)
-        #     plot.show_best_scatter_with_centers(experiment="silhouette_noise_ratio",show_plots=False)
-        #     plot.show_best_clusters_counters_comparision(experiment="silhouette_noise_ratio",show_plots=False)
-        #     plot.show_top_noise_silhouette(priority="eval_method", show_plots=False)
-        #     plot.show_top_noise_silhouette(priority="noise", show_plots=False)
-        #     plot.show_top_silhouette_noise_ratio(show_plots=False)
-        # elif experiment.eval_method == "silhouette_noise_ratio":
-        #     # TODO plots noise
-        #     pass
+        if experiment.eval_method == "silhouette":
+            plot = ClusteringPlot(experiment=experiment)
+            plot.show_best_silhouette(experiment="silhouette_noise_ratio", show_all=True, show_plots=False)
+            plot.show_best_scatter(experiment="silhouette_noise_ratio",show_plots=False)
+            plot.show_best_scatter_with_centers(experiment="silhouette_noise_ratio",show_plots=False)
+            plot.show_best_clusters_counters_comparision(experiment="silhouette_noise_ratio",show_plots=False)
+            plot.show_top_noise_silhouette(priority="eval_method", show_plots=False)
+            plot.show_top_noise_silhouette(priority="noise", show_plots=False)
+            plot.show_top_silhouette_noise_ratio(show_plots=False)
 
 
 # Copy files to ngpu

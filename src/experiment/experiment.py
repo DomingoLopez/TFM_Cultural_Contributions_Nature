@@ -211,240 +211,180 @@ class Experiment():
     
 
 
+
     def __run_experiment_optuna(self):
         """
-        Runs the experiment using the Optuna optimizer.
-        
-        If cache is enabled and results exist, it loads them from a pickle file.
-        Otherwise, it performs the optimization and saves results to CSV and pickle.
-        
-        Raises:
-            FileNotFoundError: If the cached results file is not found.
+        Runs the experiment using the Optuna optimizer, performs optimization, 
+        and saves results to CSV and pickle.
         """
-        # If file exists and cache=True
+        if self.__load_cached_results():
+            return
+
+        results = []
+        param_combinations = self.__get_param_combinations()
+
+        for reduction_params in param_combinations:
+            embeddings = self.__apply_preprocessing(reduction_params)
+            clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
+            study = clustering_model.run_optuna(
+                evaluation_method=self._eval_method, n_trials=100, penalty=self._penalty, penalty_range=self._penalty_range
+            )
+            best_trial = study.best_trial
+            n_clusters_best = best_trial.user_attrs.get("n_clusters", None)
+            centers_best = best_trial.user_attrs.get("centers", None)
+            labels_best = best_trial.user_attrs.get("labels", None)
+            label_counter = Counter(labels_best)
+            score_best = best_trial.user_attrs.get("score_original", None)
+            noise_not_noise = {
+                -1: label_counter.get(-1, 0),
+                1: sum(v for k, v in label_counter.items() if k != -1)
+            }
+            silhouette_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
+            # Append results
+            results.append({
+                "clustering": self._clustering,
+                "optimization": self._optimizer,
+                "normalization": self._normalization,
+                "scaler": self._scaler,
+                "dim_red": self._dim_red,
+                "reduction_params": reduction_params,
+                "dimensions": reduction_params.get("n_components", None),  
+                "embeddings": embeddings,
+                "n_clusters": n_clusters_best,
+                "best_params": str(study.best_params),
+                "centers": centers_best,
+                "labels": labels_best,
+                "label_counter": label_counter,
+                "noise_not_noise": noise_not_noise,
+                "silhouette_noise_ratio": silhouette_noise_ratio,
+                "penalty": self._penalty,
+                "penalty_range": self._penalty_range if self._penalty is not None else None,
+                "best_value_w_penalty": study.best_value,
+                "best_value_w/o_penalty": score_best
+            })
+
+        self.store_results(results)
+
+
+
+    def __load_cached_results(self):
+        """
+        Checks if results are already cached; if yes, loads and returns them.
+        """
         if os.path.isfile(self._result_path_pkl) and self._cache:
             try:
                 results_df = pickle.load(open(str(self._result_path_pkl), "rb"))
                 results_df.to_csv(self._result_path_csv, sep=";")
                 self._results_df = results_df
+                return True
             except FileNotFoundError:
-                raise FileNotFoundError("Couldn't find provided file with results from experiment. Please ensure that file exists.")
-        else:
-            results = []
-            # Take param combinations 
-            if self._dim_red is not None and self._reduction_params is not None:
-                param_names = list(self._reduction_params.keys())
-                param_values = list(self._reduction_params.values())
-                param_combinations = product(*param_values)
+                logger.error("Cached results file not found.")
+        return False
 
-                for combination in param_combinations:
-                    # Create param dict for preprocess
-                    reduction_params = dict(zip(param_names, combination))
-                    preprocces_obj = Preprocess(embeddings=self._data, 
-                                        scaler=self._scaler, 
-                                        normalization=self._normalization,
-                                        dim_red=self._dim_red,
-                                        reduction_params=reduction_params)
-                    # Run preprocess
-                    embeddings = preprocces_obj.run_preprocess()
-                    # Exec Optuna Clustering
-                    clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
-                    study = clustering_model.run_optuna(
-                        evaluation_method=self._eval_method, n_trials=100, penalty=self._penalty, penalty_range=self._penalty_range
-                    )
-                    best_trial = study.best_trial
-                    n_clusters_best = best_trial.user_attrs.get("n_clusters", None)
-                    centers_best = best_trial.user_attrs.get("centers", None)
-                    labels_best = best_trial.user_attrs.get("labels", None)
-                    label_counter = Counter(labels_best)
-                    score_best = best_trial.user_attrs.get("score_original", None)
 
-                    noise_not_noise = {
-                        -1: label_counter.get(-1, 0),
-                        1: sum(v for k, v in label_counter.items() if k != -1)
-                    }
-                    silhouette_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
+    def __get_param_combinations(self):
+        """
+        Generates parameter combinations based on dimensionality reduction and reduction parameters.
+        """
+        if self._dim_red and self._reduction_params:
+            param_names = list(self._reduction_params.keys())
+            param_values = list(self._reduction_params.values())
+            return [dict(zip(param_names, combination)) for combination in product(*param_values)]
+        return [{}]
 
-                    # Store results
-                    results.append({
-                        "clustering": self._clustering,
-                        "optimization": self._optimizer,
-                        "normalization": self._normalization,
-                        "scaler": self._scaler,
-                        "dim_red": self._dim_red,
-                        "reduction_params": reduction_params,
-                        "dimensions": reduction_params.get("n_components", None),  
-                        "embeddings": embeddings,
-                        "n_clusters": n_clusters_best,
-                        "best_params": str(study.best_params),
-                        "centers": centers_best,
-                        "labels": labels_best,
-                        "label_counter": label_counter,
-                        "noise_not_noise": noise_not_noise,
-                        "silhouette_noise_ratio": silhouette_noise_ratio,
-                        "penalty": self._penalty,
-                        "penalty_range": self._penalty_range if self._penalty is not None else None,
-                        "best_value_w_penalty": study.best_value,
-                        "best_value_w/o_penalty": score_best
-                    })
-            else:
-                    preprocces_obj = Preprocess(embeddings=self._data, 
-                                        scaler=self._scaler, 
-                                        normalization=self._normalization,
-                                        dim_red=self._dim_red,
-                                        reduction_params=self._reduction_params)
-                    embeddings = preprocces_obj.run_preprocess()
-                    # Exec Optuna Clustering
-                    clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
-                    study = clustering_model.run_optuna(
-                        evaluation_method=self._eval_method, n_trials=100, penalty=self._penalty, penalty_range=self._penalty_range
-                    )
-                    best_trial = study.best_trial
-                    n_clusters_best = best_trial.user_attrs.get("n_clusters", None)
-                    centers_best = best_trial.user_attrs.get("centers", None)
-                    labels_best = best_trial.user_attrs.get("labels", None)
-                    label_counter = Counter(labels_best)
-                    score_best = best_trial.user_attrs.get("score_original", None)
 
-                    noise_not_noise = {
-                        -1: label_counter.get(-1, 0),
-                        1: sum(v for k, v in label_counter.items() if k != -1)
-                    }
-                    silhouette_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
+    def __apply_preprocessing(self, reduction_params):
+        """
+        Applies preprocessing steps including normalization, scaling, and dimensionality reduction.
+        """
+        preprocces_obj = Preprocess(embeddings=self._data, 
+                                    scaler=self._scaler, 
+                                    normalization=self._normalization,
+                                    dim_red=self._dim_red,
+                                    reduction_params=reduction_params)
+        return preprocces_obj.run_preprocess()
 
-                    # Store results
-                    results.append({
-                        "clustering": self._clustering,
-                        "optimization": self._optimizer,
-                        "normalization": self._normalization,
-                        "scaler": self._scaler,
-                        "dim_red": self._dim_red,
-                        "reduction_params": self._reduction_params,
-                        "dimensions": embeddings.shape[1],
-                        "embeddings": embeddings,
-                        "n_clusters": n_clusters_best,
-                        "best_params": str(study.best_params),
-                        "centers": centers_best,
-                        "labels": labels_best,
-                        "label_counter": label_counter,
-                        "noise_not_noise": noise_not_noise,
-                        "silhouette_noise_ratio": silhouette_noise_ratio,
-                        "penalty": self._penalty,
-                        "penalty_range": self._penalty_range if self._penalty is not None else None,
-                        "best_value_w_penalty": study.best_value,
-                        "best_value_w/o_penalty": score_best
-                    })
-            
-                    
-            logger.info(f"ENDING EXPERIMENT...STORING RESULTS.")
-            results_df = pd.DataFrame(results)
-            results_df.to_csv(self._result_path_csv, sep=";")
-            self._results_df = results_df
-            pickle.dump(results_df, open(str(self._result_path_pkl), "wb"))
-            logger.info(f"EXPERIMENT ENDED.")
 
-            
-       
+
+    def store_results(self, results):
+        """
+        Stores results in CSV and pickle formats.
+        """
+        logger.info(f"ENDING EXPERIMENT...STORING RESULTS.")
+        results_df = pd.DataFrame(results)
+        results_df.to_csv(self._result_path_csv, sep=";")
+        self._results_df = results_df
+        pickle.dump(results_df, open(str(self._result_path_pkl), "wb"))
+        logger.info(f"EXPERIMENT ENDED.")
+
+
+    
 
     def __run_experiment_gridsearch(self):
         """
         Runs the experiment using Grid Search.
 
         If cache is enabled and results exist, it loads them from a pickle file.
-        Otherwise, it performs the grid search and saves results to CSV and pickle.
-        
-        Raises:
-            FileNotFoundError: If the cached results file is not found.
+        Otherwise, it performs the grid search for each parameter combination in 
+        dimensionality reduction and stores only the best result from each grid search.
         """
-         # If file exists and cache=True
-        if os.path.isfile(self._result_path_pkl) and self._cache:
-            try:
-                results_df = pickle.load(open(str(self._result_path_pkl), "rb"))
-                results_df.to_csv(self._result_path_csv, sep=";")
-                self._results_df = results_df
-            except FileNotFoundError:
-                raise FileNotFoundError("Couldn't find provided file with results from experiment. Please ensure that file exists.")
-        else:
-            results = []
-            for scaler in self._scalers:
-                embeddings_scaled = self._eda.run_scaler(scaler)
+        if self.__load_cached_results():
+            return
 
-                # Handle dimensionality reduction parameter combinations
-                if self._dim_red:
-                    param_names = list(self._reduction_parameters.keys())
-                    param_values = list(self._reduction_parameters.values())
-                    param_combinations = product(*param_values)
-                else:
-                    param_combinations = [None]  # If no reduction, single pass
+        results = []
+        param_combinations = self.__get_param_combinations()
+        
+        for reduction_params in param_combinations:
+            embeddings = self.__apply_preprocessing(reduction_params)
+            clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
+            grid_search = clustering_model.run_gridsearch(evaluation_method=self._eval_method)
+            
+            # Best result for the current grid search
+            best_index = grid_search.best_index_
+            best_params = grid_search.cv_results_['params'][best_index]
+            best_score_curr = grid_search.cv_results_['mean_test_score'][best_index]
+            # Fit the best estimator to get labels and centers
+            best_estimator = grid_search.best_estimator_.set_params(**best_params).fit(embeddings)
+            labels = getattr(best_estimator, 'labels_', None)
+            if "n_clusters" in best_params:
+                n_clusters = best_params["n_clusters"]
+            else:
+                n_clusters = len(set(labels)) - (1 if -1 in labels else 0)  # Exclude noise for density-based clustering
+            centers = clustering_model.get_cluster_centers(labels)
+            # Calculate additional metrics
+            label_counter = Counter(labels)
+            noise_not_noise = {
+                -1: label_counter.get(-1, 0),
+                1: sum(v for k, v in label_counter.items() if k != -1)
+            }
+            silhouette_noise_ratio = best_score_curr / (noise_not_noise.get(-1) + 1)
+            
+            results.append({
+            "clustering": self._clustering,
+            "optimization": self._optimizer,
+            "normalization": self._normalization,
+            "scaler": self._scaler,
+            "dim_red": self._dim_red,
+            "reduction_params": reduction_params,
+            "dimensions": reduction_params.get("n_components", None),  
+            "embeddings": embeddings,
+            "n_clusters": n_clusters,
+            "best_params": str(best_params),
+            "centers": centers,
+            "labels": labels,
+            "label_counter": label_counter,
+            "noise_not_noise": noise_not_noise,
+            "silhouette_noise_ratio": silhouette_noise_ratio,
+            "penalty": self._penalty,
+            "penalty_range": self._penalty_range if self._penalty is not None else None,
+            "best_value_w_penalty": None,
+            "best_value_w/o_penalty": best_score_curr
+            })
+            
+            
 
-                for combination in param_combinations:
-                    if combination:
-                        reduction_params = dict(zip(param_names, combination))
-                        dimension = reduction_params.get("n_components", None)
-                        embeddings = self._eda.run_dim_red(
-                            embeddings_scaled, dim_red=self._dim_red, scaler=scaler, 
-                            show_plots=False, **reduction_params
-                        )
-                    else:
-                        embeddings = embeddings_scaled  # If no reduction
-                        reduction_params = None
-                        dimension = embeddings.shape[1]
 
-                    # Execute Grid Search
-                    clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
-                    grid_search = clustering_model.run_gridsearch(evaluation_method=self._eval_method)
-
-                    # Iterate over grid search results
-                    for i in range(len(grid_search.cv_results_['params'])):
-                        params = grid_search.cv_results_['params'][i]
-                        score = grid_search.cv_results_['mean_test_score'][i]
-
-                        # Get n_clusters or estimate from labels if not provided
-                        n_clusters = params.get("n_clusters", None)
-                        estimator = grid_search.estimator.set_params(**params).fit(embeddings)
-                        labels = getattr(estimator, 'labels_', None)
-                        if n_clusters is None and labels is not None:
-                            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)  # Exclude noise
-
-                        centers = clustering_model.get_cluster_centers(labels)
-                        label_counter = Counter(labels)
-
-                        noise_not_noise = {
-                            -1: label_counter.get(-1, 0),
-                            1: sum(v for k, v in label_counter.items() if k != -1)
-                        }
-                        silhouette_noise_ratio = score / (noise_not_noise.get(-1) + 1)
-
-                        # Append results
-                        results.append({
-                            "clustering": self._clustering,
-                            "optimization": self._optimizer,
-                            "scaler": scaler,
-                            "dim_red": self._dim_red if self._dim_red else None,
-                            "reduction_params": reduction_params,
-                            "dimensions": dimension,
-                            "embeddings": embeddings,
-                            "n_clusters": n_clusters,
-                            "params": str(params),
-                            "centers": centers,
-                            "labels": labels,
-                            "label_counter": label_counter,
-                            "noise_not_noise": noise_not_noise,
-                            "silhouette_noise_ratio": silhouette_noise_ratio,
-                            "penalty": None,
-                            "penalty_range": None,
-                            "value_w_penalty": None,
-                            "value_w/o_penalty": score
-                        })
-
-            # Store results in CSV and pickle
-            logger.info(f"ENDING EXPERIMENT...STORING RESULTS.")
-            results_df = pd.DataFrame(results)
-            results_df.to_csv(self._result_path_csv, sep=";")
-            self._results_df = results_df
-            pickle.dump(results_df, open(self._result_path_pkl, "wb"))
-            logger.info("Results saved.")
-            logger.info(f"EXPERIMENT ENDED.")
+        self.store_results(results)
 
 
 
