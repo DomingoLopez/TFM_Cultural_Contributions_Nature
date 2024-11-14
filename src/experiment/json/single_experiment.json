@@ -3,7 +3,7 @@
         "id": 1,
         "optimizer" : "optuna",
         "normalization": true,
-        "scalers" : null,
+        "scaler" : null,
         "dim_red" : "umap",
         "reduction_parameters": {
             "metric": ["euclidean","cosine"],

@@ -3,7 +3,7 @@
         "id": 1,
         "optimizer" : "optuna",
         "normalization": true,
-        "scalers" : null,
+        "scaler" : null,
         "dim_red" : "umap",
         "reduction_parameters": {
             "metric": ["euclidean","cosine"],
@@ -21,7 +21,7 @@
         "id": 2,
         "optimizer" : "optuna",
         "normalization": true,
-        "scalers" : null,
+        "scaler" : null,
         "dim_red" : null,
         "reduction_parameters": null,
         "clustering" : "hdbscan",
@@ -34,7 +34,7 @@
         "id": 3,
         "optimizer" : "optuna",
         "normalization": false,
-        "scalers" : "standard",
+        "scaler" : null,
         "dim_red" : "umap",
         "reduction_parameters": {
             "metric": ["euclidean","cosine"],
@@ -51,8 +51,26 @@
     {
         "id": 4,
         "optimizer" : "optuna",
+        "normalization": false,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,5,7,9,11,13,15],
+            "n_neighbors": [2, 5, 10, 15, 20, 50, 100, 200],
+            "min_dist": [0.0, 0.1, 0.25, 0.5, 0.8, 0.99]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {
+        "id": 5,
+        "optimizer" : "optuna",
         "normalization": true,
-        "scalers" : "standard",
+        "scaler" : "standard",
         "dim_red" : "umap",
         "reduction_parameters": {
             "metric": ["euclidean","cosine"],
