@@ -33,16 +33,15 @@ class ClusteringPlot():
         self.experiment = experiment
 
         # Common attrs
-        self.string_silhouette = "best_value_w/o_penalty" if self.experiment.optimizer == "optuna" else "value_w/o_penalty"
-
-        
+        self.string_silhouette = self.experiment.optimizer
         # Dirs and files
-        self.main_plot_dir = Path(__file__).resolve().parent / \
-                                f"plots/{self.experiment.clustering}" / \
-                                ("optuna" if self.experiment.optimizer == "optuna" else "gridsearch") / \
-                                f"dim_red_{self.experiment.dim_reduction}/{self.experiment.eval_method}_penalty_{self.experiment.penalty}" 
+        self.main_plot_dir = (
+                    Path(__file__).resolve().parent 
+                    / f"plots/{self.experiment.clustering}/{self.experiment.eval_method}" 
+                    / f"{self.experiment.id}"
+        )
         os.makedirs(self.main_plot_dir, exist_ok=True)
-
+        
     
     
     def add_path_type(self,type):
@@ -78,12 +77,20 @@ class ClusteringPlot():
         pd.Series
             The row in the DataFrame corresponding to the best experiment.
         """
+        # First of all, filter those with cluster number less than 10 for example
+        # This should be an input parameter 
+        filtered_df = self.experiment.results_df[self.experiment.results_df["n_clusters"] > 10]
+        
+        if filtered_df.empty:
+            raise ValueError("No experiments found with more than 10 clusters.")
+    
         if experiment_type == "best":
-            return self.experiment.results_df.loc[self.experiment.results_df[self.string_silhouette].idxmax()]
+            return filtered_df.loc[filtered_df[self.string_silhouette].idxmax()]
         elif experiment_type == "silhouette_noise_ratio":
-            return self.experiment.results_df.loc[self.experiment.results_df["silhouette_noise_ratio"].idxmax()]
+            return filtered_df.loc[filtered_df["silhouette_noise_ratio"].idxmax()]
         else:
             raise ValueError("Invalid experiment type. Choose 'best' or 'silhouette_noise_ratio'.")
+
 
 
     
