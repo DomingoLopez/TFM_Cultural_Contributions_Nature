@@ -2,7 +2,7 @@ from pathlib import Path
 import pickle
 import shutil
 import pandas as pd
-#from transformers import LlavaProcessor, LlavaForConditionalGeneration
+from transformers import LlavaProcessor, LlavaForConditionalGeneration
 import torch
 from PIL import Image
 import requests

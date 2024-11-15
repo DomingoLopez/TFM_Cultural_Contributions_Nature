@@ -10,6 +10,7 @@ from loguru import logger
 
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import cosine_similarity
+from tqdm import tqdm
 from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering.clustering_model import ClusteringModel
 from src.preprocess.preprocess import Preprocess
@@ -76,7 +77,7 @@ class Trial():
 
     def get_experiment_name(self):
 
-        return f"{self.clustering}_{self.optimization}_{self.dimensions}_dims_{self.dim_Red}_{round(self.trial_result.get('score_w/o_penalty') * 100):03d}"
+        return f"{self.clustering}_{self.optimization}_{self.dimensions}_dims_{self.dim_red}_{round(self.trial_result.get('score_w/o_penalty') * 100):03d}"
 
 
 
@@ -106,7 +107,7 @@ class Trial():
             # )
             used_metric = "euclidean"
             
-            for idx, centroid in enumerate(self.centers):
+            for idx, centroid in enumerate(tqdm(self.centers, desc="Processing cluster dirs (knn images selected)")):
                 # Filter points based on label mask over embeddings
                 cluster_points = self.embeddings.values[labels == idx]
                 cluster_images = [self.images[i] for i in range(len(self.images)) if labels[i] == idx]
@@ -124,7 +125,7 @@ class Trial():
             cluster_images_dict[-1] = [self.images[i] for i in range(len(self.images)) if labels[i] == -1]
             
         else:
-            for i, label in enumerate(labels):
+            for i, label in enumerate(tqdm(labels, desc="Processing cluster dirs")):
                 if label not in cluster_images_dict:
                     cluster_images_dict[label] = []
                 cluster_images_dict[label].append(self.images[i])

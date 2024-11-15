@@ -95,19 +95,39 @@ class ExperimentResultController():
 
 
 
-    def get_top_k_experiments(self, top_k: int, min_n_cluster: int, min_dimension: int, use_score_noise_ratio: bool) -> pd.DataFrame:
+    def get_top_k_experiments(self, top_k: int, 
+                              min_n_cluster: int, 
+                              max_n_cluster:int, 
+                              min_dimension: int, 
+                              max_dimension:int, 
+                              use_score_noise_ratio: bool) -> pd.DataFrame:
         """
         Returns the top_k experiments based on the specified criteria.
 
         Parameters:
             top_k (int): Number of top experiments to return.
             min_n_cluster (int): Minimum number of clusters.
+            max_n_cluster (int): Maximum number of clusters.
             min_dimension (int): Minimum dimension for reduced data.
-            best_silhouette_noise_ratio (bool): If True, sort by silhouette_noise_ratio; otherwise, sort by best_value_w/o_penalty.
+            max_dimension (int): Maximum dimension for reduced data.
+            use_score_noise_ratio (bool): If True, sort by score_noise_ratio; otherwise, sort by score_w/o_penalty.
 
         Returns:
             pd.DataFrame: Filtered DataFrame with the top_k experiments.
         """
+        
+        # Validate min_n_cluster and max_n_cluster
+        if min_n_cluster < 2 or max_n_cluster > 800:
+            raise ValueError("min_n_cluster must be >= 2 and max_n_cluster must be <= 800.")
+        if min_n_cluster > max_n_cluster:
+            raise ValueError("min_n_cluster cannot be greater than max_n_cluster.")
+        
+        # Validate min_dimension and max_dimension
+        if min_dimension < 2 or max_dimension > 20:
+            raise ValueError("min_dimension must be >= 2 and max_dimension must be <= 20.")
+        if min_dimension > max_dimension:
+            raise ValueError("min_dimension cannot be greater than max_dimension.") 
+        
         # Verify df is loaded
         if self.results_df is None:
             logger.warning("No experiments loaded. Returning an empty DataFrame.")
@@ -116,7 +136,9 @@ class ExperimentResultController():
         # Filter dataframe
         filtered_df = self.results_df[
             (self.results_df['n_clusters'] >= min_n_cluster) & 
-            (self.results_df['dimensions'] >= min_dimension)
+            (self.results_df['n_clusters'] <= max_n_cluster) &
+            (self.results_df['dimensions'] >= min_dimension) & 
+            (self.results_df['dimensions'] <= max_dimension)
         ]
 
         # Determine sorting column and order based on eval_method
@@ -129,6 +151,7 @@ class ExperimentResultController():
 
         # Sort the DataFrame
         sorted_df = filtered_df.sort_values(by=sort_column, ascending=ascending_order)
+
         # Select the top_k experiments
         top_k_df = sorted_df.head(top_k)
         
@@ -156,10 +179,13 @@ class ExperimentResultController():
             raise ValueError("No experiments found.")
 
         if (use_score_noise_ratio):
-            return filtered_df.loc[filtered_df["score_noise_ratio"].idxmax()] if self.eval_method == "silhouette" else filtered_df.loc[filtered_df["score_noise_ratio"].idxmin()]
+            df = filtered_df.loc[filtered_df["score_noise_ratio"].idxmax()] if self.eval_method == "silhouette" else filtered_df.loc[filtered_df["score_noise_ratio"].idxmin()]
+            logger.info(f"Selected experiment with score/noise ratio: {df["score_noise_ratio"]}")
         else:
-            return filtered_df.loc[filtered_df["score_w/o_penalty"].idxmax()] if self.eval_method == "silhouette" else filtered_df.loc[filtered_df["score_w/o_penalty"].idxmin()]
-
+            df = filtered_df.loc[filtered_df["score_w/o_penalty"].idxmax()] if self.eval_method == "silhouette" else filtered_df.loc[filtered_df["score_w/o_penalty"].idxmin()]
+            logger.info(f"Selected experiment with score: {df["score_w/o_penalty"]}")
+            
+        return df
 
 
     def show_best_silhouette(self, experiments = None, use_score_noise_ratio=True, show_all=False, top_n=25, min_clusters=50, show_cluster_index=False, show_plots=False):

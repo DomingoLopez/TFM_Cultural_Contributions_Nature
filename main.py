@@ -127,7 +127,16 @@ if __name__ == "__main__":
     # - Plots from experiments 
     # DOING IT RIGHT NOW - EXPERIMENTRESULTCONTROLLER
     use_score_noise_ratio = True
-    experiments_filtered = experiment_results.get_top_k_experiments(20, 30, 2, use_score_noise_ratio = use_score_noise_ratio)
+    experiments_filtered = experiment_results.get_top_k_experiments(top_k=20, min_n_cluster=30, max_n_cluster=200, min_dimension=2, max_dimension=20, use_score_noise_ratio = use_score_noise_ratio)
+    # TODO: ALLOW OPTUNA TRIALS IN EXPERIMENT. SET DEFAULT PARAMS FOR UMAP N_NEIG = 15, MIN_DIST = 0.1. N_COMPONENTS TRY SOME,
+    # BUT MOST IMPORTANT. INCREASE OPTUNA TRIALS. 
+    
+    
+    # TODO. Allow filters on UMAP parameters,
+    # n_neighbors = 15 an bigger (default) - This means that low values of n_neighbors will force UMAP to concentrate on very local structure (potentially to the detriment of the big picture), while large values will push UMAP to look at larger neighborhoods of each point when estimating the manifold structure of the data, losing fine detail structure for the sake of getting the broader of the data.
+    # min_dist = This means that low values of min_dist will result in clumpier embeddings. This can be useful if you are interested in clustering, or in finer topological structure. Larger values of min_dist will prevent UMAP from packing points together and will focus on the preservation of the broad topological structure instead.
+    # TRY MORE DIMENSIONS from 20 to 
+    
     experiment_results.show_best_silhouette(experiments = experiments_filtered, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
     experiment_results.show_best_scatter(experiments = experiments_filtered, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
     # experiment_results.show_best_scatter_with_centers(experiment="silhouette_noise_ratio",show_plots=False)
