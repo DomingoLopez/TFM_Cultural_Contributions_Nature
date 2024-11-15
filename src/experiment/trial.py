@@ -36,11 +36,15 @@ class Trial():
             verbose (bool): If True, enables verbose logging.
             **kwargs: Additional keyword arguments.
         """
+        
         # Setup attrs
         # clustering
+        # eval_method
         # optimization
+        # normalization
         # scaler
-        # dim_reduction
+        # dim_red
+        # reduction_params
         # dimensions
         # embeddings
         # n_clusters
@@ -49,11 +53,11 @@ class Trial():
         # labels
         # label_counter
         # noise_not_noise
-        # silhouette_noise_ratio
+        # score_noise_ratio
         # penalty
         # penalty_range
-        # best_value_w_penalty
-        # best_value_w/o_penalty
+        # score_w_penalty
+        # score_w/o_penalty
 
         self.trial_result = trial_result
         self.images = images
@@ -72,7 +76,7 @@ class Trial():
 
     def get_experiment_name(self):
 
-        return f"{self.clustering}_{self.optimization}_{self.dimensions}_dims_{self.dim_reduction}_{round(self.trial_result.get('best_value_w/o_penalty') * 100):03d}"
+        return f"{self.clustering}_{self.optimization}_{self.dimensions}_dims_{self.dim_Red}_{round(self.trial_result.get('score_w/o_penalty') * 100):03d}"
 
 
 

@@ -4,12 +4,15 @@ import os
 from pathlib import Path
 import pickle
 import sys
+from matplotlib.colors import ListedColormap
+import seaborn as sns
 from typing import Optional
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 from loguru import logger
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from sklearn.metrics import davies_bouldin_score, silhouette_samples, silhouette_score
 from sklearn.datasets import make_blobs
 from src.clustering.clustering_factory import ClusteringFactory
@@ -61,7 +64,6 @@ class ExperimentResultController():
         """
         experiment_files = Path(self.results_dir).rglob("*.pkl")
         experiments = []
-        print(experiment_files)
         for file in experiment_files:
             try:
                 with open(file, "rb") as f:
@@ -133,7 +135,7 @@ class ExperimentResultController():
         return top_k_df
 
 
-    def __get_best_experiment_data(self, filtered_df, use_score_noise_ratio):
+    def get_best_experiment_data(self, filtered_df, use_score_noise_ratio):
         """
         Helper function to get the best experiment based on `experiment_type`.
 
@@ -183,7 +185,7 @@ class ExperimentResultController():
             return
 
         # Get the experiment data based on the specified `experiment` type
-        best_experiment = self.__get_best_experiment_data(experiments, use_score_noise_ratio)
+        best_experiment = self.get_best_experiment_data(experiments, use_score_noise_ratio)
  
         # Extract information for the best configuration
         best_labels = best_experiment['labels']
@@ -266,27 +268,35 @@ class ExperimentResultController():
 
 
 
-    def show_best_scatter(self,  experiments = None, use_score_noise_ratio=True, show_all=False):
+    def show_best_scatter(self,  experiments = None, use_score_noise_ratio=True, show_all=False, show_plots=False):
         """
         Plots a 2D scatter plot for the best experiment configuration, with clusters reduced 
         to 2D space using PCA and color-coded for better visual distinction. Points labeled 
         as noise (-1) are always shown in red.
         """
         
+        experiments = experiments if experiments is not None else self.results_df
+        # Check if results_df contains results
+        if experiments is None or experiments.empty:
+            logger.warning("No results found in the experiment DataFrame.")
+            return
         # Get the experiment data based on the specified `experiment` type
-        best_experiment = self.__get_best_experiment_data(experiments)
+        best_experiment = self.get_best_experiment_data(experiments, use_score_noise_ratio)
+        
         best_labels = np.array(best_experiment['labels'])
         optimizer = best_experiment['optimization']
+        clustering = best_experiment['clustering']
         scaler = best_experiment['scaler']
         dim_red = best_experiment['dim_red']
         dimensions = best_experiment['dimensions']
         params = best_experiment['best_params']
+        embeddings = best_experiment['embeddings']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
 
 
         # TODO THIS
         # Get data reduced from eda object
-        data = self.experiment.eda.check_reduced_exists_cache(scaler, dim_reduction, dimensions).values
+        data = embeddings.values
 
         # Check if reduction is needed
         if data.shape[1] > 2:
@@ -316,7 +326,7 @@ class ExperimentResultController():
         plt.colorbar(scatter, spacing="proportional", ticks=np.linspace(0, cluster_count, num=10))
         
         plt.title(f"Scatter Plot of Best Experiment - {optimizer} (Noise in Red, Clusters in 2D PCA) \n\n"
-                f"Clustering: {self.experiment.clustering} - Dim Reduction: {dim_reduction} - Dimensions: {dimensions}\n"
+                f"Clustering: {clustering} - Dim Reduction: {dim_red} - Dimensions: {dimensions}\n"
                 f"Params: {params}\n"
                 )
         plt.xlabel("PCA Component 1")
@@ -325,12 +335,12 @@ class ExperimentResultController():
         plt.legend(loc='upper right')
 
         # Save and show plot
-        file_suffix = "best_experiment_scatter" if experiment == "best" else "sil_noise_ratio_experiment_scatter"
-        plt.savefig(self.add_path_type(file_suffix), bbox_inches='tight')
+        file_suffix = "best_scatter" if use_score_noise_ratio else "best_scatter_noise_ratio"
+        file_path = os.path.join(self.plot_dir, f"{file_suffix}.png")
+        plt.savefig(file_path, bbox_inches='tight')
         if show_plots:
             plt.show()
-        logger.info(f"Scatter plot generated for the selected experiment ({experiment}).")
-
+        logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
 
 
 
