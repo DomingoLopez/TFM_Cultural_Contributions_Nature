@@ -59,30 +59,29 @@ class ExperimentResultController():
         Loads all experiment of given eval_method. It does not care if it is hdbscan, optuna, gridsearch,
         etc. We are gonna be loading the bests
         """
-        logger.info(f"LOADING ALL EXPERIMENTS OF EVAL METHOD {self.eval_method.upper()}")
-        
-        if self.eval_method not in ("silhouette", "davies_bouldin"):
-            raise ValueError("Eval method not supported")
-        
-        dataframes = []
-        for file_path in self.results_dir.rglob('*.pkl'):
-            if "silhouette" in file_path.parts:
-                with open(file_path, "rb") as file:
-                    try:
-                        df = pickle.load(file)
-                        # Ensure the DataFrame has the "eval_method" column and matches the specified method
-                        if df.get("eval_method") == self.eval_method:
-                            dataframes.append(df)
-                    except Exception as e:
-                        logger.warning(f"Could not load {file_path}: {e}")
+        experiment_files = Path(self.results_dir).rglob("*.pkl")
+        experiments = []
+        print(experiment_files)
+        for file in experiment_files:
+            try:
+                with open(file, "rb") as f:
+                    result = pickle.load(f)
+                    
+                # Check if the loaded result is a valid DataFrame
+                if isinstance(result, pd.DataFrame) and not result.empty:
+                    experiments.append(result)
+                else:
+                    logger.warning(f"Invalid or empty result file: {file}")
+            
+            except Exception as e:
+                logger.warning(f"Could not load {file}: {e}")
 
-        if dataframes:
-            merged_df = pd.concat(dataframes, ignore_index=True)
-            self.results_df = merged_df
-            logger.info("Experiments successfully loaded and merged.")
+        # Combine all valid results
+        if experiments:
+            self.results_df = pd.concat(experiments, ignore_index=True)
         else:
-            logger.info("No experiments found with the specified eval_method.")
-            self.results_df = None
+            self.results_df = pd.DataFrame()
+            logger.warning("No experiments found with the specified eval_method.")
 
 
 
@@ -94,7 +93,7 @@ class ExperimentResultController():
 
 
 
-    def get_top_k_experiments(self, top_k: int, min_n_cluster: int, min_dimension: int, best_silhouette_noise_ratio: bool) -> pd.DataFrame:
+    def get_top_k_experiments(self, top_k: int, min_n_cluster: int, min_dimension: int, use_score_noise_ratio: bool) -> pd.DataFrame:
         """
         Returns the top_k experiments based on the specified criteria.
 
@@ -118,19 +117,23 @@ class ExperimentResultController():
             (self.results_df['dimensions'] >= min_dimension)
         ]
 
-        # Ordena el DataFrame por la columna deseada
-        if best_silhouette_noise_ratio:
-            sorted_df = filtered_df.sort_values(by='silhouette_noise_ratio', ascending=False)
+        # Determine sorting column and order based on eval_method
+        if self.eval_method == "davies_bouldin":
+            sort_column = 'score_noise_ratio' if use_score_noise_ratio else 'score_w/o_penalty'
+            ascending_order = True  # Lower is better for davies_bouldin
         else:
-            sorted_df = filtered_df.sort_values(by='best_value_w/o_penalty', ascending=False)
+            sort_column = 'score_noise_ratio' if use_score_noise_ratio else 'score_w/o_penalty'
+            ascending_order = False  # Higher is better for silhouette
 
-        # Selecciona los top_k experimentos
+        # Sort the DataFrame
+        sorted_df = filtered_df.sort_values(by=sort_column, ascending=ascending_order)
+        # Select the top_k experiments
         top_k_df = sorted_df.head(top_k)
-
+        
         return top_k_df
 
 
-    def get_experiment_data(self, filtered_df, experiment_type):
+    def __get_best_experiment_data(self, filtered_df, use_score_noise_ratio):
         """
         Helper function to get the best experiment based on `experiment_type`.
 
@@ -150,18 +153,14 @@ class ExperimentResultController():
         if filtered_df.empty:
             raise ValueError("No experiments found.")
 
-        if experiment_type == "best":
-            return filtered_df.loc[filtered_df[self.string_silhouette].idxmax()]
-        elif experiment_type == "silhouette_noise_ratio":
-            return filtered_df.loc[filtered_df["silhouette_noise_ratio"].idxmax()]
+        if (use_score_noise_ratio):
+            return filtered_df.loc[filtered_df["score_noise_ratio"].idxmax()] if self.eval_method == "silhouette" else filtered_df.loc[filtered_df["score_noise_ratio"].idxmin()]
         else:
-            raise ValueError("Invalid experiment type. Choose 'best' or 'silhouette_noise_ratio'.")
+            return filtered_df.loc[filtered_df["score_w/o_penalty"].idxmax()] if self.eval_method == "silhouette" else filtered_df.loc[filtered_df["score_w/o_penalty"].idxmin()]
 
 
 
-
-
-    def show_best_silhouette(self, experiment="best", show_all=False, top_n=15, min_clusters=30, show_cluster_index=False, show_plots=False):
+    def show_best_silhouette(self, experiments = None, use_score_noise_ratio=True, show_all=False, top_n=25, min_clusters=50, show_cluster_index=False, show_plots=False):
         """
         Displays the top `top_n` clusters with the highest silhouette average and the 
         `top_n` clusters with the lowest silhouette average, only if the total cluster 
@@ -175,61 +174,62 @@ class ExperimentResultController():
         min_clusters : int
             Minimum number of clusters required to apply filtering for the best and worst clusters.
         """
+        
+        experiments = experiments if experiments is not None else self.results_df
+        
         # Check if results_df contains results
-        if self.experiment.results_df is None or self.experiment.results_df.empty:
+        if experiments is None or experiments.empty:
             logger.warning("No results found in the experiment DataFrame.")
             return
 
         # Get the experiment data based on the specified `experiment` type
-        best_experiment = self.get_experiment_data(experiment)
+        best_experiment = self.__get_best_experiment_data(experiments, use_score_noise_ratio)
  
-
         # Extract information for the best configuration
         best_labels = best_experiment['labels']
+        clustering = best_experiment['clustering']
         scaler = best_experiment['scaler']
-        dim_reduction = best_experiment['dim_reduction']
+        dim_red = best_experiment['dim_red']
         dimensions = best_experiment['dimensions']
         params = best_experiment['best_params']
         optimizer = best_experiment['optimization']
-        original_silhouette_score = best_experiment[self.string_silhouette]
-        
-        # Get scaled and reduced data for the best configuration
-        scaled_data = self.experiment._eda.run_scaler(scaler)
-        reduced_data = self.experiment._eda.run_dim_red(
-            scaled_data, dimensions=dimensions, dim_reduction=dim_reduction, show_plots=False
-        )
+        original_score = best_experiment['score_w/o_penalty']
+        embeddings_used = best_experiment['embeddings']
 
-        # Exclude noise points with label -1
+
+
+        # Exclude noise points (label -1)
         non_noise_mask = best_labels != -1
         non_noise_labels = best_labels[non_noise_mask]
-        non_noise_data = reduced_data[non_noise_mask]
+        non_noise_data = embeddings_used[non_noise_mask]
 
-        # Calculate silhouette values for each non-noise point
+        # Calculate silhouette values for non-noise data
         silhouette_values = silhouette_samples(non_noise_data, non_noise_labels)
 
         # Calculate average silhouette per cluster
         unique_labels = np.unique(non_noise_labels)
         cluster_count = len(unique_labels)
 
-        # If there are `min_clusters` or fewer clusters, plot all clusters
+
+        # Select clusters to display based on min_clusters and top_n
         if cluster_count <= min_clusters or show_all:
-            logger.info(f"The number of clusters ({cluster_count}) is less than or equal to {min_clusters}. "
+            logger.info(f"The number of clusters ({cluster_count}) is less than or equal to {min_clusters} OR SHOW_ALL is set to True. "
                         "All clusters will be plotted.")
             selected_clusters = unique_labels
         else:
-            # Compute the average silhouette for each cluster
+            # Calculate silhouette averages for each cluster
             cluster_silhouette_means = {
                 label: silhouette_values[non_noise_labels == label].mean() for label in unique_labels
             }
 
-            # Select the top `top_n` clusters with the best and worst silhouette averages
+            # Select the top `top_n` clusters with best and worst silhouette averages
             top_clusters = sorted(cluster_silhouette_means, key=cluster_silhouette_means.get, reverse=True)[:top_n]
             bottom_clusters = sorted(cluster_silhouette_means, key=cluster_silhouette_means.get)[:top_n]
 
-            # Combine the top and bottom clusters and ensure uniqueness, ordering from lowest to highest silhouette
+            # Combine the top and bottom clusters
             selected_clusters = sorted(set(top_clusters + bottom_clusters), key=lambda label: cluster_silhouette_means[label])
 
-        # Generate the silhouette plot, ordered from lowest to highest average silhouette score
+        # Generate silhouette plot
         plt.figure(figsize=(10, 7))
         y_lower = 10
         for i, label in enumerate(selected_clusters):
@@ -238,29 +238,97 @@ class ExperimentResultController():
             size_cluster_i = ith_cluster_silhouette_values.shape[0]
             y_upper = y_lower + size_cluster_i
 
-            plt.fill_betweenx(np.arange(y_lower, y_upper), 0, ith_cluster_silhouette_values, alpha=0.7)
-            # Show cluster index if specified
+            plt.fill_betweenx(np.arange(y_lower, y_upper), 0, ith_cluster_silhouette_values, alpha=0.7, label=f"Cluster {label}")
             if show_cluster_index:
                 plt.text(-0.05, y_lower + 0.5 * size_cluster_i, str(label))
-
             y_lower = y_upper + 10
 
-        # Add a vertical line for the original silhouette score from the experiment
-        plt.axvline(x=original_silhouette_score, color="red", linestyle="--", label=f"Original Silhouette Score: {original_silhouette_score:.2f}")
+        # Add a vertical line for the original silhouette score
+        plt.axvline(x=original_score, color="red", linestyle="--", label=f"Original Score: {original_score:.2f}")
         plt.xlabel("Silhouette Coefficient")
         plt.ylabel("Cluster Index")
-        plt.title(f"Silhouette Coefficient Plot for Best Configuration {optimizer}\n\n"
-                f"Clustering: {self.experiment.clustering} - Dimensionality Reduction: {dim_reduction} - Dimensions: {dimensions}\n"
-                f"Params: {params}\n"
-                )
+        plt.title(f"Silhouette Plot for Best Configuration {optimizer}\n"
+                f"Clustering: {clustering} | Dim Reduction: {dim_red} | Dimensions: {dimensions}\n"
+                f"Params: {params}")
         plt.legend()
 
         # Save the plot
-        file_suffix = "best_trial_silhouette" if experiment == "best" else "sil_noise_ratio_trial_silhouette"
-        plt.savefig(self.add_path_type(file_suffix), bbox_inches='tight')
+        file_suffix = "best_silhouette" if use_score_noise_ratio else "silhouette_noise_ratio"
+        file_path = os.path.join(self.plot_dir, f"{file_suffix}.png")
+        plt.savefig(file_path, bbox_inches='tight')
         if show_plots:
             plt.show()
 
+        logger.info(f"Silhouette plot saved to {file_path}.")
+
+
+
+
+
+
+    def show_best_scatter(self,  experiments = None, use_score_noise_ratio=True, show_all=False):
+        """
+        Plots a 2D scatter plot for the best experiment configuration, with clusters reduced 
+        to 2D space using PCA and color-coded for better visual distinction. Points labeled 
+        as noise (-1) are always shown in red.
+        """
+        
+        # Get the experiment data based on the specified `experiment` type
+        best_experiment = self.__get_best_experiment_data(experiments)
+        best_labels = np.array(best_experiment['labels'])
+        optimizer = best_experiment['optimization']
+        scaler = best_experiment['scaler']
+        dim_red = best_experiment['dim_red']
+        dimensions = best_experiment['dimensions']
+        params = best_experiment['best_params']
+        cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
+
+
+        # TODO THIS
+        # Get data reduced from eda object
+        data = self.experiment.eda.check_reduced_exists_cache(scaler, dim_reduction, dimensions).values
+
+        # Check if reduction is needed
+        if data.shape[1] > 2:
+            # Reduce dimensions with PCA
+            pca = PCA(n_components=2, random_state=42)
+            reduced_data = pca.fit_transform(data)
+        else:
+            # Use the data directly if already 2D
+            reduced_data = data
+
+        # Define colormap for clusters and manually assign red for noise
+        colors = sns.color_palette("viridis", cluster_count)
+        cmap = ListedColormap(colors)
+        
+        plt.figure(figsize=(12, 9))
+        
+        # Plot noise points (label -1) in red
+        noise_points = reduced_data[best_labels == -1]
+        plt.scatter(noise_points[:, 0], noise_points[:, 1], c='red', s=10, alpha=0.6, label="Noise (-1)")
+        
+        # Plot cluster points
+        cluster_points = reduced_data[best_labels != -1]
+        cluster_labels = best_labels[best_labels != -1]
+        scatter = plt.scatter(cluster_points[:, 0], cluster_points[:, 1], c=cluster_labels, cmap=cmap, s=10, alpha=0.6)
+
+        # Add colorbar if useful to distinguish clusters
+        plt.colorbar(scatter, spacing="proportional", ticks=np.linspace(0, cluster_count, num=10))
+        
+        plt.title(f"Scatter Plot of Best Experiment - {optimizer} (Noise in Red, Clusters in 2D PCA) \n\n"
+                f"Clustering: {self.experiment.clustering} - Dim Reduction: {dim_reduction} - Dimensions: {dimensions}\n"
+                f"Params: {params}\n"
+                )
+        plt.xlabel("PCA Component 1")
+        plt.ylabel("PCA Component 2")
+        plt.grid(True, alpha=0.3)
+        plt.legend(loc='upper right')
+
+        # Save and show plot
+        file_suffix = "best_experiment_scatter" if experiment == "best" else "sil_noise_ratio_experiment_scatter"
+        plt.savefig(self.add_path_type(file_suffix), bbox_inches='tight')
+        if show_plots:
+            plt.show()
         logger.info(f"Scatter plot generated for the selected experiment ({experiment}).")
 
 

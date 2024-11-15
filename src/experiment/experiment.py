@@ -246,10 +246,18 @@ class Experiment():
                 -1: label_counter.get(-1, 0),
                 1: sum(v for k, v in label_counter.items() if k != -1)
             }
-            silhouette_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
+            # Depending on eval_method type
+            if self._eval_method == "silhouette":
+                score_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
+            elif self._eval_method == "davies_bouldin":
+                score_noise_ratio = (noise_not_noise.get(-1) + 1) / score_best
+            else:
+                raise ValueError(f"Unsupported evaluation method: {self._eval_method}")
+            
             # Append results
             results.append({
                 "clustering": self._clustering,
+                "eval_method": self._eval_method,
                 "optimization": self._optimizer,
                 "normalization": self._normalization,
                 "scaler": self._scaler,
@@ -263,11 +271,11 @@ class Experiment():
                 "labels": labels_best,
                 "label_counter": label_counter,
                 "noise_not_noise": noise_not_noise,
-                "silhouette_noise_ratio": silhouette_noise_ratio,
+                "score_noise_ratio": score_noise_ratio,
                 "penalty": self._penalty,
                 "penalty_range": self._penalty_range if self._penalty is not None else None,
-                "best_value_w_penalty": study.best_value,
-                "best_value_w/o_penalty": score_best
+                "score_w_penalty": study.best_value,
+                "score_w/o_penalty": score_best
             })
 
         self.store_results(results)
@@ -364,10 +372,18 @@ class Experiment():
                 -1: label_counter.get(-1, 0),
                 1: sum(v for k, v in label_counter.items() if k != -1)
             }
-            silhouette_noise_ratio = best_score_curr / (noise_not_noise.get(-1) + 1)
+            
+            # Depending on eval_method type
+            if self._eval_method == "silhouette":
+                score_noise_ratio = best_score_curr / (noise_not_noise.get(-1) + 1)
+            elif self._eval_method == "davies_bouldin":
+                score_noise_ratio = (noise_not_noise.get(-1) + 1) / best_score_curr
+            else:
+                raise ValueError(f"Unsupported evaluation method: {self._eval_method}")
             
             results.append({
             "clustering": self._clustering,
+            "eval_method": self._eval_method,
             "optimization": self._optimizer,
             "normalization": self._normalization,
             "scaler": self._scaler,
@@ -381,11 +397,11 @@ class Experiment():
             "labels": labels,
             "label_counter": label_counter,
             "noise_not_noise": noise_not_noise,
-            "silhouette_noise_ratio": silhouette_noise_ratio,
+            "score_noise_ratio": score_noise_ratio,
             "penalty": self._penalty,
             "penalty_range": self._penalty_range if self._penalty is not None else None,
-            "best_value_w_penalty": None,
-            "best_value_w/o_penalty": best_score_curr
+            "score_w_penalty": None,
+            "score_w/o_penalty": best_score_curr
             })
             
             

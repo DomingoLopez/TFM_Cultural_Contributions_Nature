@@ -100,16 +100,6 @@ def run_experiments(file, embeddings) -> None:
             cache
         )
         experiment.run_experiment()
-        # if experiment.eval_method == "silhouette":
-        #     plot = ClusteringPlot(experiment=experiment)
-        #     plot.show_best_silhouette(experiment="silhouette_noise_ratio", show_all=True, show_plots=False)
-        #     plot.show_best_scatter(experiment="silhouette_noise_ratio",show_plots=False)
-        #     plot.show_best_scatter_with_centers(experiment="silhouette_noise_ratio",show_plots=False)
-        #     plot.show_best_clusters_counters_comparision(experiment="silhouette_noise_ratio",show_plots=False)
-        #     plot.show_top_noise_silhouette(priority="eval_method", show_plots=False)
-        #     plot.show_top_noise_silhouette(priority="noise", show_plots=False)
-        #     plot.show_top_silhouette_noise_ratio(show_plots=False)
-
 
 # Copy files to ngpu
 # rsync -av --exclude='.git' 1_TFM xxxx.xx.es:/mnt/homeGPU/dlopez
@@ -136,34 +126,45 @@ if __name__ == "__main__":
     # - Get selected trial. 
     # - Plots from experiments 
     # DOING IT RIGHT NOW - EXPERIMENTRESULTCONTROLLER
+    use_score_noise_ratio = True
+    experiments_filtered = experiment_results.get_top_k_experiments(20, 30, 2, use_score_noise_ratio = use_score_noise_ratio)
+    experiment_results.show_best_silhouette(experiments = experiments_filtered, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
+    
+    # experiment_results.show_best_scatter(experiment="silhouette_noise_ratio",show_plots=False)
+    # experiment_results.show_best_scatter_with_centers(experiment="silhouette_noise_ratio",show_plots=False)
+    # experiment_results.show_best_clusters_counters_comparision(experiment="silhouette_noise_ratio",show_plots=False)
+    # experiment_results.show_top_noise_silhouette(priority="eval_method", show_plots=False)
+    # experiment_results.show_top_noise_silhouette(priority="noise", show_plots=False)
+    # experiment_results.show_top_silhouette_noise_ratio(show_plots=False)
 
-    # Now select trial to study and generate images from
+
+    # # Now select trial to study and generate images from
     
-    # Filter results in order to reduce things like n_clusters = 2, etc
-    # We could apply more filters
-    filtered_experiment_result = experiment_result[experiment_result["n_clusters"] > 10]
-    # Load experiment trial ir order to get all params used
-    # We will use máx silhouett
-    max_row = filtered_experiment_result.loc[filtered_experiment_result["sil"].idxmax()]
-    trial_result = dict(max_row)
-    trial = Trial(images, trial_result)
+    # # Filter results in order to reduce things like n_clusters = 2, etc
+    # # We could apply more filters
+    # filtered_experiment_result = experiment_result[experiment_result["n_clusters"] > 10]
+    # # Load experiment trial ir order to get all params used
+    # # We will use máx silhouett
+    # max_row = filtered_experiment_result.loc[filtered_experiment_result["sil"].idxmax()]
+    # trial_result = dict(max_row)
+    # trial = Trial(images, trial_result)
     
     
     
-    # 3. Assign each image to its corresponding label/cluster: format: {0: [path list], 1: [path:list], }, etc
-    # 3.1 ALTERNATIVE: Select 3 or 4 images from each cluster instead of all images format: {0: [path list], 1: [path:list], }, etc
-    cluster_images_dict = trial.get_cluster_images_dict(knn=None)
-    # 4. Process images to Llava-1.5 and see:
-    # 4.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
-    llava = LlavaInference(images_dict_format=cluster_images_dict, classification_lvl=3, experiment_name=trial.get_experiment_name())
-    llava.createClusterDirs()
-    # # 4.2 Upload those images to NGPU - UGR Gpus (start manually)
-    # # rsync -av llava_inference xxxx.xx.es:/mnt/homeGPU/dlopez
-    # # 4.3 Make LLava inference over those images (Start with Level 3 categorization). 
-    llava.run()
-    # # - See if all images from those clusters are classified in same category. Print succes ratio.
-    llava.create_results_stats()
-    llava.plot_cluster_categories()
+    # # 3. Assign each image to its corresponding label/cluster: format: {0: [path list], 1: [path:list], }, etc
+    # # 3.1 ALTERNATIVE: Select 3 or 4 images from each cluster instead of all images format: {0: [path list], 1: [path:list], }, etc
+    # cluster_images_dict = trial.get_cluster_images_dict(knn=None)
+    # # 4. Process images to Llava-1.5 and see:
+    # # 4.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
+    # llava = LlavaInference(images_dict_format=cluster_images_dict, classification_lvl=3, experiment_name=trial.get_experiment_name())
+    # llava.createClusterDirs()
+    # # # 4.2 Upload those images to NGPU - UGR Gpus (start manually)
+    # # # rsync -av llava_inference xxxx.xx.es:/mnt/homeGPU/dlopez
+    # # # 4.3 Make LLava inference over those images (Start with Level 3 categorization). 
+    # llava.run()
+    # # # - See if all images from those clusters are classified in same category. Print succes ratio.
+    # llava.create_results_stats()
+    # llava.plot_cluster_categories()
 
 
     # #   - Those clusters with bad or low success ratio, examine and plot embeddings and cluster silhouette
