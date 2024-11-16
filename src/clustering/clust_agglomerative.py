@@ -70,7 +70,7 @@ class AgglomerativeClusteringModel(ClusteringModel):
         """
          # Param/model builder for Agglomerative
         def model_builder(trial):
-            n_clusters = trial.suggest_int('n_clusters', 10, 60)
+            n_clusters = trial.suggest_int('n_clusters', 90, 300)
             linkage = trial.suggest_categorical('linkage', ['ward', 'complete', 'average', 'single'])
             metric = trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'cosine'])
             custom_metric = metric if linkage != "ward" else "euclidean"
