@@ -3,7 +3,7 @@ data/Data
 data/test
 
 /src/results
-
+*.pkl
 /src/llava_inference/cluster_images
 
 /trash/

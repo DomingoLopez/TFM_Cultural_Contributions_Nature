@@ -74,6 +74,7 @@ def run_experiments(file, embeddings) -> None:
     for config in experiments_config:
         id = config.get("id")
         optimizer = config.get("optimizer", "optuna")
+        optuna_trials = config.get("optuna_trials", None)
         normalization = config.get("normalization", True)
         scaler = config.get("scaler", None)
         dim_red = config.get("dim_red", None)
@@ -89,6 +90,7 @@ def run_experiments(file, embeddings) -> None:
             id,
             embeddings,
             optimizer,
+            optuna_trials,
             normalization,
             dim_red,
             reduction_parameters,
@@ -120,25 +122,26 @@ if __name__ == "__main__":
     # 2.2 Load all experiments of given eval method
     eval_method = "silhouette"
     experiment_results = ExperimentResultController(eval_method)
-    # Need an intermediate figure to load experiment Results where
-    # - I could load all results. 
-    # - Filter those im interested in
-    # - Get selected trial. 
-    # - Plots from experiments 
-    # DOING IT RIGHT NOW - EXPERIMENTRESULTCONTROLLER
+    # DESIRED FILTERS 
     use_score_noise_ratio = True
-    experiments_filtered = experiment_results.get_top_k_experiments(top_k=20, min_n_cluster=30, max_n_cluster=200, min_dimension=2, max_dimension=20, use_score_noise_ratio = use_score_noise_ratio)
-    # TODO: ALLOW OPTUNA TRIALS IN EXPERIMENT. SET DEFAULT PARAMS FOR UMAP N_NEIG = 15, MIN_DIST = 0.1. N_COMPONENTS TRY SOME,
-    # BUT MOST IMPORTANT. INCREASE OPTUNA TRIALS. 
-    
-    
-    # TODO. Allow filters on UMAP parameters,
-    # n_neighbors = 15 an bigger (default) - This means that low values of n_neighbors will force UMAP to concentrate on very local structure (potentially to the detriment of the big picture), while large values will push UMAP to look at larger neighborhoods of each point when estimating the manifold structure of the data, losing fine detail structure for the sake of getting the broader of the data.
-    # min_dist = This means that low values of min_dist will result in clumpier embeddings. This can be useful if you are interested in clustering, or in finer topological structure. Larger values of min_dist will prevent UMAP from packing points together and will focus on the preservation of the broad topological structure instead.
-    # TRY MORE DIMENSIONS from 20 to 
-    
-    experiment_results.show_best_silhouette(experiments = experiments_filtered, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
-    experiment_results.show_best_scatter(experiments = experiments_filtered, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
+    # The are range (from 2 to 15)
+    dim_red_params = {
+        "n_components": (2,15),
+        "n_neighbors": (15,50),
+        "min_dist": (0.1, 0.5)
+    }
+    n_cluster_range = (80,200)
+    experiments_filtered = experiment_results.get_top_k_experiments(top_k=20, 
+                                                                    n_cluster_range=n_cluster_range,
+                                                                    dim_red_params=dim_red_params,
+                                                                    use_score_noise_ratio = False)
+        
+    experiment_results.show_best_silhouette(experiments = experiments_filtered, 
+                                            use_score_noise_ratio=False, 
+                                            show_plots=False)
+    experiment_results.show_best_scatter(experiments = experiments_filtered, 
+                                         use_score_noise_ratio=False, 
+                                         show_plots=False)
     # experiment_results.show_best_scatter_with_centers(experiment="silhouette_noise_ratio",show_plots=False)
     # experiment_results.show_best_clusters_counters_comparision(experiment="silhouette_noise_ratio",show_plots=False)
     # experiment_results.show_top_noise_silhouette(priority="eval_method", show_plots=False)
@@ -150,10 +153,9 @@ if __name__ == "__main__":
     
     # Filter results in order to reduce things like n_clusters = 2, etc
     # We could apply more filters
-    best_experiment = experiment_results.get_best_experiment_data(experiments_filtered, use_score_noise_ratio)
+    best_experiment = experiment_results.get_best_experiment_data(experiments_filtered, use_score_noise_ratio=True)
     trial_result = dict(best_experiment)
     trial = Trial(images, trial_result)
-    
     
     # 3. Assign each image to its corresponding label/cluster: format: {0: [path list], 1: [path:list], }, etc
     # 3.1 ALTERNATIVE: Select 3 or 4 images from each cluster instead of all images format: {0: [path list], 1: [path:list], }, etc

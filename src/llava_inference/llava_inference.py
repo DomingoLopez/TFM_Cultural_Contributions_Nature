@@ -23,7 +23,7 @@ class LlavaInference():
     def __init__(self, 
                  images_dict_format: dict,
                  classification_lvl: str,
-                 experiment_name: str,
+                 experiment_id: str,
                  cache: bool = True, 
                  verbose: bool = False):
         """
@@ -35,8 +35,8 @@ class LlavaInference():
         """
         
         # Base dir for moving images from every cluster.
-        self.base_dir = Path(__file__).resolve().parent / "cluster_images/"
-        self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{classification_lvl}/{experiment_name}"
+        self.base_dir = Path(__file__).resolve().parent / f"cluster_images/experiment_{experiment_id}"
+        self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{classification_lvl}/experiment_{experiment_id}"
         self.results_object = self.results_dir / "result.pkl"
         self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
         
@@ -125,6 +125,11 @@ class LlavaInference():
             results = []
             print("Iniciando llava")
             
+
+# - Not valid: If the image does not have enough quality, is too blurry or noisy, and subsequently can not be properly interpreted, tag it as "Not a valid image"
+
+# - Not relevant: If the image can not be classified in any of the previous categories because it is not relevant for or related to the general topic of cultural ecosystem services or cultural nature contributions to people, tag it as "Not relevant".
+
             for cluster_name, image_paths in self.images_dict_format.items():
                 print(f"Cluster {cluster_name}. Imágenes: {len(image_paths)}")
                 for image_path in image_paths:

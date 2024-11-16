@@ -169,7 +169,7 @@ class ClusteringModel(ABC):
             
      
     
-    def run_optuna_generic(self, model_builder, evaluation_method="silhouette", n_trials=50, penalty="linear", penalty_range=(2,8)):
+    def run_optuna_generic(self, model_builder, evaluation_method="silhouette", n_trials=100, penalty="linear", penalty_range=(2,8)):
         """
         Generic Optuna optimization for clustering models with configurable penalty types.
 

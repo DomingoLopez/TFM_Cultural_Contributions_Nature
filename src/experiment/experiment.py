@@ -29,6 +29,7 @@ class Experiment():
                  id:int = 0,
                  data:pd.DataFrame = None, 
                  optimizer:str = "optuna",
+                 optuna_trials: int = 100,
                  normalization:bool = True,
                  dim_red:str = None, 
                  reduction_params:dict = None,
@@ -62,6 +63,7 @@ class Experiment():
         self._id = id
         self._data = data
         self._optimizer = optimizer
+        self._optuna_trials = optuna_trials
         self._normalization = normalization
         self._dim_red = dim_red
         self._reduction_params = reduction_params
@@ -115,6 +117,14 @@ class Experiment():
     @optimizer.setter
     def optimizer(self, value):
         self._optimizer = value
+
+    @property
+    def optuna_trials(self):
+        return self._optuna_trials
+
+    @optuna_trials.setter
+    def optuna_trials(self, value):
+        self._optuna_trials = value
 
     @property
     def normalization(self):
@@ -234,7 +244,7 @@ class Experiment():
             embeddings = self.__apply_preprocessing(reduction_params)
             clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
             study = clustering_model.run_optuna(
-                evaluation_method=self._eval_method, n_trials=100, penalty=self._penalty, penalty_range=self._penalty_range
+                evaluation_method=self._eval_method, n_trials=self._optuna_trials, penalty=self._penalty, penalty_range=self._penalty_range
             )
             best_trial = study.best_trial
             n_clusters_best = best_trial.user_attrs.get("n_clusters", None)
@@ -256,9 +266,11 @@ class Experiment():
             
             # Append results
             results.append({
+                "id": self._id,
                 "clustering": self._clustering,
                 "eval_method": self._eval_method,
                 "optimization": self._optimizer,
+                "optuna_trials": self._optuna_trials,
                 "normalization": self._normalization,
                 "scaler": self._scaler,
                 "dim_red": self._dim_red,
@@ -382,9 +394,11 @@ class Experiment():
                 raise ValueError(f"Unsupported evaluation method: {self._eval_method}")
             
             results.append({
+            "id": self._id,
             "clustering": self._clustering,
             "eval_method": self._eval_method,
             "optimization": self._optimizer,
+            "optuna_trials": self._optuna_trials,
             "normalization": self._normalization,
             "scaler": self._scaler,
             "dim_red": self._dim_red,

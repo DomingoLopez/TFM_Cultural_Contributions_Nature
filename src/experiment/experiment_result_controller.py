@@ -96,10 +96,8 @@ class ExperimentResultController():
 
 
     def get_top_k_experiments(self, top_k: int, 
-                              min_n_cluster: int, 
-                              max_n_cluster:int, 
-                              min_dimension: int, 
-                              max_dimension:int, 
+                              n_cluster_range: tuple,
+                              reduction_params: dict,
                               use_score_noise_ratio: bool) -> pd.DataFrame:
         """
         Returns the top_k experiments based on the specified criteria.
@@ -116,30 +114,43 @@ class ExperimentResultController():
             pd.DataFrame: Filtered DataFrame with the top_k experiments.
         """
         
-        # Validate min_n_cluster and max_n_cluster
+        # Validate n_cluster_range
+        min_n_cluster, max_n_cluster = n_cluster_range
         if min_n_cluster < 2 or max_n_cluster > 800:
-            raise ValueError("min_n_cluster must be >= 2 and max_n_cluster must be <= 800.")
+            raise ValueError("n_cluster_range values must be between 2 and 800.")
         if min_n_cluster > max_n_cluster:
             raise ValueError("min_n_cluster cannot be greater than max_n_cluster.")
         
-        # Validate min_dimension and max_dimension
-        if min_dimension < 2 or max_dimension > 20:
-            raise ValueError("min_dimension must be >= 2 and max_dimension must be <= 20.")
-        if min_dimension > max_dimension:
-            raise ValueError("min_dimension cannot be greater than max_dimension.") 
+        # Validate reduction_params
+        for key, value_range in reduction_params.items():
+            if not isinstance(value_range, tuple) or len(value_range) != 2:
+                raise ValueError(f"Parameter {key} in reduction_params must be a tuple (min, max).")
+            if value_range[0] > value_range[1]:
+                raise ValueError(f"Invalid range for {key}: {value_range}. Min cannot be greater than Max.")
+    
+            
+
+
         
         # Verify df is loaded
         if self.results_df is None:
             logger.warning("No experiments loaded. Returning an empty DataFrame.")
             return pd.DataFrame()
 
-        # Filter dataframe
+        # Filter dataframe based on cluster
         filtered_df = self.results_df[
             (self.results_df['n_clusters'] >= min_n_cluster) & 
-            (self.results_df['n_clusters'] <= max_n_cluster) &
-            (self.results_df['dimensions'] >= min_dimension) & 
-            (self.results_df['dimensions'] <= max_dimension)
+            (self.results_df['n_clusters'] <= max_n_cluster) 
         ]
+
+        # Filter by reduction params
+        for param, value_range in reduction_params.items():
+            min_val, max_val = value_range
+            filtered_df = filtered_df[
+                filtered_df['reduction_params'].apply(
+                    lambda params: param in params and min_val <= params[param] <= max_val
+                )
+            ]
 
         # Determine sorting column and order based on eval_method
         if self.eval_method == "davies_bouldin":
@@ -214,6 +225,8 @@ class ExperimentResultController():
         best_experiment = self.get_best_experiment_data(experiments, use_score_noise_ratio)
  
         # Extract information for the best configuration
+        best_id = best_experiment['id']
+        best_index = best_experiment.index
         best_labels = best_experiment['labels']
         clustering = best_experiment['clustering']
         scaler = best_experiment['scaler']
@@ -282,7 +295,7 @@ class ExperimentResultController():
 
         # Save the plot
         file_suffix = "best_silhouette" if use_score_noise_ratio else "silhouette_noise_ratio"
-        file_path = os.path.join(self.plot_dir, f"{file_suffix}.png")
+        file_path = os.path.join(self.plot_dir, best_id,f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
         plt.savefig(file_path, bbox_inches='tight')
         if show_plots:
             plt.show()
@@ -308,7 +321,8 @@ class ExperimentResultController():
             return
         # Get the experiment data based on the specified `experiment` type
         best_experiment = self.get_best_experiment_data(experiments, use_score_noise_ratio)
-        
+        best_index = best_experiment.index
+        best_id = best_experiment['id']
         best_labels = np.array(best_experiment['labels'])
         optimizer = best_experiment['optimization']
         clustering = best_experiment['clustering']
@@ -317,6 +331,7 @@ class ExperimentResultController():
         dimensions = best_experiment['dimensions']
         params = best_experiment['best_params']
         embeddings = best_experiment['embeddings']
+        original_score = best_experiment['score_w/o_penalty']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
 
 
@@ -362,8 +377,9 @@ class ExperimentResultController():
 
         # Save and show plot
         file_suffix = "best_scatter" if use_score_noise_ratio else "best_scatter_noise_ratio"
-        file_path = os.path.join(self.plot_dir, f"{file_suffix}.png")
+        file_path = os.path.join(self.plot_dir, best_id,f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
         plt.savefig(file_path, bbox_inches='tight')
+
         if show_plots:
             plt.show()
         logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")

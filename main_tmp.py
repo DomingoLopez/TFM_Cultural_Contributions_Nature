@@ -42,18 +42,14 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 if __name__ == "__main__":
     
     # Cargar el archivo
-    with open("src/experiment/results/1/silhouette/result.pkl", "rb") as f:
+    with open("src/experiment/results/3/silhouette/result.pkl", "rb") as f:
         result = pickle.load(f)
     
-    result = result.rename(columns={
-        "silhouette_noise_ratio": "score_noise_ratio",
-        "best_value_w_penalty": "score_w_penalty",
-        "best_value_w/o_penalty": "score_w/o_penalty"
-    })
+
     
     # Añadir la columna eval_method después de clustering
-    result.insert(result.columns.get_loc("clustering") + 1, "eval_method", "silhouette")
+    result.insert(0, "id", 3)
     
-    result.to_csv("src/experiment/results/1/silhouette/result.csv", sep=";")
-    pickle.dump(result, open(str("src/experiment/results/1/silhouette/result.pkl"), "wb"))    
+    result.to_csv("src/experiment/results/3/silhouette/result.csv", sep=";")
+    pickle.dump(result, open(str("src/experiment/results/3/silhouette/result.pkl"), "wb"))    
         
