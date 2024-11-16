@@ -191,10 +191,10 @@ class ExperimentResultController():
 
         if (use_score_noise_ratio):
             df = filtered_df.loc[filtered_df["score_noise_ratio"].idxmax()] if self.eval_method == "silhouette" else filtered_df.loc[filtered_df["score_noise_ratio"].idxmin()]
-            logger.info(f"Selected experiment with score/noise ratio: {df["score_noise_ratio"]}")
+            logger.info(f"Selected experiment with score/noise ratio: {df['score_noise_ratio']}")
         else:
             df = filtered_df.loc[filtered_df["score_w/o_penalty"].idxmax()] if self.eval_method == "silhouette" else filtered_df.loc[filtered_df["score_w/o_penalty"].idxmin()]
-            logger.info(f"Selected experiment with score: {df["score_w/o_penalty"]}")
+            logger.info(f"Selected experiment with score: {df['score_w/o_penalty']}")
             
         return df
 
@@ -226,7 +226,7 @@ class ExperimentResultController():
  
         # Extract information for the best configuration
         best_id = best_experiment['id']
-        best_index = best_experiment.index
+        best_index = best_experiment.index[0] if hasattr(best_experiment.index, '__iter__') else best_experiment.index
         best_labels = best_experiment['labels']
         clustering = best_experiment['clustering']
         scaler = best_experiment['scaler']
@@ -295,7 +295,8 @@ class ExperimentResultController():
 
         # Save the plot
         file_suffix = "best_silhouette" if use_score_noise_ratio else "silhouette_noise_ratio"
-        file_path = os.path.join(self.plot_dir, best_id,f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        file_path = os.path.join(self.plot_dir, str(best_id),f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        os.makedirs(os.path.join(self.plot_dir, str(best_id)), exist_ok=True)
         plt.savefig(file_path, bbox_inches='tight')
         if show_plots:
             plt.show()
@@ -321,7 +322,7 @@ class ExperimentResultController():
             return
         # Get the experiment data based on the specified `experiment` type
         best_experiment = self.get_best_experiment_data(experiments, use_score_noise_ratio)
-        best_index = best_experiment.index
+        best_index = best_experiment.index[0] if hasattr(best_experiment.index, '__iter__') else best_experiment.index
         best_id = best_experiment['id']
         best_labels = np.array(best_experiment['labels'])
         optimizer = best_experiment['optimization']
@@ -377,7 +378,8 @@ class ExperimentResultController():
 
         # Save and show plot
         file_suffix = "best_scatter" if use_score_noise_ratio else "best_scatter_noise_ratio"
-        file_path = os.path.join(self.plot_dir, best_id,f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        file_path = os.path.join(self.plot_dir, str(best_id),f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        os.makedirs(os.path.join(self.plot_dir, str(best_id)), exist_ok=True)
         plt.savefig(file_path, bbox_inches='tight')
 
         if show_plots:

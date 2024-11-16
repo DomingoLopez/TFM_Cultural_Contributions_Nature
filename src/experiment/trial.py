@@ -39,6 +39,7 @@ class Trial():
         """
         
         # Setup attrs
+        # id
         # clustering
         # eval_method
         # optimization
@@ -75,9 +76,9 @@ class Trial():
 
 
 
-    def get_experiment_name(self):
+    def get_experiment_id(self):
 
-        return f"{self.clustering}_{self.optimization}_{self.dimensions}_dims_{self.dim_red}_{round(self.trial_result.get('score_w/o_penalty') * 100):03d}"
+        return self.id
 
 
 
