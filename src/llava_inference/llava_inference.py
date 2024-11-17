@@ -62,17 +62,17 @@ class LlavaInference():
         self.result_df = None
         self.result_stats_df = None
 
+
         # Set prompts
-        self.prompt_1 = f"Classify the image into one of these {len(self.categories)} categories" \
-                    ", ".join(self.categories) + "." \
-                    "If the image does not belong to any of the previous categories classify it either as " \
+        categories_joins = ", ".join(self.categories)
+        self.prompt_1 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + "." \
+                    " If the image does not belong to any of the previous categories classify it either as " \
                     "'Not valid': if the image does not have enough quality, it is too blurry or noisy, " \
                     "and subsequently can not be properly interpreted, or as 'Not relevant': If the image can not be classified in " \
                     "any of the previous categories because it is not relevant for or related to the general topic of cultural ecosystem " \
                     "services or cultural nature contributions to people."
 
-        self.prompt_2 = f"Classify the image into one of these categories" \
-                    ", ".join(self.categories) + ", Not Valid, Not Relevant. " \
+        self.prompt_2 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + ", Not Valid, Not Relevant. " \
                     "There 'Not valid' refers to the images that do not have enough quality, it is too blurry or noisy, " \
                     "and subsequently can not be properly interpreted. There 'Not relevant' referes to the images that can not be classified in " \
                     "any of the previous categories because it is not relevant for or related to the general topic of cultural ecosystem " \
@@ -166,7 +166,7 @@ class LlavaInference():
 
 
 
-    def run(self, n_prompt:int):
+    def run(self):
         """
         Run Llava inference for every image in each subfolder of the base path.
         Store results.
