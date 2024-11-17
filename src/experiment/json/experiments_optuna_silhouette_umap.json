@@ -132,7 +132,45 @@
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": false,
-        "scaler" : "standard",
+        "scaler" : "robust",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,5,7,13,15],
+            "n_neighbors": [9,15, 20],
+            "min_dist": [0.1, 0.25, 0.5]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {
+        "id": 9,
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": true,
+        "scaler" : "robust",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,5,7,13,15],
+            "n_neighbors": [9,15, 20],
+            "min_dist": [0.1, 0.25, 0.5]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {
+        "id": 10,
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": false,
+        "scaler" : "minmax",
         "dim_red" : "umap",
         "reduction_parameters": {
             "metric": ["euclidean","cosine"],
@@ -147,11 +185,11 @@
         "cache" : 1
     },
     {
-        "id": 9,
+        "id": 11,
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": true,
-        "scaler" : "standard",
+        "scaler" : "minmax",
         "dim_red" : "umap",
         "reduction_parameters": {
             "metric": ["euclidean","cosine"],
@@ -159,7 +197,26 @@
             "n_neighbors": [9,15, 20],
             "min_dist": [0.1, 0.25, 0.5]
         },
-        "clustering" : "agglomerative",
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {
+        "id": 12,
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": false,
+        "scaler" : "minmax",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,5,7,13,15],
+            "n_neighbors": [9,15, 20],
+            "min_dist": [0.1, 0.25, 0.5]
+        },
+        "clustering" : "hdbscan",
         "eval_method" : "silhouette",
         "penalty" : null,
         "penalty_range" : null,

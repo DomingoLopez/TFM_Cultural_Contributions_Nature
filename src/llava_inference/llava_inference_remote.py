@@ -17,15 +17,14 @@ import matplotlib.pyplot as plt
 #from loguru import logger
 
 
-class LlavaInference():
+class LlavaInferenceRemote():
     """
-    LlavaInference allows us to deploy selected Llava model (locally or in NGPU - UGR, but without automation yet)
-    We start with Llava1.5-7b params. It can download model, and do some inference given some images and text prompt as inputs.
+    LlavaInferenceRemote for execution on remote, with only archives needed
     """
     def __init__(self, 
-                 images: list,
                  classification_lvl: str,
-                 best_experiment: pd.DataFrame,
+                 experiment:int,
+                 name:str,
                  n_prompt:int,
                  cache: bool = True, 
                  verbose: bool = False):
@@ -36,20 +35,13 @@ class LlavaInference():
             classification_lvl (str): Classification level to be used
             experiment_name (str): Name of the experiment for organizing results
         """
-        self.best_experiment = best_experiment
-        self.images = images
-        # Base dir for moving images from every cluster.
-        self.base_dir = Path(__file__).resolve().parent / f"cluster_images/experiment_{self.best_experiment['id']}" / f"index_{self.best_experiment['original_index']}_silhouette_{self.best_experiment['score_w/o_penalty']:.3f}"
-        self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{classification_lvl}/experiment_{self.best_experiment['id']}" / f"index_{self.best_experiment['original_index']}_silhouette_{self.best_experiment['score_w/o_penalty']:.3f}" / f"prompt_{n_prompt}"
+        self.experiment = experiment
+        self.name = name
+        self.base_dir = Path(__file__).resolve().parent / f"cluster_images/experiment_{experiment}" / f"{name}"
+        self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{classification_lvl}/experiment_{experiment}" / f"{name}" / f"prompt_{n_prompt}"
         self.results_object = self.results_dir / f"result.pkl"
         self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
-        
-        # Ensure directories exist
-        
-        # shutil.rmtree(self.base_dir, ignore_errors=True)
-        os.makedirs(self.base_dir, exist_ok=True)
-        os.makedirs(self.results_dir, exist_ok=True)
-
+ 
         # Load categories based on classification level
         self.classification_lvl = classification_lvl
         self.categories = pd.read_csv(os.path.join(self.classification_lvls_dir, f"classification_level_{self.classification_lvl}.csv"), header=None, sep=";").iloc[:, 0].tolist()
@@ -86,6 +78,9 @@ class LlavaInference():
 
 
 
+
+
+
     def show_prompts(self):
         print(self.prompt_1)
         print(self.prompt_2)
@@ -93,80 +88,18 @@ class LlavaInference():
 
 
     def get_cluster_images_dict(self, knn=None):
-        """
-        Finds the k-nearest neighbors for each centroid of clusters among points that belong to the same cluster.
-        Returns knn points for each cluster in dict format in case knn is not None
-
-        Parameters
-        ----------
-        knn : int
-            Number of nearest neighbors to find for each centroid
-
-        Returns
-        -------
-        sorted_cluster_images_dict : dictionary with images per cluster (as key)
-        """
-
-        cluster_images_dict = {}
-        labels = self.best_experiment['labels']
-
-        if knn is not None:
-            used_metric = "euclidean"
-            
-            for idx, centroid in enumerate(tqdm(self.best_experiment['centers'], desc="Processing cluster dirs (knn images selected)")):
-                # Filter points based on label mask over embeddings
-                cluster_points = self.best_experiment['embeddings'].values[labels == idx]
-                cluster_images = [self.images[i] for i in range(len(self.images)) if labels[i] == idx]
-                # Adjust neighbors, just in case
-                n_neighbors_cluster = min(knn, len(cluster_points))
-                
-                nbrs = NearestNeighbors(n_neighbors=n_neighbors_cluster, metric=used_metric, algorithm='auto').fit(cluster_points)
-                distances, indices = nbrs.kneighbors([centroid])
-                closest_indices = indices.flatten()
-                
-                # Get images for each cluster
-                cluster_images_dict[idx] = [cluster_images[i] for i in closest_indices]
-
-            # Get noise (-1)
-            cluster_images_dict[-1] = [self.images[i] for i in range(len(self.images)) if labels[i] == -1]
-            
-        else:
-            for i, label in enumerate(tqdm(labels, desc="Processing cluster dirs")):
-                if label not in cluster_images_dict:
-                    cluster_images_dict[label] = []
-                cluster_images_dict[label].append(self.images[i])
         
-        # Sort dictionary
-        sorted_cluster_images_dict = dict(sorted(cluster_images_dict.items()))
-        return sorted_cluster_images_dict
+        cluster_images_dict = {}
+        for cluster_dir in self.base_dir.iterdir():
+            if cluster_dir.is_dir():
+                cluster_id = int(cluster_dir.name)
+                cluster_images_dict[cluster_id] = [str(img_path) for img_path in cluster_dir.iterdir() if img_path.is_file()]
+        return dict(sorted(cluster_images_dict.items()))
 
 
 
 
-
-    def create_cluster_dirs(self):
-        """
-        Create a dir for every cluster given in dictionary of images. 
-        This is how we are gonna send that folder to ugr gpus
-        """
-        # logger.info("Copying images from Data path to cluster dirs")
-        # For every key (cluster index)
-        try:
-            for k,v in self.images_dict_format.items():
-                # Create folder if it doesnt exists
-                cluster_dir = os.path.join(self.base_dir, str(k)) 
-                os.makedirs(cluster_dir, exist_ok=True)
-                # For every path image, copy that image from its path to cluster folder
-                for path in v:
-                    shutil.copy(path, cluster_dir)
-        except (os.error) as ex:
-            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-            message = template.format(type(ex).__name__, ex.args)
-            print(message)
-
-
-
-    def run(self, n_prompt:int):
+    def run(self):
         """
         Run Llava inference for every image in each subfolder of the base path.
         Store results.
@@ -217,6 +150,8 @@ class LlavaInference():
             pickle.dump(results_df, open(self.results_object, "wb"))
             self.result_df = results_df
             #logger.info(f"Results saved to {results_path}")
+
+
 
 
     def create_results_stats(self):
@@ -339,4 +274,7 @@ class LlavaInference():
 
 
 if __name__ == "__main__":
-    pass
+    llava = LlavaInferenceRemote(3,5,"index_0_silhouette_0.722",1,False,False)
+    llava.run()
+    llava2 = LlavaInferenceRemote(3,5,"index_0_silhouette_0.722",2,False,False)
+    llava2.run()

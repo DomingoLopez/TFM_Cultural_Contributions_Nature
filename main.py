@@ -129,7 +129,7 @@ if __name__ == "__main__":
         "n_neighbors": (15,50),
         "min_dist": (0.1, 0.5)
     }
-    n_cluster_range = (80,200)
+    n_cluster_range = (80,250)
     experiments_filtered = experiment_results.get_top_k_experiments(top_k=20, 
                                                                     n_cluster_range=n_cluster_range,
                                                                     reduction_params=reduction_params,
