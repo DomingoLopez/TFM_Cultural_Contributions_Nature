@@ -2,6 +2,8 @@ from pathlib import Path
 import pickle
 import shutil
 import pandas as pd
+from sklearn.neighbors import NearestNeighbors
+from tqdm import tqdm
 from transformers import LlavaProcessor, LlavaForConditionalGeneration
 import torch
 from PIL import Image
@@ -21,9 +23,9 @@ class LlavaInference():
     We start with Llava1.5-7b params. It can download model, and do some inference given some images and text prompt as inputs.
     """
     def __init__(self, 
-                 images_dict_format: dict,
+                 images: list,
                  classification_lvl: str,
-                 experiment_id: str,
+                 best_experiment: pd.DataFrame,
                  cache: bool = True, 
                  verbose: bool = False):
         """
@@ -33,16 +35,17 @@ class LlavaInference():
             classification_lvl (str): Classification level to be used
             experiment_name (str): Name of the experiment for organizing results
         """
-        
+        self.best_experiment = best_experiment
+        self.images = images
         # Base dir for moving images from every cluster.
-        self.base_dir = Path(__file__).resolve().parent / f"cluster_images/experiment_{experiment_id}"
-        self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{classification_lvl}/experiment_{experiment_id}"
+        self.base_dir = Path(__file__).resolve().parent / f"cluster_images/experiment_{self.best_experiment['id']}" / f"index_{self.best_experiment['original_index']}_silhouette_{self.best_experiment['score_w/o_penalty']:.3f}"
+        self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{classification_lvl}/experiment_{self.best_experiment['id']}" / f"index_{self.best_experiment['original_index']}_silhouette_{self.best_experiment['score_w/o_penalty']:.3f}"
         self.results_object = self.results_dir / "result.pkl"
         self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
         
         # Ensure directories exist
-        if images_dict_format is not None:
-            shutil.rmtree(self.base_dir, ignore_errors=True)
+        
+        # shutil.rmtree(self.base_dir, ignore_errors=True)
         os.makedirs(self.base_dir, exist_ok=True)
         os.makedirs(self.results_dir, exist_ok=True)
 
@@ -52,42 +55,90 @@ class LlavaInference():
         self.cache = cache
 
         # Initialize images_dict_format
-        self.images_dict_format = images_dict_format if images_dict_format is not None else self.load_images_from_base_dir()
+        self.images_dict_format = self.get_cluster_images_dict()
 
         # Results
         self.result_df = None
         self.result_stats_df = None
 
-        # logger.info("Created LlavaControler. Cleaning cluster images folder")
+        # Set prompts
+        self.prompt_1 = f"Classify the image into one of these {len(self.categories)} categories" \
+                    ", ".join(self.categories) + "." \
+                    "If the image does not belong to any of the previous categories classify it either as " \
+                    "'Not valid': if the image does not have enough quality, it is too blurry or noisy, " \
+                    "and subsequently can not be properly interpreted, or as 'Not relevant': If the image can not be classified in " \
+                    "any of the previous categories because it is not relevant for or related to the general topic of cultural ecosystem " \
+                    "services or cultural nature contributions to people."
+
+        self.prompt_2 = f"Classify the image into one of these categories" \
+                    ", ".join(self.categories) + ", Not Valid, Not Relevant. " \
+                    "There 'Not valid' refers to the images that do not have enough quality, it is too blurry or noisy, " \
+                    "and subsequently can not be properly interpreted. There 'Not relevant' referes to the images that can not be classified in " \
+                    "any of the previous categories because it is not relevant for or related to the general topic of cultural ecosystem " \
+                    "services or cultural nature contributions to people."
 
 
 
 
-    def load_images_from_base_dir(self):
+    def show_prompts(self):
+        print(self.prompt_1)
+        print(self.prompt_2)
+
+
+
+    def get_cluster_images_dict(self, knn=None):
         """
-        Loads images from base directory, creating a dictionary with subfolder names as keys
-        and lists of image paths as values.
-        """
-        images_dict = {}
-        image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']
+        Finds the k-nearest neighbors for each centroid of clusters among points that belong to the same cluster.
+        Returns knn points for each cluster in dict format in case knn is not None
 
-        for subfolder in self.base_dir.iterdir():
-            if subfolder.is_dir():
-                # Find all image files in subfolder recursively and filter by extension
-                image_paths = [img_path for img_path in subfolder.rglob('*') if img_path.suffix.lower() in image_extensions]
+        Parameters
+        ----------
+        knn : int
+            Number of nearest neighbors to find for each centroid
+
+        Returns
+        -------
+        sorted_cluster_images_dict : dictionary with images per cluster (as key)
+        """
+
+        cluster_images_dict = {}
+        labels = self.best_experiment['labels']
+
+        if knn is not None:
+            used_metric = "euclidean"
+            
+            for idx, centroid in enumerate(tqdm(self.best_experiment['centers'], desc="Processing cluster dirs (knn images selected)")):
+                # Filter points based on label mask over embeddings
+                cluster_points = self.best_experiment['embeddings'].values[labels == idx]
+                cluster_images = [self.images[i] for i in range(len(self.images)) if labels[i] == idx]
+                # Adjust neighbors, just in case
+                n_neighbors_cluster = min(knn, len(cluster_points))
                 
-                # Convert paths to lowercase to avoid duplicates (especially relevant for Windows)
-                unique_image_paths = {img_path.resolve().as_posix().lower(): img_path for img_path in image_paths}
+                nbrs = NearestNeighbors(n_neighbors=n_neighbors_cluster, metric=used_metric, algorithm='auto').fit(cluster_points)
+                distances, indices = nbrs.kneighbors([centroid])
+                closest_indices = indices.flatten()
                 
-                # Add to dictionary with subfolder name as key and list of image paths as value
-                images_dict[subfolder.name] = list(unique_image_paths.values())
+                # Get images for each cluster
+                cluster_images_dict[idx] = [cluster_images[i] for i in closest_indices]
+
+            # Get noise (-1)
+            cluster_images_dict[-1] = [self.images[i] for i in range(len(self.images)) if labels[i] == -1]
+            
+        else:
+            for i, label in enumerate(tqdm(labels, desc="Processing cluster dirs")):
+                if label not in cluster_images_dict:
+                    cluster_images_dict[label] = []
+                cluster_images_dict[label].append(self.images[i])
         
-        return images_dict
+        # Sort dictionary
+        sorted_cluster_images_dict = dict(sorted(cluster_images_dict.items()))
+        return sorted_cluster_images_dict
 
 
 
 
-    def createClusterDirs(self):
+
+    def create_cluster_dirs(self):
         """
         Create a dir for every cluster given in dictionary of images. 
         This is how we are gonna send that folder to ugr gpus
@@ -109,7 +160,7 @@ class LlavaInference():
 
 
 
-    def run(self):
+    def run(self, n_prompt:int):
         """
         Run Llava inference for every image in each subfolder of the base path.
         Store results.
@@ -123,12 +174,12 @@ class LlavaInference():
             model.to("cuda:0")
 
             results = []
-            print("Iniciando llava")
+            print("Launching llava")
             
-
-# - Not valid: If the image does not have enough quality, is too blurry or noisy, and subsequently can not be properly interpreted, tag it as "Not a valid image"
-
-# - Not relevant: If the image can not be classified in any of the previous categories because it is not relevant for or related to the general topic of cultural ecosystem services or cultural nature contributions to people, tag it as "Not relevant".
+            if n_prompt > 2 or n_prompt < 1:
+                raise ValueError("n_prompt must be 1 or 2")
+            
+            prompt = self.prompt_1 if n_prompt == 1 else self.prompt_2
 
             for cluster_name, image_paths in self.images_dict_format.items():
                 print(f"Cluster {cluster_name}. Imágenes: {len(image_paths)}")
@@ -138,7 +189,7 @@ class LlavaInference():
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "Classify this image in one of these categories: " + ", ".join(self.categories)},
+                                {"type": "text", "text": prompt},
                                 {"type": "image", "image": image},  
                             ],
                         },
@@ -284,48 +335,48 @@ class LlavaInference():
 
 
 
-    def test_llava():
-        """
-        Just some test in order to make sure Llava is working, locally and on ugr gpu 
-        """
-        # Load processor and model
-        processor = LlavaProcessor.from_pretrained("llava-hf/llava-1.5-7b-hf")
-        model = LlavaForConditionalGeneration.from_pretrained("llava-hf/llava-1.5-7b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True)
-        # Move model to gpu. If not it is almost impossible unless we use LORA or some quantization, etc.
-        model.to("cuda:0")
+    # def test_llava():
+    #     """
+    #     Just some test in order to make sure Llava is working, locally and on ugr gpu 
+    #     """
+    #     # Load processor and model
+    #     processor = LlavaProcessor.from_pretrained("llava-hf/llava-1.5-7b-hf")
+    #     model = LlavaForConditionalGeneration.from_pretrained("llava-hf/llava-1.5-7b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True)
+    #     # Move model to gpu. If not it is almost impossible unless we use LORA or some quantization, etc.
+    #     model.to("cuda:0")
 
-        # Example image, just to make user it works
-        url = "https://github.com/haotian-liu/LLaVA/blob/1a91fc274d7c35a9b50b3cb29c4247ae5837ce39/images/llava_v1_5_radar.jpg?raw=true"
-        image = Image.open(requests.get(url, stream=True).raw)
+    #     # Example image, just to make user it works
+    #     url = "https://github.com/haotian-liu/LLaVA/blob/1a91fc274d7c35a9b50b3cb29c4247ae5837ce39/images/llava_v1_5_radar.jpg?raw=true"
+    #     image = Image.open(requests.get(url, stream=True).raw)
 
-        # Prompt
-        conversation = [
-            {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "Classify this image in one of these categories: Nature, Urban, Rural or Others"},
-                {"type": "image", "image": image},  
-                ],
-            },
-        ]
+    #     # Prompt
+    #     conversation = [
+    #         {
+    #         "role": "user",
+    #         "content": [
+    #             {"type": "text", "text": "Classify this image in one of these categories: Nature, Urban, Rural or Others"},
+    #             {"type": "image", "image": image},  
+    #             ],
+    #         },
+    #     ]
 
-        # Apply chat template 
-        prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
+    #     # Apply chat template 
+    #     prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
 
-        # process imputs making sure cuda is available
-        inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
+    #     # process imputs making sure cuda is available
+    #     inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
 
-        # Do inference (measure inference time too)
-        start_time = time.time()
-        output = model.generate(**inputs, max_new_tokens=100)
-        end_time = time.time()
+    #     # Do inference (measure inference time too)
+    #     start_time = time.time()
+    #     output = model.generate(**inputs, max_new_tokens=100)
+    #     end_time = time.time()
 
 
-        inference_time = end_time - start_time
-        print(f"Inference time: {inference_time:.2f} s")
+    #     inference_time = end_time - start_time
+    #     print(f"Inference time: {inference_time:.2f} s")
 
-        # Decoding result
-        print(processor.decode(output[0], skip_special_tokens=True))
+    #     # Decoding result
+    #     print(processor.decode(output[0], skip_special_tokens=True))
 
 
 

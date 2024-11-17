@@ -71,6 +71,7 @@ class ExperimentResultController():
                     
                 # Check if the loaded result is a valid DataFrame
                 if isinstance(result, pd.DataFrame) and not result.empty:
+                    result = result.reset_index().rename(columns={"index": "original_index"})
                     experiments.append(result)
                 else:
                     logger.warning(f"Invalid or empty result file: {file}")
@@ -199,7 +200,7 @@ class ExperimentResultController():
         return df
 
 
-    def show_best_silhouette(self, experiments = None, use_score_noise_ratio=True, show_all=False, top_n=25, min_clusters=50, show_cluster_index=False, show_plots=False):
+    def show_best_silhouette(self, experiment, use_score_noise_ratio=True, show_all=False, top_n=25, min_clusters=50, show_cluster_index=False, show_plots=False):
         """
         Displays the top `top_n` clusters with the highest silhouette average and the 
         `top_n` clusters with the lowest silhouette average, only if the total cluster 
@@ -213,20 +214,14 @@ class ExperimentResultController():
         min_clusters : int
             Minimum number of clusters required to apply filtering for the best and worst clusters.
         """
-        
-        experiments = experiments if experiments is not None else self.results_df
-        
-        # Check if results_df contains results
-        if experiments is None or experiments.empty:
-            logger.warning("No results found in the experiment DataFrame.")
-            return
+    
 
         # Get the experiment data based on the specified `experiment` type
-        best_experiment = self.get_best_experiment_data(experiments, use_score_noise_ratio)
+        best_experiment = experiment
  
         # Extract information for the best configuration
         best_id = best_experiment['id']
-        best_index = best_experiment.index[0] if hasattr(best_experiment.index, '__iter__') else best_experiment.index
+        best_index = best_experiment['original_index']
         best_labels = best_experiment['labels']
         clustering = best_experiment['clustering']
         scaler = best_experiment['scaler']
@@ -236,8 +231,6 @@ class ExperimentResultController():
         optimizer = best_experiment['optimization']
         original_score = best_experiment['score_w/o_penalty']
         embeddings_used = best_experiment['embeddings']
-
-
 
         # Exclude noise points (label -1)
         non_noise_mask = best_labels != -1
@@ -294,9 +287,9 @@ class ExperimentResultController():
         plt.legend()
 
         # Save the plot
-        file_suffix = "best_silhouette" if use_score_noise_ratio else "silhouette_noise_ratio"
-        file_path = os.path.join(self.plot_dir, str(best_id),f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
-        os.makedirs(os.path.join(self.plot_dir, str(best_id)), exist_ok=True)
+        file_suffix = "best_silhouette" if not use_score_noise_ratio else "best_silhouette_noise_ratio"
+        file_path = os.path.join(self.plot_dir, f"experiment_{str(best_id)}",f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
         plt.savefig(file_path, bbox_inches='tight')
         if show_plots:
             plt.show()
@@ -308,22 +301,16 @@ class ExperimentResultController():
 
 
 
-    def show_best_scatter(self,  experiments = None, use_score_noise_ratio=True, show_all=False, show_plots=False):
+    def show_best_scatter(self,  experiment, use_score_noise_ratio=True, show_all=False, show_plots=False):
         """
         Plots a 2D scatter plot for the best experiment configuration, with clusters reduced 
         to 2D space using PCA and color-coded for better visual distinction. Points labeled 
         as noise (-1) are always shown in red.
         """
-        
-        experiments = experiments if experiments is not None else self.results_df
-        # Check if results_df contains results
-        if experiments is None or experiments.empty:
-            logger.warning("No results found in the experiment DataFrame.")
-            return
-        # Get the experiment data based on the specified `experiment` type
-        best_experiment = self.get_best_experiment_data(experiments, use_score_noise_ratio)
-        best_index = best_experiment.index[0] if hasattr(best_experiment.index, '__iter__') else best_experiment.index
+
+        best_experiment = experiment
         best_id = best_experiment['id']
+        best_index = best_experiment['original_index']
         best_labels = np.array(best_experiment['labels'])
         optimizer = best_experiment['optimization']
         clustering = best_experiment['clustering']
@@ -377,9 +364,9 @@ class ExperimentResultController():
         plt.legend(loc='upper right')
 
         # Save and show plot
-        file_suffix = "best_scatter" if use_score_noise_ratio else "best_scatter_noise_ratio"
-        file_path = os.path.join(self.plot_dir, str(best_id),f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
-        os.makedirs(os.path.join(self.plot_dir, str(best_id)), exist_ok=True)
+        file_suffix = "best_scatter" if not use_score_noise_ratio else "best_scatter_noise_ratio"
+        file_path = os.path.join(self.plot_dir, f"experiment_{str(best_id)}",f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
         plt.savefig(file_path, bbox_inches='tight')
 
         if show_plots:
@@ -387,6 +374,159 @@ class ExperimentResultController():
         logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
 
 
+
+
+
+
+
+    def show_best_scatter_with_centers(self,  experiment, use_score_noise_ratio=True, show_all=False, show_plots=False):
+        """
+        Plots a 2D scatter plot for the best experiment configuration, with clusters reduced 
+        to 2D space using PCA and color-coded for better visual distinction. Points labeled 
+        as noise (-1) are always shown in red.
+        """
+        
+        # Get the experiment data based on the specified `experiment` type
+        best_experiment = experiment
+
+        best_labels = np.array(best_experiment['labels'])
+        best_id = best_experiment['id']
+        best_index = best_experiment['original_index']
+        best_centers = best_experiment['centers'].values if isinstance(best_experiment['centers'], pd.DataFrame) else np.array(best_experiment['centers'])
+        best_labels = best_experiment['labels']
+        clustering = best_experiment['clustering']
+        scaler = best_experiment['scaler']
+        dim_red = best_experiment['dim_red']
+        dimensions = best_experiment['dimensions']
+        params = best_experiment['best_params']
+        optimizer = best_experiment['optimization']
+        original_score = best_experiment['score_w/o_penalty']
+        embeddings_used = best_experiment['embeddings']
+        cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
+
+        # Get data reduced from eda object
+        data = embeddings_used.values
+
+        # Check if reduction is needed
+        if data.shape[1] > 2:
+            # Reduce dimensions with PCA
+            pca = PCA(n_components=2, random_state=42)
+            reduced_data = pca.fit_transform(data)
+            pca_centers = pca.transform(best_centers)
+        else:
+            # Use the data directly if already 2D
+            reduced_data = data
+            pca_centers = best_centers
+
+        # Color mapping for clusters and plot setup
+        colors = ['#00FF00', '#FFFF00', '#0000FF', '#FF9D0A', '#00B6FF', '#F200FF', '#FF6100']
+        cmap_bold = ListedColormap(colors)
+        plt.figure(figsize=(9, 6))
+        
+        # Plot noise points (label -1) in red
+        noise_points = reduced_data[best_labels == -1]
+
+        print(type(best_labels), type(reduced_data))
+        print(best_labels.shape, reduced_data.shape)
+
+        plt.scatter(noise_points[:, 0], noise_points[:, 1], c='red', s=10, alpha=0.6, label="Noise (-1)")
+        
+        # Plot cluster points
+        cluster_points = reduced_data[best_labels != -1]
+        cluster_labels = best_labels[best_labels != -1]
+        scatter = plt.scatter(cluster_points[:, 0], cluster_points[:, 1], c=cluster_labels, cmap=cmap_bold, s=20, alpha=0.6)
+
+        # Plot cluster centers
+        if pca_centers is not None:
+            plt.scatter(pca_centers[:, 0], pca_centers[:, 1], marker='D', c='black', s=10, label="Cluster Centers", edgecolors='black')
+        
+        # Add colorbar to distinguish clusters
+        plt.colorbar(scatter, spacing="proportional", ticks=np.arange(0, cluster_count + 1, max(1, cluster_count // 10)))
+
+        
+        plt.title(f"Scatter Plot of Best Experiment with Cluster Centers - {optimizer} (Noise in Red) \n\n"
+                f"Clustering: {clustering} - Dim Reduction: {dim_red} - Dimensions: {dimensions}\n"
+                f"Params: {params}\n"
+                )
+        plt.xlabel("PCA Component 1")
+        plt.ylabel("PCA Component 2")
+        plt.grid(True, alpha=0.3)
+        plt.legend(loc='upper right')
+
+        # Save and show plot
+        file_suffix = "best_experiment_with_centers" if not use_score_noise_ratio else "best_experiment_sil_noise_ratio_with_centers"
+        file_path = os.path.join(self.plot_dir, f"experiment_{str(best_id)}",f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
+        plt.savefig(file_path, bbox_inches='tight')
+
+        if show_plots:
+            plt.show()
+        logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
+
+
+
+
+
+
+    def show_best_clusters_counters_comparision(self,  experiment, use_score_noise_ratio=True, show_all=False, show_plots=False):
+        """
+        Displays a bar chart comparing the number of points in each cluster for the best configuration.
+        
+        The method retrieves the cluster sizes (number of points per cluster) from `label_counter`
+        for the best experiment configuration and displays a bar chart to compare cluster sizes.
+
+        Parameters
+        ----------
+        show_plots : bool, optional
+            If True, displays the plot. Default is False.
+        """
+         # Get the experiment data based on the specified `experiment` type
+        best_experiment = experiment
+
+        best_labels = np.array(best_experiment['labels'])
+        best_id = best_experiment['id']
+        best_index = best_experiment['original_index']
+        best_centers = best_experiment['centers'].values if isinstance(best_experiment['centers'], pd.DataFrame) else np.array(best_experiment['centers'])
+        best_labels = best_experiment['labels']
+        clustering = best_experiment['clustering']
+        scaler = best_experiment['scaler']
+        dim_red = best_experiment['dim_red']
+        dimensions = best_experiment['dimensions']
+        params = best_experiment['best_params']
+        optimizer = best_experiment['optimization']
+        original_score = best_experiment['score_w/o_penalty']
+        embeddings_used = best_experiment['embeddings']
+        label_counter = best_experiment['label_counter']
+        cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
+        
+        label_counter_filtered = {k: v for k, v in label_counter.items() if k != -1}
+
+        # Extract cluster indices and their respective counts from label_counter
+        cluster_indices = list(label_counter_filtered.keys())
+        cluster_sizes = list(label_counter_filtered.values())
+
+        # Count total with noise and without noise
+        total_minus_one = label_counter.get(-1, 0)
+        total_rest = sum(v for k, v in label_counter.items() if k != -1)
+        
+        # Plot the bar chart
+        plt.figure(figsize=(12, 6))
+        sns.barplot(x=cluster_indices, y=cluster_sizes, palette="viridis")
+        plt.xlabel("Cluster Index")
+        plt.ylabel("Number of Points")
+        plt.title("Comparison of Cluster Sizes for Best Experiment\n\n" \
+                  f"Total cluster points: {total_rest}\n"   \
+                  f"Total noise points: {total_minus_one}\n")
+        plt.xticks(rotation=45)
+        
+        # Save the plot with a name based on the `experiment` type
+        file_suffix = "clusters_counter_comparison" if not use_score_noise_ratio else "sil_noise_clusters_counter_comparison"
+        file_path = os.path.join(self.plot_dir, f"experiment_{str(best_id)}",f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
+        plt.savefig(file_path, bbox_inches='tight')
+        if show_plots:
+            plt.show()
+        logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
 
 
 if __name__ == "__main__":

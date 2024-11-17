@@ -115,8 +115,9 @@ class Preprocess:
                 with open(path, "rb") as f:
                     preprocess_embeddings = pickle.load(f)
                 return preprocess_embeddings
-            except FileNotFoundError:
-                logger.error("Couldn't find provided file with preprocess embeddings.")
+            except (FileNotFoundError, pickle.UnpicklingError) as e:
+                # Maneja errores específicos (archivo no encontrado o carga fallida)
+                logger.error(f"Error al cargar las embeddings procesadas desde la caché: {e}")
                 return None
         else:
             return None  # Return None if the file doesn't exist
