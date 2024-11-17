@@ -1,7 +1,7 @@
 from pathlib import Path
 import pickle
 import pandas as pd
-from transformers import LlavaProcessor, LlavaForConditionalGeneration
+from transformers import LlavaProcessor, LlavaForConditionalGeneration, LlavaNextProcessor, LlavaNextForConditionalGeneration
 import torch
 from PIL import Image
 import time
@@ -35,6 +35,7 @@ class LlavaInferenceRemote():
         self.base_dir = Path(__file__).resolve().parent / f"cluster_images/experiment_{experiment}" / f"{name}"
         self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{classification_lvl}/experiment_{experiment}" / f"{name}" / f"prompt_{n_prompt}"
         self.results_object = self.results_dir / f"result.pkl"
+        self.results_object_next = self.results_dir / f"result_next.pkl"
         self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
  
         os.makedirs(self.base_dir, exist_ok=True)
@@ -147,6 +148,62 @@ class LlavaInferenceRemote():
             pickle.dump(results_df, open(self.results_object, "wb"))
             self.result_df = results_df
             #logger.info(f"Results saved to {results_path}")
+
+
+    def run_next(self):
+        """
+        Run Llava-Next inference for every image in each subfolder of the base path.
+        Store results.
+        """
+        if os.path.isfile(self.results_object) and self.cache:
+            print("Recovering results from cache")
+            self.result_df = pickle.load(open(str(self.results_object), "rb"))
+        else:
+            processor = LlavaNextProcessor.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf")
+            model = LlavaNextForConditionalGeneration.from_pretrained(
+                "llava-hf/llava-v1.6-mistral-7b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True
+            )
+            model.to("cuda:0")
+
+            results = []
+            print("Launching llava-next")
+
+            for cluster_name, image_paths in self.images_dict_format.items():
+                print(f"Cluster {cluster_name}. Images: {len(image_paths)}")
+                for image_path in image_paths:
+                    try:
+                        image = Image.open(image_path).convert("RGB")  # Ensure compatibility with the model
+                        conversation = [
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": self.prompt},
+                                    {"type": "image", "image": image},  
+                                ],
+                            },
+                        ]
+                        prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
+                        inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
+
+                        start_time = time.time()
+                        output = model.generate(**inputs, max_new_tokens=100)
+                        classification_result = processor.decode(output[0], skip_special_tokens=True)
+                        classification_category = classification_result.split(":")[-1].strip()
+                        inference_time = time.time() - start_time
+
+                        results.append({
+                            "cluster": cluster_name,
+                            "img": image_path,
+                            "category_llava_next": classification_category,
+                            "inference_time": inference_time
+                        })
+                    except Exception as e:
+                        print(f"Error processing image {image_path}: {e}")
+
+            results_df = pd.DataFrame(results)
+            results_df.to_csv(self.results_dir / "inference_results_next.csv", index=False, sep=";")
+            pickle.dump(results_df, open(self.results_object_next, "wb"))
+            self.result_df = results_df
 
 
 
@@ -272,6 +329,6 @@ class LlavaInferenceRemote():
 
 if __name__ == "__main__":
     llava = LlavaInferenceRemote(3,5,"index_0_silhouette_0.722",1,False,False)
-    llava.run()
+    llava.run_next()
     llava2 = LlavaInferenceRemote(3,5,"index_0_silhouette_0.722",2,False,False)
-    llava2.run()
+    llava2.run_next()
