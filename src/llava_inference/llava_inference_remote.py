@@ -1,16 +1,11 @@
 from pathlib import Path
 import pickle
-import shutil
 import pandas as pd
-from sklearn.neighbors import NearestNeighbors
-from tqdm import tqdm
 from transformers import LlavaProcessor, LlavaForConditionalGeneration
 import torch
 from PIL import Image
-import requests
 import time
 import os
-import sys
 import matplotlib.pyplot as plt
 
 #from src.utils.image_loader import ImageLoader
@@ -49,7 +44,6 @@ class LlavaInferenceRemote():
 
         # Initialize images_dict_format
         self.images_dict_format = self.get_cluster_images_dict()
-        print(self.images_dict_format)
 
         # Results
         self.result_df = None
