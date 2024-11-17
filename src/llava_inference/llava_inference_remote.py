@@ -37,6 +37,9 @@ class LlavaInferenceRemote():
         self.results_object = self.results_dir / f"result.pkl"
         self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
  
+        os.makedirs(self.base_dir, exist_ok=True)
+        os.makedirs(self.results_dir, exist_ok=True)
+
         # Load categories based on classification level
         self.classification_lvl = classification_lvl
         self.categories = pd.read_csv(os.path.join(self.classification_lvls_dir, f"classification_level_{self.classification_lvl}.csv"), header=None, sep=";").iloc[:, 0].tolist()
