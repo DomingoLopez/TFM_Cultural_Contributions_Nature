@@ -148,7 +148,7 @@ if __name__ == "__main__":
 
     # 3. Process images to Llava-1.5 and see:
     # 3.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
-    llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=1)
+    llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=2)
     llava.create_cluster_dirs()
     # # 3.2 Upload those images to NGPU - UGR Gpus (start manually)
     # # rsync -av llava_inference xxxx.xx.es:/mnt/homeGPU/dlopez

@@ -54,14 +54,12 @@ class LlavaInferenceRemote():
         self.result_stats_df = None
 
         categories_joins = ", ".join(self.categories)
-        self.prompt_1 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + "." \
+        self.prompt_1 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + ". " \
                     " If the image does not belong to any of the previous categories or does not have enough quality because it is too blurry or noisy, classify it as 'Not valid'"
 
-        self.prompt_2 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + ", Not Valid, Not Relevant. " \
-                    "There 'Not valid' refers to the images that do not have enough quality, it is too blurry or noisy, " \
-                    "and subsequently can not be properly interpreted. There 'Not relevant' referes to the images that can not be classified in " \
-                    "any of the previous categories because it is not relevant for or related to the general topic of cultural ecosystem " \
-                    "services or cultural nature contributions to people."
+        self.prompt_2 = f"You are an Image Classification Assistant. Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + "." \
+                    "If the image does not belong to any of the previous categories or does not have enough quality because it is too blurry or noisy, classify it as 'Not valid'. " \
+                    "You need to EXCLUSIVELY provide the classification, not the reasoning."
         
         
         if n_prompt > 2 or n_prompt < 1:
@@ -108,7 +106,6 @@ class LlavaInferenceRemote():
             results = []
             print("Launching llava")
             
-
             for cluster_name, image_paths in self.images_dict_format.items():
                 print(f"Cluster {cluster_name}. Imágenes: {len(image_paths)}")
                 for image_path in image_paths:
@@ -159,10 +156,10 @@ class LlavaInferenceRemote():
                 "llava-hf/llava-v1.6-mistral-7b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True
             )
             model.to("cuda:0")
+            model.config.pad_token_id = model.config.eos_token_id
 
             results = []
             print("Launching llava-next")
-
             for cluster_name, image_paths in self.images_dict_format.items():
                 print(f"Cluster {cluster_name}. Images: {len(image_paths)}")
                 for image_path in image_paths:
@@ -182,8 +179,14 @@ class LlavaInferenceRemote():
 
                         start_time = time.time()
                         output = model.generate(**inputs, max_new_tokens=100)
+
                         classification_result = processor.decode(output[0], skip_special_tokens=True)
-                        classification_category = classification_result.split(":")[-1].strip()
+                        
+                        if "[/INST]" in classification_result:
+                            classification_category = classification_result.split("[/INST]")[-1].strip()
+                        else:
+                            classification_category = "Unknown"  # Handle unexpected output format
+
                         inference_time = time.time() - start_time
 
                         results.append({
@@ -323,7 +326,7 @@ class LlavaInferenceRemote():
 
 
 if __name__ == "__main__":
-    llava = LlavaInferenceRemote(3,5,"index_0_silhouette_0.722",1,False,False)
+    llava = LlavaInferenceRemote(3,5,"index_0_silhouette_0.722",2,False,False)
     llava.run_next()
     llava2 = LlavaInferenceRemote(3,5,"index_0_silhouette_0.722",2,False,False)
-    llava2.run_next()
+    llava2.run()

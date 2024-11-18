@@ -4,7 +4,7 @@ import shutil
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
-from transformers import LlavaProcessor, LlavaForConditionalGeneration
+from transformers import LlavaProcessor, LlavaForConditionalGeneration, LlavaNextProcessor, LlavaNextForConditionalGeneration
 import torch
 from PIL import Image
 import requests
@@ -42,6 +42,7 @@ class LlavaInference():
         self.base_dir = Path(__file__).resolve().parent / f"cluster_images/experiment_{self.best_experiment['id']}" / f"index_{self.best_experiment['original_index']}_silhouette_{self.best_experiment['score_w/o_penalty']:.3f}"
         self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{classification_lvl}/experiment_{self.best_experiment['id']}" / f"index_{self.best_experiment['original_index']}_silhouette_{self.best_experiment['score_w/o_penalty']:.3f}" / f"prompt_{n_prompt}"
         self.results_object = self.results_dir / f"result.pkl"
+        self.results_object_next = self.results_dir / f"result_next.pkl"
         self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
         
         # Ensure directories exist
@@ -63,16 +64,13 @@ class LlavaInference():
         self.result_stats_df = None
 
 
-        # Set prompts
         categories_joins = ", ".join(self.categories)
-        self.prompt_1 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + "." \
+        self.prompt_1 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + ". " \
                     " If the image does not belong to any of the previous categories or does not have enough quality because it is too blurry or noisy, classify it as 'Not valid'"
 
-        self.prompt_2 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + ", Not Valid, Not Relevant. " \
-                    "There 'Not valid' refers to the images that do not have enough quality, it is too blurry or noisy, " \
-                    "and subsequently can not be properly interpreted. There 'Not relevant' referes to the images that can not be classified in " \
-                    "any of the previous categories because it is not relevant for or related to the general topic of cultural ecosystem " \
-                    "services or cultural nature contributions to people."
+        self.prompt_2 = f"You are an Image Classification Assistant. Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + "." \
+                    "If the image does not belong to any of the previous categories or does not have enough quality because it is too blurry or noisy, classify it as 'Not valid'. " \
+                    "You need to EXCLUSIVELY provide the classification, not the reasoning."
         
         
         if n_prompt > 2 or n_prompt < 1:
@@ -213,6 +211,69 @@ class LlavaInference():
             pickle.dump(results_df, open(self.results_object, "wb"))
             self.result_df = results_df
             #logger.info(f"Results saved to {results_path}")
+
+
+    def run_next(self):
+        """
+        Run Llava-Next inference for every image in each subfolder of the base path.
+        Store results.
+        """
+        if os.path.isfile(self.results_object) and self.cache:
+            print("Recovering results from cache")
+            self.result_df = pickle.load(open(str(self.results_object), "rb"))
+        else:
+            processor = LlavaNextProcessor.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf")
+            model = LlavaNextForConditionalGeneration.from_pretrained(
+                "llava-hf/llava-v1.6-mistral-7b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True
+            )
+            model.to("cuda:0")
+            model.config.pad_token_id = model.config.eos_token_id
+
+            results = []
+            print("Launching llava-next")
+            for cluster_name, image_paths in self.images_dict_format.items():
+                print(f"Cluster {cluster_name}. Images: {len(image_paths)}")
+                for image_path in image_paths:
+                    try:
+                        image = Image.open(image_path).convert("RGB")  # Ensure compatibility with the model
+                        conversation = [
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": self.prompt},
+                                    {"type": "image", "image": image},  
+                                ],
+                            },
+                        ]
+                        prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
+                        inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
+
+                        start_time = time.time()
+                        output = model.generate(**inputs, max_new_tokens=100)
+
+                        classification_result = processor.decode(output[0], skip_special_tokens=True)
+                        
+                        if "[/INST]" in classification_result:
+                            classification_category = classification_result.split("[/INST]")[-1].strip()
+                        else:
+                            classification_category = "Unknown"  # Handle unexpected output format
+
+                        inference_time = time.time() - start_time
+
+                        results.append({
+                            "cluster": cluster_name,
+                            "img": image_path,
+                            "category_llava_next": classification_category,
+                            "inference_time": inference_time
+                        })
+                    except Exception as e:
+                        print(f"Error processing image {image_path}: {e}")
+
+            results_df = pd.DataFrame(results)
+            results_df.to_csv(self.results_dir / "inference_results_next.csv", index=False, sep=";")
+            pickle.dump(results_df, open(self.results_object_next, "wb"))
+            self.result_df = results_df
+
 
 
     def create_results_stats(self):
