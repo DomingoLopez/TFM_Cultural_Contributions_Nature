@@ -54,13 +54,8 @@ class LlavaInferenceRemote():
         self.result_stats_df = None
 
         categories_joins = ", ".join(self.categories)
-        # Set prompts
         self.prompt_1 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + "." \
-                    " If the image does not belong to any of the previous categories classify it either as " \
-                    "'Not valid': if the image does not have enough quality, it is too blurry or noisy, " \
-                    "and subsequently can not be properly interpreted, or as 'Not relevant': If the image can not be classified in " \
-                    "any of the previous categories because it is not relevant for or related to the general topic of cultural ecosystem " \
-                    "services or cultural nature contributions to people."
+                    " If the image does not belong to any of the previous categories or does not have enough quality because it is too blurry or noisy, classify it as 'Not valid'"
 
         self.prompt_2 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + ", Not Valid, Not Relevant. " \
                     "There 'Not valid' refers to the images that do not have enough quality, it is too blurry or noisy, " \
