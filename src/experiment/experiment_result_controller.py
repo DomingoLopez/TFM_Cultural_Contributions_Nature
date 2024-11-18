@@ -8,6 +8,7 @@ from matplotlib.colors import ListedColormap
 import seaborn as sns
 from typing import Optional
 from matplotlib import pyplot as plt
+import matplotlib.gridspec as gridspec
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -200,31 +201,141 @@ class ExperimentResultController():
         return df
 
 
+    # def show_best_silhouette(self, experiment, use_score_noise_ratio=True, show_all=False, top_n=25, min_clusters=50, show_cluster_index=False, show_plots=False):
+    #     """
+    #     Displays the top `top_n` clusters with the highest silhouette average and the 
+    #     `top_n` clusters with the lowest silhouette average, only if the total cluster 
+    #     count exceeds `min_clusters`. If there are `min_clusters` or fewer clusters, 
+    #     it displays all clusters without filtering.
+
+    #     Parameters
+    #     ----------
+    #     top_n : int
+    #         Number of clusters to display in the sections for highest and lowest silhouette average.
+    #     min_clusters : int
+    #         Minimum number of clusters required to apply filtering for the best and worst clusters.
+    #     """
+    
+
+    #     # Get the experiment data based on the specified `experiment` type
+    #     best_experiment = experiment
+ 
+    #     # Extract information for the best configuration
+    #     best_id = best_experiment['id']
+    #     best_index = best_experiment['original_index']
+    #     best_labels = best_experiment['labels']
+    #     clustering = best_experiment['clustering']
+    #     scaler = best_experiment['scaler']
+    #     dim_red = best_experiment['dim_red']
+    #     dimensions = best_experiment['dimensions']
+    #     params = best_experiment['best_params']
+    #     optimizer = best_experiment['optimization']
+    #     original_score = best_experiment['score_w/o_penalty']
+    #     embeddings_used = best_experiment['embeddings']
+
+    #     # Exclude noise points (label -1)
+    #     non_noise_mask = best_labels != -1
+    #     non_noise_labels = best_labels[non_noise_mask]
+    #     non_noise_data = embeddings_used[non_noise_mask]
+
+    #     # Calculate silhouette values for non-noise data
+    #     silhouette_values = silhouette_samples(non_noise_data, non_noise_labels)
+
+    #     # Calculate average silhouette per cluster
+    #     unique_labels = np.unique(non_noise_labels)
+    #     cluster_count = len(unique_labels)
+
+
+    #     # Select clusters to display based on min_clusters and top_n
+    #     if cluster_count <= min_clusters or show_all:
+    #         logger.info(f"The number of clusters ({cluster_count}) is less than or equal to {min_clusters} OR SHOW_ALL is set to True. "
+    #                     "All clusters will be plotted.")
+    #         selected_clusters = unique_labels
+    #     else:
+    #         # Calculate silhouette averages for each cluster
+    #         cluster_silhouette_means = {
+    #             label: silhouette_values[non_noise_labels == label].mean() for label in unique_labels
+    #         }
+
+    #         # Select the top `top_n` clusters with best and worst silhouette averages
+    #         top_clusters = sorted(cluster_silhouette_means, key=cluster_silhouette_means.get, reverse=True)[:top_n]
+    #         bottom_clusters = sorted(cluster_silhouette_means, key=cluster_silhouette_means.get)[:top_n]
+
+    #         # Combine the top and bottom clusters
+    #         selected_clusters = sorted(set(top_clusters + bottom_clusters), key=lambda label: cluster_silhouette_means[label])
+
+    #     # Generate silhouette plot
+    #     plt.figure(figsize=(9, 10))
+    #     plt.subplots_adjust(bottom=0.5)
+    #     y_lower = 10
+    #     for i, label in enumerate(selected_clusters):
+    #         ith_cluster_silhouette_values = silhouette_values[non_noise_labels == label]
+    #         ith_cluster_silhouette_values.sort()
+    #         size_cluster_i = ith_cluster_silhouette_values.shape[0]
+    #         y_upper = y_lower + size_cluster_i
+
+    #         plt.fill_betweenx(np.arange(y_lower, y_upper), 0, ith_cluster_silhouette_values, alpha=0.7, label=f"Cluster {label}")
+    #         if show_cluster_index:
+    #             plt.text(-0.05, y_lower + 0.5 * size_cluster_i, str(label))
+    #         y_lower = y_upper + 10
+
+    #         # Add a horizontal line after the top clusters
+    #         if i == len(top_clusters) - 1:  # After the last top cluster
+    #             plt.axhline(y=y_lower, color='black', linestyle='--', linewidth=1.5)
+
+    #     #pre format params:
+    #     # Convert params dictionary to a string with line breaks every 3 items
+    #     split_point = params.find("metric")
+    #     if split_point != -1:
+    #         params_part1 = params[:split_point].strip()  # Up to 'metric', not included
+    #         params_part2 = params[split_point:].strip()  # From 'metric' onwards
+    #     else:
+    #         # If 'metric' is not found, treat the whole string as one part
+    #         params_part1 = params
+    #         params_part2 = ""
+
+    #     # Add a vertical line for the original silhouette score
+    #     plt.axvline(x=original_score, color="red", linestyle="--", label=f"Original Score: {original_score:.2f}")
+    #     plt.xlabel("Silhouette Coefficient")
+    #     plt.ylabel("Cluster Index")
+    #     plt.title(f"Silhouette Plot for Best Configuration {optimizer}\n"
+    #             f"Clustering: {clustering} | Dim Reduction: {dim_red} | Dimensions: {dimensions}\n"
+    #             f"Params: {params_part1}\n{params_part2}")
+        
+    #     # Create a custom legend to control the order
+    #     handles, labels = plt.gca().get_legend_handles_labels()
+    #     # Add a new label for the line division
+    #     handles.append(plt.Line2D([0], [0], color='black', linestyle='--', linewidth=1.5))
+    #     labels.append("Div. Top/Bottom Clus.")
+    #     # Reorder the legend to place this label at the end
+    #     plt.legend(handles, labels, loc="best", title="Most representative Top/Bottom Clusters",
+    #                bbox_to_anchor=(0.4, 0.1),
+    #                frameon=True,                # Remove the frame for cleaner appearance
+    #                fontsize='xx-small',             # Reduce font size for legend items
+    #                title_fontsize='xx-small',      # Adjust font size for the legend title
+    #                ncol=6)
+
+    #     # Save the plot
+    #     file_suffix = "best_silhouette" if not use_score_noise_ratio else "best_silhouette_noise_ratio"
+    #     file_path = os.path.join(self.plot_dir, f"experiment_{str(best_id)}",f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+    #     os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
+    #     plt.savefig(file_path, bbox_inches='tight')
+    #     if show_plots:
+    #         plt.show()
+
+    #     logger.info(f"Silhouette plot saved to {file_path}.")
+
     def show_best_silhouette(self, experiment, use_score_noise_ratio=True, show_all=False, top_n=25, min_clusters=50, show_cluster_index=False, show_plots=False):
         """
         Displays the top `top_n` clusters with the highest silhouette average and the 
         `top_n` clusters with the lowest silhouette average, only if the total cluster 
         count exceeds `min_clusters`. If there are `min_clusters` or fewer clusters, 
         it displays all clusters without filtering.
-
-        Parameters
-        ----------
-        top_n : int
-            Number of clusters to display in the sections for highest and lowest silhouette average.
-        min_clusters : int
-            Minimum number of clusters required to apply filtering for the best and worst clusters.
         """
-    
-
-        # Get the experiment data based on the specified `experiment` type
+        # Extract information from the experiment
         best_experiment = experiment
- 
-        # Extract information for the best configuration
-        best_id = best_experiment['id']
-        best_index = best_experiment['original_index']
         best_labels = best_experiment['labels']
         clustering = best_experiment['clustering']
-        scaler = best_experiment['scaler']
         dim_red = best_experiment['dim_red']
         dimensions = best_experiment['dimensions']
         params = best_experiment['best_params']
@@ -244,27 +355,23 @@ class ExperimentResultController():
         unique_labels = np.unique(non_noise_labels)
         cluster_count = len(unique_labels)
 
-
-        # Select clusters to display based on min_clusters and top_n
+        # Determine top and bottom clusters
         if cluster_count <= min_clusters or show_all:
-            logger.info(f"The number of clusters ({cluster_count}) is less than or equal to {min_clusters} OR SHOW_ALL is set to True. "
-                        "All clusters will be plotted.")
             selected_clusters = unique_labels
         else:
-            # Calculate silhouette averages for each cluster
             cluster_silhouette_means = {
                 label: silhouette_values[non_noise_labels == label].mean() for label in unique_labels
             }
-
-            # Select the top `top_n` clusters with best and worst silhouette averages
             top_clusters = sorted(cluster_silhouette_means, key=cluster_silhouette_means.get, reverse=True)[:top_n]
             bottom_clusters = sorted(cluster_silhouette_means, key=cluster_silhouette_means.get)[:top_n]
-
-            # Combine the top and bottom clusters
             selected_clusters = sorted(set(top_clusters + bottom_clusters), key=lambda label: cluster_silhouette_means[label])
 
-        # Generate silhouette plot
-        plt.figure(figsize=(10, 7))
+        # Setup the figure with GridSpec
+        fig = plt.figure(figsize=(10, 12))
+        spec = gridspec.GridSpec(2, 1, height_ratios=[7, 3])  # 70% for plot, 30% for legend
+
+        # Create the plot area (top 70%)
+        ax_plot = fig.add_subplot(spec[0])
         y_lower = 10
         for i, label in enumerate(selected_clusters):
             ith_cluster_silhouette_values = silhouette_values[non_noise_labels == label]
@@ -272,25 +379,37 @@ class ExperimentResultController():
             size_cluster_i = ith_cluster_silhouette_values.shape[0]
             y_upper = y_lower + size_cluster_i
 
-            plt.fill_betweenx(np.arange(y_lower, y_upper), 0, ith_cluster_silhouette_values, alpha=0.7, label=f"Cluster {label}")
+            ax_plot.fill_betweenx(np.arange(y_lower, y_upper), 0, ith_cluster_silhouette_values, alpha=0.7, label=f"Cluster {label}")
             if show_cluster_index:
-                plt.text(-0.05, y_lower + 0.5 * size_cluster_i, str(label))
+                ax_plot.text(-0.05, y_lower + 0.5 * size_cluster_i, str(label))
             y_lower = y_upper + 10
 
-        # Add a vertical line for the original silhouette score
-        plt.axvline(x=original_score, color="red", linestyle="--", label=f"Original Score: {original_score:.2f}")
-        plt.xlabel("Silhouette Coefficient")
-        plt.ylabel("Cluster Index")
-        plt.title(f"Silhouette Plot for Best Configuration {optimizer}\n"
-                f"Clustering: {clustering} | Dim Reduction: {dim_red} | Dimensions: {dimensions}\n"
-                f"Params: {params}")
-        plt.legend()
+            if i == len(top_clusters) - 1:
+                ax_plot.axhline(y=y_lower, color='black', linestyle='--', linewidth=1.5)
 
-        # Save the plot
+        # Add a vertical line for the original silhouette score
+        ax_plot.axvline(x=original_score, color="red", linestyle="--", label=f"Original Score: {original_score:.2f}")
+        ax_plot.set_xlabel("Silhouette Coefficient")
+        ax_plot.set_ylabel("Cluster Index")
+        ax_plot.set_title(f"Silhouette Plot for Best Configuration {optimizer}\n"
+                        f"Clustering: {clustering} | Dim Reduction: {dim_red} | Dimensions: {dimensions}")
+
+        # Create the legend area (bottom 30%)
+        ax_legend = fig.add_subplot(spec[1])
+        ax_legend.axis("off")  # Hide the axes for the legend area
+        handles, labels = ax_plot.get_legend_handles_labels()
+        handles.append(plt.Line2D([0], [0], color='black', linestyle='--', linewidth=1.5))
+        labels.append("Div. Top/Bottom Clus.")
+        ax_legend.legend(
+            handles, labels, loc="center", title="Most Representative Top/Bottom Clusters",
+            fontsize='small', title_fontsize='small', ncol=4
+        )
+
+        # Save and optionally show the plot
         file_suffix = "best_silhouette" if not use_score_noise_ratio else "best_silhouette_noise_ratio"
-        file_path = os.path.join(self.plot_dir, f"experiment_{str(best_id)}",f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
-        os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
-        plt.savefig(file_path, bbox_inches='tight')
+        file_path = os.path.join(self.plot_dir, f"experiment_{best_experiment['id']}", f"index_{best_experiment['original_index']}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        plt.savefig(file_path, bbox_inches="tight")
         if show_plots:
             plt.show()
 

@@ -111,8 +111,8 @@ if __name__ == "__main__":
     # 1. Load images, generate embeddings and run experiments
     images = load_images("./data/Data")
     embeddings = generate_embeddings(images, model="small")
-    experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
-    # experiments_file = "src/experiment/json/single_experiment.json"
+    #experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
+    experiments_file = "src/experiment/json/single_experiment.json"
     run_experiments(experiments_file, embeddings)
     #run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
     
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     reduction_params = {
         "n_components": (2,15),
         "n_neighbors": (15,50),
-        "min_dist": (0.1, 0.5)
+        "min_dist": (0.0, 0.5)
     }
     n_cluster_range = (80,250)
     experiments_filtered = experiment_results.get_top_k_experiments(top_k=20, 
@@ -136,12 +136,12 @@ if __name__ == "__main__":
                                                                     use_score_noise_ratio = False)
     
     # Cogemos mejor experimento que mejor silhouette/noise ratio tiene de entre los mejores silhouette
-    best_experiment = experiment_results.get_best_experiment_data(experiments_filtered,use_score_noise_ratio=True)
+    best_experiment = experiment_results.get_best_experiment_data(experiments_filtered,use_score_noise_ratio=False)
 
-    experiment_results.show_best_silhouette(best_experiment, use_score_noise_ratio=True, show_plots=False)
-    experiment_results.show_best_scatter(best_experiment, use_score_noise_ratio=True, show_plots=False)
-    experiment_results.show_best_scatter_with_centers(best_experiment, use_score_noise_ratio=True, show_plots=False)
-    experiment_results.show_best_clusters_counters_comparision(best_experiment, use_score_noise_ratio=True, show_plots=False)
+    experiment_results.show_best_silhouette(best_experiment, use_score_noise_ratio=False, show_plots=False)
+    experiment_results.show_best_scatter(best_experiment, use_score_noise_ratio=False, show_plots=False)
+    experiment_results.show_best_scatter_with_centers(best_experiment, use_score_noise_ratio=False, show_plots=False)
+    experiment_results.show_best_clusters_counters_comparision(best_experiment, use_score_noise_ratio=False, show_plots=False)
     # # experiment_results.show_top_noise_silhouette(priority="eval_method", show_plots=False)
     # # experiment_results.show_top_noise_silhouette(priority="noise", show_plots=False)
     # # experiment_results.show_top_silhouette_noise_ratio(show_plots=False)
@@ -149,7 +149,7 @@ if __name__ == "__main__":
 
     # 3. Process images to Llava-1.5 and see:
     # 3.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
-    llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment)
+    llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=1)
     llava.create_cluster_dirs()
     # # 3.2 Upload those images to NGPU - UGR Gpus (start manually)
     # # rsync -av llava_inference xxxx.xx.es:/mnt/homeGPU/dlopez
