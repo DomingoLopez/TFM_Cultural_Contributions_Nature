@@ -53,13 +53,16 @@ class LlavaInferenceRemote():
         self.result_df = None
         self.result_stats_df = None
 
-        categories_joins = ", ".join(self.categories)
-        self.prompt_1 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + ". " \
-                    " If the image does not belong to any of the previous categories or does not have enough quality because it is too blurry or noisy, classify it as 'Not valid'"
+        categories_joins = ", ".join([category.upper() for category in self.categories])
+        self.prompt_1 = "You are an Image Classification Assistant especialized in cultural ecosystem services and cultural nature contributions to people." \
+                        f"If the focus of the image is related to the general topic of cultural ecosystem services or cultural nature contributions to people, classify it as one of these {len(self.categories)} categories: {categories_joins}" + ". " \
+                        "Otherwise, if the image is not related to the general topic of cultural ecosystem services or cultural nature contributions to people classify it as 'Not valid'. " \
+                        "You need to EXCLUSIVELY provide the classification, not the reasoning."
 
-        self.prompt_2 = f"You are an Image Classification Assistant. Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + "." \
-                    "If the image does not belong to any of the previous categories or does not have enough quality because it is too blurry or noisy, classify it as 'Not valid'. " \
-                    "You need to EXCLUSIVELY provide the classification, not the reasoning."
+        self.prompt_2 = "You are an Image Classification Assistant especialized in cultural ecosystem services and cultural nature contributions to people." \
+                        f"If the focus of the image is related to the general topic of cultural ecosystem services or cultural nature contributions to people, classify it as one of these {len(self.categories)} categories: {categories_joins}" + ". " \
+                        "Otherwise, if the image is not related to the general topic of cultural ecosystem services or cultural nature contributions to people classify it as 'Not valid'. " \
+                        "If you classify the image as 'Not Valid' you must output the Classification, and also the reasoning of why you chose 'Not Valid' but between curly braces"
         
         
         if n_prompt > 2 or n_prompt < 1:
@@ -132,6 +135,7 @@ class LlavaInferenceRemote():
                         "cluster": cluster_name,
                         "img": image_path,
                         "category_llava": classification_category,
+                        "output": classification_result,
                         "inference_time": inference_time
                     })
 
@@ -193,6 +197,7 @@ class LlavaInferenceRemote():
                             "cluster": cluster_name,
                             "img": image_path,
                             "category_llava_next": classification_category,
+                            "output": classification_result,
                             "inference_time": inference_time
                         })
                     except Exception as e:
@@ -326,7 +331,11 @@ class LlavaInferenceRemote():
 
 
 if __name__ == "__main__":
-    llava = LlavaInferenceRemote(3,5,"index_0_silhouette_0.722",2,False,False)
+    llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",1,False,False)
     llava.run_next()
-    llava2 = LlavaInferenceRemote(3,5,"index_0_silhouette_0.722",2,False,False)
+    llava2 = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",1,False,False)
     llava2.run()
+    llava3 = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",2,False,False)
+    llava3.run_next()
+    llava4 = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",2,False,False)
+    llava4.run()
