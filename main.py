@@ -110,8 +110,8 @@ if __name__ == "__main__":
     # 1. Load images, generate embeddings and run experiments
     images = load_images("./data/Data")
     embeddings = generate_embeddings(images, model="small")
-    # experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
-    experiments_file = "src/experiment/json/single_experiment.json"
+    experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
+    # experiments_file = "src/experiment/json/single_experiment.json"
     run_experiments(experiments_file, embeddings)
     #run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
     

@@ -244,7 +244,7 @@
     {
         "id": 14,
         "optimizer" : "optuna",
-        "optuna_trials": 200,
+        "optuna_trials": 50,
         "normalization": true,
         "scaler" : null,
         "dim_red" : "umap",
