@@ -54,23 +54,26 @@ class LlavaInferenceRemote():
         self.result_stats_df = None
 
         categories_joins = ", ".join([category.upper() for category in self.categories])
-        self.prompt_1 = "You are an Image Classification Assistant especialized in cultural ecosystem services and cultural nature contributions to people." \
-                        f"If the focus of the image is related to the general topic of cultural ecosystem services or cultural nature contributions to people, classify it as one of these {len(self.categories)} categories: {categories_joins}" + ". " \
-                        "Otherwise, if the image is not related to the general topic of cultural ecosystem services or cultural nature contributions to people classify it as 'Not valid'. " \
-                        "You need to EXCLUSIVELY provide the classification, not the reasoning."
-
-        self.prompt_2 = "You are an Image Classification Assistant especialized in cultural ecosystem services and cultural nature contributions to people." \
-                        f"If the focus of the image is related to the general topic of cultural ecosystem services or cultural nature contributions to people, classify it as one of these {len(self.categories)} categories: {categories_joins}" + ". " \
-                        "Otherwise, if the image is not related to the general topic of cultural ecosystem services or cultural nature contributions to people classify it as 'Not valid'. " \
-                        "If you classify the image as 'Not Valid' you must output the Classification, and also the reasoning of why you chose 'Not Valid' but between curly braces"
+        self.prompt_1 = (
+            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
+            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
+            "If the image does not belong to any of those categories, classify it as 'NOT VALID'. "
+            "Under no circumstances should you provide a category that is not listed above. "
+            "Please provide ONLY the classification as your response, without any reasoning or additional details."
+            )
         
+        self.prompt_2 = (
+            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
+            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
+            "If the image's focus does not pertain to cultural ecosystem services or cultural nature contributions to people, classify it as 'NOT VALID'. "
+            "Under no circumstances should you provide a category that is not listed above. "
+            "Please provide ONLY the classification as your response, without any reasoning or additional details."
+            )
         
         if n_prompt > 2 or n_prompt < 1:
                 raise ValueError("n_prompt must be 1 or 2")
             
         self.prompt = self.prompt_1 if n_prompt == 1 else self.prompt_2
-
-
 
 
 
@@ -331,11 +334,11 @@ class LlavaInferenceRemote():
 
 
 if __name__ == "__main__":
-    llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",1,False,False)
-    llava.run_next()
     llava2 = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",1,False,False)
     llava2.run()
-    llava3 = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",2,False,False)
-    llava3.run_next()
     llava4 = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",2,False,False)
     llava4.run()
+    llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",1,False,False)
+    llava.run_next()
+    llava3 = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",2,False,False)
+    llava3.run_next()

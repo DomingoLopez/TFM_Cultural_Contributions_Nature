@@ -110,8 +110,8 @@ if __name__ == "__main__":
     # 1. Load images, generate embeddings and run experiments
     images = load_images("./data/Data")
     embeddings = generate_embeddings(images, model="small")
-    experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
-    # experiments_file = "src/experiment/json/single_experiment.json"
+    # experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
+    experiments_file = "src/experiment/json/single_experiment.json"
     run_experiments(experiments_file, embeddings)
     #run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
     
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     # 2.1 Define eval method to analyze
     # 2.2 Load all experiments of given eval method
     eval_method = "silhouette"
-    experiment_results = ExperimentResultController(eval_method)
+    experiment_results = ExperimentResultController(eval_method, experiment_id=None)
     # DESIRED FILTERS 
     use_score_noise_ratio = True
     # The are range (from 2 to 15)
@@ -141,9 +141,7 @@ if __name__ == "__main__":
     experiment_results.show_best_scatter(best_experiment, use_score_noise_ratio=False, show_plots=False)
     experiment_results.show_best_scatter_with_centers(best_experiment, use_score_noise_ratio=False, show_plots=False)
     experiment_results.show_best_clusters_counters_comparision(best_experiment, use_score_noise_ratio=False, show_plots=False)
-    # # experiment_results.show_top_noise_silhouette(priority="eval_method", show_plots=False)
-    # # experiment_results.show_top_noise_silhouette(priority="noise", show_plots=False)
-    # # experiment_results.show_top_silhouette_noise_ratio(show_plots=False)
+    experiment_results.show_best_experiments_silhouette(show_plots=False)
 
 
     # 3. Process images to Llava-1.5 and see:
