@@ -119,7 +119,7 @@ if __name__ == "__main__":
     # 2.1 Define eval method to analyze
     # 2.2 Load all experiments of given eval method
     eval_method = "silhouette"
-    experiment_results = ExperimentResultController(eval_method, experiment_id=None)
+    experiment_results = ExperimentResultController(eval_method, experiment_id=1)
     # DESIRED FILTERS 
     use_score_noise_ratio = True
     # The are range (from 2 to 15)
@@ -146,15 +146,15 @@ if __name__ == "__main__":
 
     # 3. Process images to Llava-1.5 and see:
     # 3.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
-    llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=2)
+    llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=1)
     llava.create_cluster_dirs()
     # # 3.2 Upload those images to NGPU - UGR Gpus (start manually)
     # # rsync -av llava_inference xxxx.xx.es:/mnt/homeGPU/dlopez
     # # 3.3 Make LLava inference over those images (Start with Level 3 categorization). 
-    # llava.run(n_prompt=1)
+    llava.run()
     # # # - See if all images from those clusters are classified in same category. Print succes ratio.
-    # llava.create_results_stats()
-    # llava.plot_cluster_categories()
+    llava.create_results_stats()
+    llava.plot_cluster_categories()
 
 
     # #   - Those clusters with bad or low success ratio, examine and plot embeddings and cluster silhouette
