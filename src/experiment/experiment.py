@@ -244,7 +244,7 @@ class Experiment():
         for reduction_params in param_combinations:
             embeddings = self.__apply_preprocessing(reduction_params)
             # Si no hay datos en los embeddings tras reducir, que puede pasar en cvae
-            if self.data.shape[0] < 1:
+            if embeddings.size < 1:
                 continue
             clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
             study = clustering_model.run_optuna(
