@@ -6,7 +6,6 @@ import pickle
 import sys
 from typing import Optional
 import numpy as np
-import optuna
 import pandas as pd
 from loguru import logger
 from sklearn.cluster import KMeans
@@ -243,9 +242,6 @@ class Experiment():
 
         for reduction_params in param_combinations:
             embeddings = self.__apply_preprocessing(reduction_params)
-            # Si no hay datos en los embeddings tras reducir, que puede pasar en cvae
-            if embeddings.size < 1:
-                continue
             clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
             study = clustering_model.run_optuna(
                 evaluation_method=self._eval_method, n_trials=self._optuna_trials, penalty=self._penalty, penalty_range=self._penalty_range

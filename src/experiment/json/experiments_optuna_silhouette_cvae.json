@@ -8,7 +8,7 @@
         "dim_red" : "cvae",
         "reduction_parameters": {
             "dim_latent": [2,5,7,9,11,13,15],
-            "initializer": ["lecun_normal","truncated_normal", "orthogonal"],
+            "initializer": ["truncated_normal", "orthogonal"],
             "feature_normalization": [true, false],
             "train_valid_split": [0.99, 0.9]
         },
@@ -27,7 +27,7 @@
         "dim_red" : "cvae",
         "reduction_parameters": {
             "dim_latent": [2,5,7,9,11,13,15],
-            "initializer": ["lecun_normal","truncated_normal", "orthogonal"],
+            "initializer": ["truncated_normal", "orthogonal"],
             "feature_normalization": [true, false],
             "train_valid_split": [0.99, 0.9]
         },
@@ -46,7 +46,7 @@
         "dim_red" : "cvae",
         "reduction_parameters": {
             "dim_latent": [2,5,7,9,11,13,15],
-            "initializer": ["lecun_normal","truncated_normal", "orthogonal"],
+            "initializer": ["truncated_normal", "orthogonal"],
             "feature_normalization": [true, false],
             "train_valid_split": [0.99, 0.9]
         },
@@ -65,7 +65,7 @@
         "dim_red" : "cvae",
         "reduction_parameters": {
             "dim_latent": [2,5,7,9,11,13,15],
-            "initializer": ["lecun_normal","truncated_normal", "orthogonal"],
+            "initializer": ["truncated_normal", "orthogonal"],
             "feature_normalization": [true, false],
             "train_valid_split": [0.99, 0.9]
         },
