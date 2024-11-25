@@ -27,6 +27,7 @@ class LlavaInference():
                  classification_lvl: str,
                  best_experiment: pd.DataFrame,
                  n_prompt:int,
+                 type:str,
                  cache: bool = True, 
                  verbose: bool = False):
         """
@@ -36,13 +37,18 @@ class LlavaInference():
             classification_lvl (str): Classification level to be used
             experiment_name (str): Name of the experiment for organizing results
         """
+
+        if(type not in ("llava", "llava_next")):
+            raise ValueError("type must be one of llava or llava_next")
+
         self.best_experiment = best_experiment
         self.images = images
+        self.type = type
         # Base dir for moving images from every cluster.
         self.base_dir = Path(__file__).resolve().parent / f"cluster_images/experiment_{self.best_experiment['id']}" / f"index_{self.best_experiment['original_index']}_silhouette_{self.best_experiment['score_w/o_penalty']:.3f}"
         self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{classification_lvl}/experiment_{self.best_experiment['id']}" / f"index_{self.best_experiment['original_index']}_silhouette_{self.best_experiment['score_w/o_penalty']:.3f}" / f"prompt_{n_prompt}"
-        self.results_object = self.results_dir / f"result.pkl"
-        self.results_object_next = self.results_dir / f"result_next.pkl"
+        self.results_object = self.results_dir / f"result_{self.type}.pkl"
+        self.results_csv = self.results_dir / f"inference_results_{self.type}.csv"
         self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
         
         # Ensure directories exist
@@ -64,14 +70,22 @@ class LlavaInference():
         self.result_stats_df = None
 
 
-        categories_joins = ", ".join(self.categories)
-        self.prompt_1 = f"Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + ". " \
-                    " If the image does not belong to any of the previous categories or does not have enough quality because it is too blurry or noisy, classify it as 'Not valid'"
-
-        self.prompt_2 = f"You are an Image Classification Assistant. Classify the image into one of these {len(self.categories)} categories: {categories_joins}" + "." \
-                    "If the image does not belong to any of the previous categories or does not have enough quality because it is too blurry or noisy, classify it as 'Not valid'. " \
-                    "You need to EXCLUSIVELY provide the classification, not the reasoning."
+        categories_joins = ", ".join([category.upper() for category in self.categories])
+        self.prompt_1 = (
+            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
+            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
+            "If the image does not belong to any of those categories, classify it as 'NOT VALID'. "
+            "Under no circumstances should you provide a category that is not listed above. "
+            "Please provide ONLY the classification as your response, without any reasoning or additional details."
+            )
         
+        self.prompt_2 = (
+            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
+            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
+            "If the image's focus does not pertain to cultural ecosystem services or cultural nature contributions to people, classify it as 'NOT VALID'. "
+            "Under no circumstances should you provide a category that is not listed above. "
+            "Please provide ONLY the classification as your response, without any reasoning or additional details."
+            )
         
         if n_prompt > 2 or n_prompt < 1:
                 raise ValueError("n_prompt must be 1 or 2")
@@ -161,6 +175,12 @@ class LlavaInference():
 
 
     def run(self):
+        self.__run_llava() if self.type == "llava" else self.__run_llava_next()
+
+
+
+
+    def __run_llava(self):
         """
         Run Llava inference for every image in each subfolder of the base path.
         Store results.
@@ -176,7 +196,6 @@ class LlavaInference():
             results = []
             print("Launching llava")
             
-
             for cluster_name, image_paths in self.images_dict_format.items():
                 print(f"Cluster {cluster_name}. Imágenes: {len(image_paths)}")
                 for image_path in image_paths:
@@ -203,17 +222,20 @@ class LlavaInference():
                         "cluster": cluster_name,
                         "img": image_path,
                         "category_llava": classification_category,
+                        "output": classification_result,
                         "inference_time": inference_time
                     })
 
             results_df = pd.DataFrame(results)
-            results_df.to_csv(self.results_dir / "inference_results.csv", index=False, sep=";")
+            results_df.to_csv(self.results_csv, index=False, sep=";")
             pickle.dump(results_df, open(self.results_object, "wb"))
             self.result_df = results_df
             #logger.info(f"Results saved to {results_path}")
 
 
-    def run_next(self):
+
+
+    def __run_llava_next(self):
         """
         Run Llava-Next inference for every image in each subfolder of the base path.
         Store results.
@@ -263,15 +285,16 @@ class LlavaInference():
                         results.append({
                             "cluster": cluster_name,
                             "img": image_path,
-                            "category_llava_next": classification_category,
+                            "category_llava": classification_category,
+                            "output": classification_result,
                             "inference_time": inference_time
                         })
                     except Exception as e:
                         print(f"Error processing image {image_path}: {e}")
 
             results_df = pd.DataFrame(results)
-            results_df.to_csv(self.results_dir / "inference_results_next.csv", index=False, sep=";")
-            pickle.dump(results_df, open(self.results_object_next, "wb"))
+            results_df.to_csv(self.results_csv, index=False, sep=";")
+            pickle.dump(results_df, open(self.results_object, "wb"))
             self.result_df = results_df
 
 
@@ -299,7 +322,7 @@ class LlavaInference():
 
         self.result_stats_df = pd.DataFrame(cluster_stats)
         self.result_stats_df = self.result_stats_df.merge(category_counts, on='cluster', how='left')
-        self.result_stats_df.to_csv(self.results_dir / "result_stats.csv", index=False, sep=";")
+        self.result_stats_df.to_csv(self.results_dir / f"result_stats_{self.type}.csv", index=False, sep=";")
         
         self.plot_cluster_categories()
 
@@ -313,15 +336,15 @@ class LlavaInference():
         Plot four stacked bar charts showing the category distribution within each cluster,
         excluding noise (cluster -1). Additionally, create a pie chart for the noise cluster.
         """
-        # Exclude the noise (-1) from the main DataFrame and sort clusters numerically
-        plot_data = self.result_stats_df[self.result_stats_df['cluster'] != '-1']
-        plot_data['cluster_int'] = plot_data['cluster'].astype(int)  # Add helper column for sorting
+        plot_data = self.result_stats_df[self.result_stats_df['cluster'].astype(str) != '-1'].copy()
+        plot_data['cluster_int'] = pd.to_numeric(plot_data['cluster'], errors='coerce')
+        plot_data['cluster_int'] = plot_data['cluster_int'].astype(int)
         plot_data = plot_data.sort_values(by='cluster_int').reset_index(drop=True)
-        plot_data['cluster'] = plot_data['cluster'].astype(str)  # Convert back to str for plotting
-        plot_data = plot_data.drop(columns=['cluster_int'])  # Remove helper column
+        plot_data['cluster'] = plot_data['cluster_int'].astype(str)
 
+ 
         total_images = self.result_stats_df['count'].sum()
-        total_noise_images = self.result_stats_df[self.result_stats_df['cluster'] == '-1']['count'].sum()
+        total_noise_images = self.result_stats_df[self.result_stats_df['cluster'].astype(str) == '-1']['count'].sum()
 
         # Define a color map for each category based on all unique categories in result_stats_df
         unique_categories = self.result_stats_df['category_llava'].unique()
@@ -345,21 +368,39 @@ class LlavaInference():
             subset_clusters = clusters[start_idx:end_idx]
             plot_subset = plot_data[plot_data['cluster'].isin(subset_clusters)]
             
-            # Create stacked bar chart
+            # Asegurarse de que los datos estén agrupados y únicos
+            plot_subset = plot_subset.groupby(['cluster', 'category_llava'], as_index=False).sum()
+            
+            # Asegurarse de que los datos estén ordenados por cluster_int
+            plot_subset = plot_subset.sort_values(by='cluster_int')
+
+            # Crear tabla pivote
+            pivot_data = plot_subset.pivot_table(
+                index='cluster', 
+                columns='category_llava', 
+                values='count', 
+                aggfunc='sum',  # Agrega los valores duplicados
+                fill_value=0
+            )
+            
+            # Reindexar para garantizar el orden correcto
+            pivot_data = pivot_data.reindex(index=plot_subset['cluster'].unique())
+
+            # Crear gráfico de barras apiladas
             ax = axes[i // 2, i % 2]
-            pivot_data = plot_subset.pivot_table(index='cluster', columns='category_llava', values='count', fill_value=0)
             pivot_data.plot(kind='bar', stacked=True, ax=ax, color=[category_colors[cat] for cat in pivot_data.columns])
             
-            # Set green color for x-axis labels if success percent > 75%
+            # Colorear etiquetas del eje x según el porcentaje de éxito
             for label in ax.get_xticklabels():
                 cluster_id = label.get_text()
-                predominant_row = self.result_stats_df[(self.result_stats_df['cluster'] == cluster_id) &
+                predominant_row = self.result_stats_df[(self.result_stats_df['cluster'].astype(str) == cluster_id) &
                                                     (self.result_stats_df['category_llava'] == 
-                                                        self.result_stats_df.loc[self.result_stats_df['cluster'] == cluster_id, 'predominant_category'].values[0])]
-                success_percent = predominant_row['success_percent'].iloc[0]
-                label.set_color('green' if success_percent > threshold*100 else 'black')
-            
-            # Title and individual plot labels
+                                                        self.result_stats_df.loc[self.result_stats_df['cluster'].astype(str) == cluster_id, 'predominant_category'].values[0])]
+                if not predominant_row.empty:
+                    success_percent = predominant_row['success_percent'].iloc[0]
+                    label.set_color('green' if success_percent > threshold * 100 else 'black')
+
+            # Etiquetas y título del gráfico
             ax.set_title(f"Clusters {subset_clusters[0]} to {subset_clusters[-1]}")
             ax.set_xlabel("Cluster")
             ax.set_ylabel("Image Count")
@@ -367,13 +408,13 @@ class LlavaInference():
 
         # Create the legend outside the loop
         fig.legend([plt.Line2D([0], [0], color=category_colors[cat], lw=4) for cat in unique_categories],
-                unique_categories, title="Category", bbox_to_anchor=(0.92, 0.5), loc='center')
+                unique_categories, title="Category", bbox_to_anchor=(0.93, 0.5), loc='center')
         plt.tight_layout(rect=[0, 0, 0.84, 0.95])
-        fig.savefig(self.results_dir / "category_distribution_clusters.png")
+        fig.savefig(self.results_dir / f"category_distribution_clusters_{self.type}.png")
         plt.close(fig)
 
         # Create pie chart for the noise cluster (-1)
-        noise_data = self.result_stats_df[self.result_stats_df['cluster'] == '-1']
+        noise_data = self.result_stats_df[self.result_stats_df['cluster'].astype(str) == '-1']
         if not noise_data.empty:
             noise_counts = noise_data.groupby('category_llava')['count'].sum()
             
@@ -387,7 +428,7 @@ class LlavaInference():
             
             ax.set_title("Category Distribution in Noise Cluster (-1)" \
                         f"Total noise images: {total_noise_images}")
-            fig.savefig(self.results_dir / "noise_cluster_pie_chart.png")
+            fig.savefig(self.results_dir / f"noise_cluster_pie_chart_{self.type}.png")
             plt.close(fig)
 
 

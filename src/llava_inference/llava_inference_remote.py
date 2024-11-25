@@ -21,6 +21,7 @@ class LlavaInferenceRemote():
                  experiment:int,
                  name:str,
                  n_prompt:int,
+                 type:str,
                  cache: bool = True, 
                  verbose: bool = False):
         """
@@ -32,10 +33,11 @@ class LlavaInferenceRemote():
         """
         self.experiment = experiment
         self.name = name
+        self.type=type
         self.base_dir = Path(__file__).resolve().parent / f"cluster_images/experiment_{experiment}" / f"{name}"
         self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{classification_lvl}/experiment_{experiment}" / f"{name}" / f"prompt_{n_prompt}"
-        self.results_object = self.results_dir / f"result.pkl"
-        self.results_object_next = self.results_dir / f"result_next.pkl"
+        self.results_object = self.results_dir / f"result_{self.type}.pkl"
+        self.results_csv = self.results_dir / f"inference_results_{self.type}.csv"
         self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
  
         os.makedirs(self.base_dir, exist_ok=True)
@@ -59,13 +61,17 @@ class LlavaInferenceRemote():
             f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
             "If the image does not belong to any of those categories, classify it as 'NOT VALID'. "
             "Under no circumstances should you provide a category that is not listed above. "
-            "Please provide ONLY the classification as your response, without any reasoning or additional details."
+            "Please, provide the classification as your response, and also provide the reasoning after the classification separated by ':'."
+            "The response should follow this example schema: "
+            "VEHICLE: This image seems like a vehicle because..."
+            "Another example schema: "
+            "NOT VALID: This image does not belong to any of selected categories because..."
             )
         
         self.prompt_2 = (
             "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
             f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "If the image's focus does not pertain to cultural ecosystem services or cultural nature contributions to people, classify it as 'NOT VALID'. "
+            "If the image's focus does not pertain to cultural ecosystem services or cultural nature contributions to people, classify it as 'NOT VALID'"
             "Under no circumstances should you provide a category that is not listed above. "
             "Please provide ONLY the classification as your response, without any reasoning or additional details."
             )
@@ -96,7 +102,13 @@ class LlavaInferenceRemote():
 
 
 
+
     def run(self):
+        self.__run_llava() if self.type == "llava" else self.__run_llava_next()
+
+
+
+    def __run_llava(self):
         """
         Run Llava inference for every image in each subfolder of the base path.
         Store results.
@@ -129,7 +141,7 @@ class LlavaInferenceRemote():
                     inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
                     
                     start_time = time.time()
-                    output = model.generate(**inputs, max_new_tokens=100)
+                    output = model.generate(**inputs, max_new_tokens=500)
                     classification_result = processor.decode(output[0], skip_special_tokens=True)
                     classification_category = classification_result.split(":")[-1].strip()
                     inference_time = time.time() - start_time
@@ -143,13 +155,13 @@ class LlavaInferenceRemote():
                     })
 
             results_df = pd.DataFrame(results)
-            results_df.to_csv(self.results_dir / "inference_results.csv", index=False, sep=";")
+            results_df.to_csv(self.results_csv, index=False, sep=";")
             pickle.dump(results_df, open(self.results_object, "wb"))
             self.result_df = results_df
             #logger.info(f"Results saved to {results_path}")
 
 
-    def run_next(self):
+    def __run_llava_next(self):
         """
         Run Llava-Next inference for every image in each subfolder of the base path.
         Store results.
@@ -158,9 +170,9 @@ class LlavaInferenceRemote():
             print("Recovering results from cache")
             self.result_df = pickle.load(open(str(self.results_object), "rb"))
         else:
-            processor = LlavaNextProcessor.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf")
+            processor = LlavaNextProcessor.from_pretrained("llava-hf/llava-v1.6-vicuna-13b-hf")
             model = LlavaNextForConditionalGeneration.from_pretrained(
-                "llava-hf/llava-v1.6-mistral-7b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True
+                "llava-hf/llava-v1.6-vicuna-13b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True
             )
             model.to("cuda:0")
             model.config.pad_token_id = model.config.eos_token_id
@@ -185,7 +197,7 @@ class LlavaInferenceRemote():
                         inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
 
                         start_time = time.time()
-                        output = model.generate(**inputs, max_new_tokens=100)
+                        output = model.generate(**inputs, max_new_tokens=500)
 
                         classification_result = processor.decode(output[0], skip_special_tokens=True)
                         
@@ -196,10 +208,11 @@ class LlavaInferenceRemote():
 
                         inference_time = time.time() - start_time
 
+                        
                         results.append({
                             "cluster": cluster_name,
                             "img": image_path,
-                            "category_llava_next": classification_category,
+                            "category_llava": classification_category,
                             "output": classification_result,
                             "inference_time": inference_time
                         })
@@ -207,8 +220,8 @@ class LlavaInferenceRemote():
                         print(f"Error processing image {image_path}: {e}")
 
             results_df = pd.DataFrame(results)
-            results_df.to_csv(self.results_dir / "inference_results_next.csv", index=False, sep=";")
-            pickle.dump(results_df, open(self.results_object_next, "wb"))
+            results_df.to_csv(self.results_csv, index=False, sep=";")
+            pickle.dump(results_df, open(self.results_object, "wb"))
             self.result_df = results_df
 
 
@@ -334,11 +347,5 @@ class LlavaInferenceRemote():
 
 
 if __name__ == "__main__":
-    llava2 = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",1,False,False)
-    llava2.run()
-    llava4 = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",2,False,False)
-    llava4.run()
-    llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",1,False,False)
-    llava.run_next()
-    llava3 = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",2,False,False)
-    llava3.run_next()
+    llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",1,"llava_next",False,False)
+    llava.run()

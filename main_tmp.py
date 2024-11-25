@@ -41,15 +41,18 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 
 if __name__ == "__main__":
     
-    # Cargar el archivo
-    with open("src/experiment/results/3/silhouette/result.pkl", "rb") as f:
-        result = pickle.load(f)
-    
-
-    
-    # Añadir la columna eval_method después de clustering
-    result.insert(0, "id", 3)
-    
-    result.to_csv("src/experiment/results/3/silhouette/result.csv", sep=";")
-    pickle.dump(result, open(str("src/experiment/results/3/silhouette/result.pkl"), "wb"))    
         
+    file_path = "src/llava_inference/results/classification_lvl_3/experiment_1/index_18_silhouette_0.755/prompt_2/result_llava_next.pkl"
+
+    # Cargar el DataFrame del archivo
+    with open(file_path, "rb") as f:
+        df = pickle.load(f)
+
+    # Renombrar la columna
+    df = df.rename(columns={"category_llava_next": "category_llava"})
+
+    # Guardar el DataFrame actualizado en el mismo archivo
+    with open(file_path, "wb") as f:
+        pickle.dump(df, f)
+
+    print("Columna renombrada y archivo guardado exitosamente.")
