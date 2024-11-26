@@ -259,5 +259,24 @@
         "penalty" : null,
         "penalty_range" : null,
         "cache" : 1
+    },
+    {
+    "id": 15,
+    "optimizer" : "optuna",
+    "optuna_trials": 200,
+    "normalization": true,
+    "scaler" : null,
+    "dim_red" : "umap",
+    "reduction_parameters": {
+        "metric": ["euclidean","cosine"],
+        "n_components": [17,21,25,35,50],
+        "n_neighbors": [7, 10, 15, 25, 35],
+        "min_dist": [0.1, 0.25, 0.5]
+    },
+    "clustering" : "hdbscan",
+    "eval_method" : "silhouette",
+    "penalty" : null,
+    "penalty_range" : null,
+    "cache" : 1
     }
 ]

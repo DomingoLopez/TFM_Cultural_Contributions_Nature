@@ -59,13 +59,12 @@ class LlavaInferenceRemote():
         self.prompt_1 = (
             "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
             f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "If the image does not belong to any of those categories, classify it as 'NOT VALID'. "
             "Under no circumstances should you provide a category that is not listed above. "
             "Please, provide the classification as your response, and also provide the reasoning after the classification separated by ':'."
             "The response should follow this example schema: "
             "VEHICLE: This image seems like a vehicle because..."
             "Another example schema: "
-            "NOT VALID: This image does not belong to any of selected categories because..."
+            "TERRESTRIAL ACTIVITIES: There are people doing activities on..."
             )
         
         self.prompt_2 = (

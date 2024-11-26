@@ -83,7 +83,8 @@ class Dinov2Inference:
         # Construct image tranforms
         self.transform = transforms.Compose(
             [
-                transforms.Resize(256),
+                # Cambiado la interpolación a BICUBIC como en la evaluación que hace en la librería DinoV2
+                transforms.Resize(256,interpolation=transforms.InterpolationMode.BICUBIC),
                 transforms.CenterCrop(224),
                 transforms.ToTensor(),
                 transforms.Normalize(

@@ -120,16 +120,16 @@ if __name__ == "__main__":
     # 2.2 Load all experiments of given eval method
     
     eval_method = "silhouette"
-    experiment_results = ExperimentResultController(eval_method, experiment_id=1)
+    experiment_results = ExperimentResultController(eval_method, experiment_id=None)
     # DESIRED FILTERS 
     use_score_noise_ratio = True
     # The are range (from 2 to 15)
     reduction_params = {
-        "n_components": (2,15),
-        "n_neighbors": (15,50),
-        "min_dist": (0.0, 0.5)
+        "n_components": (16,55),
+        "n_neighbors": (7,50),
+        "min_dist": (0.0, 0.6)
     }
-    n_cluster_range = (80,250)
+    n_cluster_range = (80,300)
     experiments_filtered = experiment_results.get_top_k_experiments(top_k=20, 
                                                                     n_cluster_range=n_cluster_range,
                                                                     reduction_params=reduction_params,
@@ -147,11 +147,13 @@ if __name__ == "__main__":
 
     # 3. Process images to Llava-1.5 and see:
     # 3.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
-    for i in range(1,3,1):
-        for type in ("llava","llava_next"):
-            llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=i, type=type)
-            #llava.create_cluster_dirs()
-            llava.run()
-            llava.create_results_stats()
-            llava.plot_cluster_categories()
+    llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=1, type="llava_next")
+    llava.create_cluster_dirs()
+    # for i in range(1,3,1):
+    #     for type in ("llava","llava_next"):
+    #         llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=i, type=type)
+    #         llava.create_cluster_dirs()
+    #         # llava.run()
+    #         # llava.create_results_stats()
+    #         # llava.plot_cluster_categories()
    
