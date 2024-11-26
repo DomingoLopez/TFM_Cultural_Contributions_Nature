@@ -59,12 +59,13 @@ class LlavaInferenceRemote():
         self.prompt_1 = (
             "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
             f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
+            "If the image does not belong to any of those categories, classify it as 'NOT VALID'. "
             "Under no circumstances should you provide a category that is not listed above. "
             "Please, provide the classification as your response, and also provide the reasoning after the classification separated by ':'."
             "The response should follow this example schema: "
             "VEHICLE: This image seems like a vehicle because..."
             "Another example schema: "
-            "TERRESTRIAL ACTIVITIES: There are people doing activities on..."
+            "NOT VALID: This image does not belong to any of selected categories because..."
             )
         
         self.prompt_2 = (
@@ -169,9 +170,10 @@ class LlavaInferenceRemote():
             print("Recovering results from cache")
             self.result_df = pickle.load(open(str(self.results_object), "rb"))
         else:
-            processor = LlavaNextProcessor.from_pretrained("llava-hf/llava-v1.6-vicuna-13b-hf")
+            # "llava-hf/llava-v1.6-mistral-7b-hf"
+            processor = LlavaNextProcessor.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf")
             model = LlavaNextForConditionalGeneration.from_pretrained(
-                "llava-hf/llava-v1.6-vicuna-13b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True
+                "llava-hf/llava-v1.6-mistral-7b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True
             )
             model.to("cuda:0")
             model.config.pad_token_id = model.config.eos_token_id
