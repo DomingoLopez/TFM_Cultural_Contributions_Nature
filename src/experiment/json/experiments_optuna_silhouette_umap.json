@@ -278,5 +278,44 @@
     "penalty" : null,
     "penalty_range" : null,
     "cache" : 1
+    },
+    {
+    "id": 16,
+    "optimizer" : "optuna",
+    "optuna_trials": 200,
+    "normalization": true,
+    "scaler" : null,
+    "dim_red" : "umap",
+    "reduction_parameters": {
+        "metric": ["euclidean","cosine"],
+        "n_components": [2,3,4,5],
+        "n_neighbors": [2, 3, 5, 10, 15, 20, 50],
+        "min_dist": [0.1, 0.2, 0.3, 0.5, 0.7]
+    },
+    "clustering" : "hdbscan",
+    "eval_method" : "silhouette",
+    "penalty" : null,
+    "penalty_range" : null,
+    "cache" : 0
+    },
+    {
+    "id": 17,
+    "optimizer" : "optuna",
+    "optuna_trials": 200,
+    "normalization": true,
+    "scaler" : null,
+    "dim_red" : "tsne",
+    "reduction_parameters": {
+        "metric": ["euclidean","cosine"],
+        "n_components": [2,3,4,5,7],
+        "perplexity": [30, 40, 50],
+        "n_iter": [1000, 1500, 2000],
+        "learning_rate": [100, 150, 300, 500]
+    },
+    "clustering" : "hdbscan",
+    "eval_method" : "silhouette",
+    "penalty" : null,
+    "penalty_range" : null,
+    "cache" : 0
     }
 ]

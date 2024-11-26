@@ -80,18 +80,19 @@ class Dinov2Inference:
         # Setup model in eval mode.
         self.model.eval()
 
-        # Construct image tranforms
-        self.transform = transforms.Compose(
-            [
-                # Cambiado la interpolación a BICUBIC como en la evaluación que hace en la librería DinoV2
-                transforms.Resize(256,interpolation=transforms.InterpolationMode.BICUBIC),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
-        )
+        if self.model_name == "base":
+            input_size = 224
+        elif self.model_name == "large":
+            input_size = 518
+        else:
+            input_size = 224
+
+        self.transform = transforms.Compose([
+            transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
+            transforms.CenterCrop(input_size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
 
         # Generate cache folder if cache up
         if not self.disable_cache:

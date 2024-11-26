@@ -109,7 +109,7 @@ if __name__ == "__main__":
     
     # 1. Load images, generate embeddings and run experiments
     images = load_images("./data/Data")
-    embeddings = generate_embeddings(images, model="small")
+    embeddings = generate_embeddings(images, model="base")
     experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
     # experiments_file = "src/experiment/json/single_experiment.json"
     run_experiments(experiments_file, embeddings)
@@ -125,8 +125,8 @@ if __name__ == "__main__":
     use_score_noise_ratio = True
     # The are range (from 2 to 15)
     reduction_params = {
-        "n_components": (16,55),
-        "n_neighbors": (7,50),
+        "n_components": (2,25),
+        "n_neighbors": (2,60),
         "min_dist": (0.0, 0.6)
     }
     n_cluster_range = (80,300)

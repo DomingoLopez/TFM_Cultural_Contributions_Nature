@@ -12,6 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, RobustScaler, StandardScaler, normalize
 import umap
 from cvae import cvae
@@ -207,6 +208,8 @@ class Preprocess:
             embeddings_dim_red = self.__do_CVAE(embeddings_df)
         elif self.dim_red == "pca":
             embeddings_dim_red = self.__do_PCA(embeddings_df)
+        elif self.dim_red == "tsne":
+            embeddings_dim_red = self.__do_TSNE(embeddings_df)
         else:
             embeddings_dim_red = self.__do_UMAP(embeddings_df)
 
@@ -250,6 +253,22 @@ class Preprocess:
         umap_result = reducer.fit_transform(embeddings_df.values)
         umap_df = pd.DataFrame(data=umap_result)
         return umap_df
+    
+
+    def __do_TSNE(self, embeddings_df):
+        """
+        t-SNE Dimensionality Reduction.
+        More info at https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html
+        """
+        if self.reduction_params is None:
+            raise ValueError("No reduction params provided")
+        
+        logger.info(f"Using t-SNE Dim. reduction. Params: {', '.join([f'{key}={value}' for key, value in self.reduction_params.items()])}")
+        reducer = TSNE(random_state=42, **self.reduction_params)
+        tsne_result = reducer.fit_transform(embeddings_df.values)
+        tsne_df = pd.DataFrame(data=tsne_result)
+        return tsne_df
+
 
     
 
