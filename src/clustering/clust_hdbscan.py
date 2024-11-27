@@ -74,8 +74,8 @@ class HDBSCANClustering(ClusteringModel):
         # Param/model builder for hdbscan
         def model_builder(trial):
             return hdbscan.HDBSCAN(
-                min_cluster_size=trial.suggest_int('min_cluster_size', 2, 20),
-                min_samples=trial.suggest_int('min_samples', 2, 20),
+                min_cluster_size=trial.suggest_int('min_cluster_size', 10, 200),
+                min_samples=trial.suggest_int('min_samples', 10, 50),
                 cluster_selection_epsilon=trial.suggest_float('cluster_selection_epsilon', 0.01, 1.0, log=True),
                 alpha=trial.suggest_float('alpha', 0.3, 1.5),
                 metric=trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'chebyshev']),

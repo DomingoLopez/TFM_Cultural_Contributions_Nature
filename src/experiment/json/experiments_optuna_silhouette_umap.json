@@ -1,5 +1,5 @@
 [
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 1,
         "optimizer" : "optuna",
         "optuna_trials": 100,
@@ -18,7 +18,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 2,
         "optimizer" : "optuna",
         "optuna_trials": 100,
@@ -32,7 +32,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 3,
         "optimizer" : "optuna",
         "optuna_trials": 100,
@@ -51,7 +51,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 4,
         "optimizer" : "optuna",
         "optuna_trials": 200,
@@ -70,7 +70,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 5,
         "optimizer" : "optuna",
         "optuna_trials": 200,
@@ -89,7 +89,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 6,
         "optimizer" : "optuna",
         "optuna_trials": 200,
@@ -108,7 +108,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 7,
         "optimizer" : "optuna",
         "optuna_trials": 200,
@@ -127,7 +127,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 8,
         "optimizer" : "optuna",
         "optuna_trials": 200,
@@ -146,7 +146,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 9,
         "optimizer" : "optuna",
         "optuna_trials": 200,
@@ -165,7 +165,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 10,
         "optimizer" : "optuna",
         "optuna_trials": 200,
@@ -184,7 +184,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 11,
         "optimizer" : "optuna",
         "optuna_trials": 200,
@@ -203,7 +203,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 12,
         "optimizer" : "optuna",
         "optuna_trials": 200,
@@ -222,7 +222,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 13,
         "optimizer" : "optuna",
         "optuna_trials": 200,
@@ -241,7 +241,7 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {
+    {   "_comment":"This is using DINOV2 SMALL MODEL",
         "id": 14,
         "optimizer" : "optuna",
         "optuna_trials": 50,
@@ -261,6 +261,7 @@
         "cache" : 1
     },
     {
+    "_comment":"This is using DINOV2 SMALL MODEL",
     "id": 15,
     "optimizer" : "optuna",
     "optuna_trials": 200,
@@ -280,6 +281,47 @@
     "cache" : 1
     },
     {
+    "_comment":"This is using DINOV2 BASE MODEL",
+    "id": 17,
+    "optimizer" : "optuna",
+    "optuna_trials": 200,
+    "normalization": true,
+    "scaler" : "standard",
+    "dim_red" : "umap",
+    "reduction_parameters": {
+        "metric": ["cosine","euclidean"],
+        "n_components": [2,3,4,5],
+        "n_neighbors": [5, 10, 15, 20, 50],
+        "min_dist": [0.1, 0.3, 0.5, 0.7]
+    },
+    "clustering" : "hdbscan",
+    "eval_method" : "silhouette",
+    "penalty" : null,
+    "penalty_range" : null,
+    "cache" : 0
+    },
+    {
+    "_comment":"This is using DINOV2 BASE MODEL",
+    "id": 18,
+    "optimizer" : "optuna",
+    "optuna_trials": 200,
+    "normalization": true,
+    "scaler" : "standard",
+    "dim_red" : "umap",
+    "reduction_parameters": {
+        "metric": ["euclidean","cosine"],
+        "n_components": [2,3,4,5],
+        "n_neighbors": [5, 10, 15, 20, 50],
+        "min_dist": [0.1, 0.3, 0.5, 0.7]
+    },
+    "clustering" : "dbscan",
+    "eval_method" : "silhouette",
+    "penalty" : null,
+    "penalty_range" : null,
+    "cache" : 0
+    },
+    {
+    "_comment":"This is using DINOV2 BASE MODEL",
     "id": 16,
     "optimizer" : "optuna",
     "optuna_trials": 200,
@@ -291,26 +333,6 @@
         "n_components": [2,3,4,5],
         "n_neighbors": [2, 3, 5, 10, 15, 20, 50],
         "min_dist": [0.1, 0.2, 0.3, 0.5, 0.7]
-    },
-    "clustering" : "hdbscan",
-    "eval_method" : "silhouette",
-    "penalty" : null,
-    "penalty_range" : null,
-    "cache" : 0
-    },
-    {
-    "id": 17,
-    "optimizer" : "optuna",
-    "optuna_trials": 200,
-    "normalization": true,
-    "scaler" : null,
-    "dim_red" : "tsne",
-    "reduction_parameters": {
-        "metric": ["euclidean","cosine"],
-        "n_components": [2,3,4,5,7],
-        "perplexity": [30, 40, 50],
-        "n_iter": [1000, 1500, 2000],
-        "learning_rate": [100, 150, 300, 500]
     },
     "clustering" : "hdbscan",
     "eval_method" : "silhouette",

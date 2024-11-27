@@ -122,26 +122,26 @@ if __name__ == "__main__":
     eval_method = "silhouette"
     experiment_results = ExperimentResultController(eval_method, experiment_id=None)
     # DESIRED FILTERS 
-    use_score_noise_ratio = True
+    use_score_noise_ratio = False
     # The are range (from 2 to 15)
     reduction_params = {
         "n_components": (2,25),
-        "n_neighbors": (2,60),
-        "min_dist": (0.0, 0.6)
+        "n_neighbors": (3,60),
+        "min_dist": (0.1, 0.8)
     }
     n_cluster_range = (80,300)
     experiments_filtered = experiment_results.get_top_k_experiments(top_k=20, 
                                                                     n_cluster_range=n_cluster_range,
                                                                     reduction_params=reduction_params,
-                                                                    use_score_noise_ratio = False)
+                                                                    use_score_noise_ratio = use_score_noise_ratio)
     
     # Cogemos mejor experimento que mejor silhouette/noise ratio tiene de entre los mejores silhouette
-    best_experiment = experiment_results.get_best_experiment_data(experiments_filtered,use_score_noise_ratio=False)
+    best_experiment = experiment_results.get_best_experiment_data(experiments_filtered,use_score_noise_ratio=use_score_noise_ratio)
 
-    experiment_results.show_best_silhouette(best_experiment, use_score_noise_ratio=False, show_plots=False)
-    experiment_results.show_best_scatter(best_experiment, use_score_noise_ratio=False, show_plots=False)
-    experiment_results.show_best_scatter_with_centers(best_experiment, use_score_noise_ratio=False, show_plots=False)
-    experiment_results.show_best_clusters_counters_comparision(best_experiment, use_score_noise_ratio=False, show_plots=False)
+    experiment_results.show_best_silhouette(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
+    experiment_results.show_best_scatter(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
+    experiment_results.show_best_scatter_with_centers(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
+    experiment_results.show_best_clusters_counters_comparision(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
     experiment_results.show_best_experiments_silhouette(show_plots=False)
 
 
