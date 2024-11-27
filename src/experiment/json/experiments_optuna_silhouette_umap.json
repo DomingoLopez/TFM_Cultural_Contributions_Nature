@@ -306,7 +306,7 @@
     "optimizer" : "optuna",
     "optuna_trials": 200,
     "normalization": true,
-    "scaler" : "standard",
+    "scaler" : null,
     "dim_red" : "umap",
     "reduction_parameters": {
         "metric": ["cosine","euclidean"],
@@ -318,7 +318,7 @@
     "eval_method" : "silhouette",
     "penalty" : null,
     "penalty_range" : null,
-    "cache" : 1
+    "cache" : 0
     },
     {
     "_comment":"This is using DINOV2 BASE MODEL",
