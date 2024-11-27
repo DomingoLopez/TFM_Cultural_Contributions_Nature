@@ -12,6 +12,8 @@ import time
 import os
 import sys
 import matplotlib.pyplot as plt
+from scipy.stats import entropy
+
 
 #from src.utils.image_loader import ImageLoader
 #from loguru import logger
@@ -298,13 +300,17 @@ class LlavaInference():
 
 
 
+
     def create_results_stats(self):
         """
         Generate statistics for each cluster's category distribution.
         Calculate the percentage of images in each cluster belonging to the same category.
+        Also, calculate homogeneity and entropy for each cluster.
         """
+        # Contar categorías por clúster
         category_counts = self.result_df.groupby(['cluster', 'category_llava']).size().reset_index(name='count')
 
+        # Calcular estadísticas por clúster
         cluster_stats = []
         for cluster_name, group in category_counts.groupby('cluster'):
             total_images = group['count'].sum()
@@ -312,18 +318,42 @@ class LlavaInference():
             predominant_count = group['count'].max()
             success_percent = (predominant_count / total_images) * 100
 
+            # Calcular homogeneidad
+            homogeneity_k = predominant_count / total_images
+
+            # Calcular entropía
+            label_counts = group['count'].values
+            probabilities = label_counts / label_counts.sum()
+            entropy_k = entropy(probabilities, base=2)
+
+            # Guardar estadísticas del clúster
             cluster_stats.append({
                 'cluster': cluster_name,
                 'total_img': total_images,
                 'predominant_category': predominant_category,
-                'success_percent': success_percent
+                'success_percent': success_percent,
+                'homogeneity_k': homogeneity_k,
+                'entropy_k': entropy_k
             })
 
+        # Crear DataFrame con estadísticas por clúster
         self.result_stats_df = pd.DataFrame(cluster_stats)
-        self.result_stats_df = self.result_stats_df.merge(category_counts, on='cluster', how='left')
+
+        # Guardar las estadísticas en un archivo CSV
         self.result_stats_df.to_csv(self.results_dir / f"result_stats_{self.type}.csv", index=False, sep=";")
-        
+
+        # Calcular la métrica de calidad usando calculate_clustering_quality
+        quality_results = self.calculate_clustering_quality(self.result_stats_df, alpha=1.0)
+
+        # Mostrar resultados de la métrica de calidad
+        print("Resultados de la Métrica de Calidad:")
+        print(f"Homogeneidad Global: {quality_results['homogeneity_global']:.4f}")
+        print(f"Penalización Global: {quality_results['penalization_global']:.4f}")
+        print(f"Métrica de Calidad: {quality_results['quality_metric']:.4f}")
+
+        # Llamar a la función de visualización si es necesario
         self.plot_cluster_categories()
+
 
 
 
@@ -431,6 +461,51 @@ class LlavaInference():
             plt.close(fig)
 
 
+
+
+    def calculate_clustering_quality(self,result_stats_df, alpha=1.0):
+        """
+        Calculate the quality metric for clustering based on homogeneity and entropy.
+
+        Args:
+            result_stats_df (pd.DataFrame): DataFrame with statistics for each cluster. 
+                Expected columns:
+                    - 'cluster': Cluster ID.
+                    - 'total_img': Total images in the cluster.
+                    - 'homogeneity_k': Proportion of images in the dominant category.
+                    - 'entropy_k': Entropy of label distribution in the cluster.
+            alpha (float): Weight for the entropy penalty in the quality metric.
+
+        Returns:
+            dict: A dictionary with the calculated metrics:
+                - 'homogeneity_global': Weighted average of cluster homogeneities.
+                - 'penalization_global': Weighted average of cluster entropies.
+                - 'quality_metric': Final clustering quality score.
+        """
+        # Ensure the required columns are present
+        required_columns = ['total_img', 'homogeneity_k', 'entropy_k']
+        for col in required_columns:
+            if col not in result_stats_df.columns:
+                raise ValueError(f"Missing required column: {col} in result_stats_df")
+
+        # Calculate the total number of images across all clusters
+        total_images = result_stats_df['total_img'].sum()
+
+        # Calculate global homogeneity (weighted average of homogeneity_k)
+        homogeneity_global = (result_stats_df['total_img'] * result_stats_df['homogeneity_k']).sum() / total_images
+
+        # Calculate global penalty (weighted average of entropy_k)
+        penalization_global = (result_stats_df['total_img'] * result_stats_df['entropy_k']).sum() / total_images
+
+        # Combine metrics into the quality score
+        quality_metric = homogeneity_global - alpha * penalization_global
+
+        # Return the results as a dictionary
+        return {
+            'homogeneity_global': homogeneity_global,
+            'penalization_global': penalization_global,
+            'quality_metric': quality_metric
+        }
 
 
 
