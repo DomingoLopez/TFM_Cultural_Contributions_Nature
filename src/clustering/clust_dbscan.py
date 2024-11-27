@@ -54,8 +54,8 @@ class DBSCANClustering(ClusteringModel):
         """
         def model_builder(trial):
             return DBSCAN(
-                eps=trial.suggest_float("eps", 0.1, 10, log=True),
-                min_samples=trial.suggest_int("min_samples", 2, 50),
+                eps=trial.suggest_float("eps", 0.5, 2, log=True),
+                min_samples=trial.suggest_int("min_samples", 2, 20),
                 metric=trial.suggest_categorical("metric", ["cosine","euclidean", "manhattan"])
             )
         

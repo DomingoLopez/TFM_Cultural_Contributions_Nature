@@ -282,6 +282,26 @@
     },
     {
     "_comment":"This is using DINOV2 BASE MODEL",
+    "id": 16,
+    "optimizer" : "optuna",
+    "optuna_trials": 200,
+    "normalization": true,
+    "scaler" : null,
+    "dim_red" : "umap",
+    "reduction_parameters": {
+        "metric": ["euclidean","cosine"],
+        "n_components": [2,3,4,5],
+        "n_neighbors": [2, 3, 5, 10, 15, 20, 50],
+        "min_dist": [0.1, 0.2, 0.3, 0.5, 0.7]
+    },
+    "clustering" : "hdbscan",
+    "eval_method" : "silhouette",
+    "penalty" : null,
+    "penalty_range" : null,
+    "cache" : 1
+    },
+    {
+    "_comment":"This is using DINOV2 BASE MODEL",
     "id": 17,
     "optimizer" : "optuna",
     "optuna_trials": 200,
@@ -298,7 +318,7 @@
     "eval_method" : "silhouette",
     "penalty" : null,
     "penalty_range" : null,
-    "cache" : 0
+    "cache" : 1
     },
     {
     "_comment":"This is using DINOV2 BASE MODEL",
@@ -318,11 +338,11 @@
     "eval_method" : "silhouette",
     "penalty" : null,
     "penalty_range" : null,
-    "cache" : 0
+    "cache" : 1
     },
     {
     "_comment":"This is using DINOV2 BASE MODEL",
-    "id": 16,
+    "id": 19,
     "optimizer" : "optuna",
     "optuna_trials": 200,
     "normalization": true,
@@ -331,13 +351,33 @@
     "reduction_parameters": {
         "metric": ["euclidean","cosine"],
         "n_components": [2,3,4,5],
-        "n_neighbors": [2, 3, 5, 10, 15, 20, 50],
-        "min_dist": [0.1, 0.2, 0.3, 0.5, 0.7]
+        "n_neighbors": [5, 10, 15, 20, 50],
+        "min_dist": [0.1, 0.3, 0.5, 0.7]
     },
     "clustering" : "hdbscan",
-    "eval_method" : "silhouette",
+    "eval_method" : "davies_bouldin",
     "penalty" : null,
     "penalty_range" : null,
-    "cache" : 0
+    "cache" : 1
+    },
+    {
+    "_comment":"This is using DINOV2 BASE MODEL",
+    "id": 20,
+    "optimizer" : "optuna",
+    "optuna_trials": 200,
+    "normalization": true,
+    "scaler" : null,
+    "dim_red" : "umap",
+    "reduction_parameters": {
+        "metric": ["euclidean","cosine"],
+        "n_components": [2,3,4,5],
+        "n_neighbors": [5, 10, 15, 20, 50],
+        "min_dist": [0.1, 0.3, 0.5, 0.7]
+    },
+    "clustering" : "dbscan",
+    "eval_method" : "davies_bouldin",
+    "penalty" : null,
+    "penalty_range" : null,
+    "cache" : 1
     }
 ]

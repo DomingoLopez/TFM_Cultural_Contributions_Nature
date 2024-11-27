@@ -109,7 +109,6 @@ if __name__ == "__main__":
     
     # 1. Load images, generate embeddings and run experiments
     images = load_images("./data/Data")
-    embeddings = generate_embeddings(images, model="base")
     
     eval_method = "silhouette"
     experiment_results = ExperimentResultController(eval_method, experiment_id=1)
@@ -132,13 +131,4 @@ if __name__ == "__main__":
     # 3. Process images to Llava-1.5 and see:
     # 3.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
     llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=1, type="llava_next")
-    llava.create_cluster_dirs()
-    
-    # for i in range(1,3,1):
-    #     for type in ("llava","llava_next"):
-    #         llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=i, type=type)
-    #         llava.create_cluster_dirs()
-    #         # llava.run()
-    #         # llava.create_results_stats()
-    #         # llava.plot_cluster_categories()
-   
+    llava.create_results_stats()
