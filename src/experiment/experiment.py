@@ -261,9 +261,14 @@ class Experiment():
                 score_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
             elif self._eval_method == "davies_bouldin":
                 score_noise_ratio = (noise_not_noise.get(-1) + 1) / score_best
+            elif self._eval_method == "silhouette_noise":
+                score_noise_ratio = score_best
+            elif self._eval_method == "davies_noise":
+                score_noise_ratio = score_best
             else:
                 raise ValueError(f"Unsupported evaluation method: {self._eval_method}")
             
+
             # Append results
             results.append({
                 "id": self._id,

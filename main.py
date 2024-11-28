@@ -119,8 +119,8 @@ if __name__ == "__main__":
     # 2.1 Define eval method to analyze
     # 2.2 Load all experiments of given eval method
     
-    # eval_method = "silhouette"
-    # experiment_results = ExperimentResultController(eval_method, experiment_id=None)
+    # eval_method = "davies_bouldin"
+    # experiment_results = ExperimentResultController(eval_method, experiment_id=18)
     # # DESIRED FILTERS 
     # use_score_noise_ratio = False
     # # The are range (from 2 to 15)
@@ -138,11 +138,11 @@ if __name__ == "__main__":
     # # Cogemos mejor experimento que mejor silhouette/noise ratio tiene de entre los mejores silhouette
     # best_experiment = experiment_results.get_best_experiment_data(experiments_filtered,use_score_noise_ratio=use_score_noise_ratio)
 
-    # experiment_results.show_best_silhouette(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
-    # experiment_results.show_best_scatter(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
-    # experiment_results.show_best_scatter_with_centers(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
-    # experiment_results.show_best_clusters_counters_comparision(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
-    # experiment_results.show_best_experiments_silhouette(show_plots=False)
+    # # experiment_results.show_best_silhouette(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
+    # # experiment_results.show_best_scatter(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
+    # # experiment_results.show_best_scatter_with_centers(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
+    # # experiment_results.show_best_clusters_counters_comparision(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
+    # # experiment_results.show_best_experiments_silhouette(show_plots=False)
 
 
     # # 3. Process images to Llava-1.5 and see:

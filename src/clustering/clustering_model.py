@@ -13,8 +13,6 @@ import pylab as plt
 from loguru import logger
 import sys
 from abc import ABC, abstractmethod
-
-
 from typing import Optional, Tuple
 from matplotlib.colors import ListedColormap
 from sklearn.cluster import DBSCAN, AgglomerativeClustering, KMeans
@@ -22,8 +20,6 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import davies_bouldin_score, make_scorer, silhouette_score
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import cosine_similarity
-
-from src.clustering.clust_dbscan import DBSCANClustering
 
 from ..utils.decorators import deprecated
 
@@ -218,53 +214,48 @@ class ClusteringModel(ABC):
             # Evaluate model
             if n_clusters > 1:
                 # Calculate the original score without penalty
-                if evaluation_method == "silhouette":
+                if evaluation_method in ["silhouette", "silhouette_noise"]:
                     score_original = silhouette_score(self.data[labels != -1], labels[labels != -1])
-                elif evaluation_method == "davies_bouldin":
+                elif evaluation_method in ["davies_bouldin", "davies_noise"]:
                     score_original = davies_bouldin_score(self.data[labels != -1], labels[labels != -1])
                 else:
                     raise ValueError("Evaluation method not supported. Use 'silhouette' or 'davies_bouldin' instead.")
 
-                if penalty is None:
-                    # No penalty applied
-                    score_penalized = score_original
-                
-                elif penalty == "linear":
-                    # Linear penalty: subtract or add 0.1 * n_clusters
+                # Noise points
+                noise_points = (labels == -1).sum()
+
+                # If we choose to take noise as metric, calculate that score
+                if evaluation_method == "silhouette_noise":
+                    score_original = score_original / (noise_points + 1)
+                elif evaluation_method == "davies_noise":
+                    score_original = (noise_points + 1) / score_original
+
+                if penalty == "linear":
                     adjustment = 0.1 * n_clusters
-                    score_penalized = score_original - adjustment if evaluation_method == "silhouette" else score_original + adjustment
-
+                    score_penalized = score_original - adjustment if evaluation_method in ["silhouette", "silhouette_noise"] else score_original + adjustment
                 elif penalty == "proportional":
-                    # Proportional penalty: multiply by a factor based on n_clusters
-                    penalty_factor = 1 - (1 / n_clusters) if evaluation_method == "silhouette" else 1 + (1 / n_clusters)
+                    penalty_factor = 1 - (1 / n_clusters) if evaluation_method in ["silhouette", "silhouette_noise"] else 1 + (1 / n_clusters)
                     score_penalized = score_original * penalty_factor
-
                 elif penalty == "range":
-                    # Range-based penalty: penalize if n_clusters is outside [min_clusters, max_clusters]
                     if n_clusters < min_clusters:
                         adjustment = 0.1 * (min_clusters - n_clusters)
-                        score_penalized = score_original - adjustment if evaluation_method == "silhouette" else score_original + adjustment
+                        score_penalized = score_original - adjustment if evaluation_method in ["silhouette", "silhouette_noise"] else score_original + adjustment
                     elif n_clusters > max_clusters:
                         adjustment = 0.1 * (n_clusters - max_clusters)
-                        score_penalized = score_original - adjustment if evaluation_method == "silhouette" else score_original + adjustment
+                        score_penalized = score_original - adjustment if evaluation_method in ["silhouette", "silhouette_noise"] else score_original + adjustment
                     else:
-                        score_penalized = score_original  # No penalty if within range
-
+                        score_penalized = score_original
                 else:
-                    raise ValueError("Penalty type not supported. Use 'linear', 'proportional', or 'range'.")
-                    
+                    score_penalized = score_original
             else:
-                # Penalize single/no cluster cases
-                score_original = -1 if evaluation_method == "silhouette" else float('inf')
+                score_original = -1 if evaluation_method in ["silhouette", "silhouette_noise"] else float('inf')
                 score_penalized = score_original
 
-            # Log the original score for later reference
             trial.set_user_attr("score_original", score_original)
-            
             return score_penalized
-
+        
         # Set optimization direction
-        direction = "maximize" if evaluation_method == "silhouette" else "minimize"
+        direction = "maximize" if "silhouette" in evaluation_method else "minimize"
         
         # Execute Optuna optimization with tqdm
         pbar = tqdm(total=n_trials, desc="Optuna Optimization")

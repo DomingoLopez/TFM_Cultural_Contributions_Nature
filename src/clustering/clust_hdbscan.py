@@ -1,18 +1,11 @@
 from datetime import datetime
 import hdbscan
-import optuna
-import os
 from pathlib import Path
-import sys
 from typing import Optional
-import numpy as np
 import pandas as pd
 from loguru import logger
-from sklearn.cluster import KMeans
-from sklearn.metrics import davies_bouldin_score, silhouette_score
 from sklearn.datasets import make_blobs
 from src.clustering.clustering_model import ClusteringModel
-from src.utils.decorators import deprecated
 
 
 class HDBSCANClustering(ClusteringModel):

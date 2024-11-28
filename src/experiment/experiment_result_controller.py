@@ -152,7 +152,7 @@ class ExperimentResultController():
             ]
 
         # Determine sorting column and order based on eval_method
-        if self.eval_method == "davies_bouldin":
+        if "davies" in self.eval_method:
             sort_column = 'score_noise_ratio' if use_score_noise_ratio else 'score_w/o_penalty'
             ascending_order = True  # Lower is better for davies_bouldin
         else:
@@ -189,10 +189,10 @@ class ExperimentResultController():
             raise ValueError("No experiments found.")
 
         if (use_score_noise_ratio):
-            df = filtered_df.loc[filtered_df["score_noise_ratio"].idxmax()] if self.eval_method == "silhouette" else filtered_df.loc[filtered_df["score_noise_ratio"].idxmin()]
+            df = filtered_df.loc[filtered_df["score_noise_ratio"].idxmax()] if "silhouette" in self.eval_method else filtered_df.loc[filtered_df["score_noise_ratio"].idxmin()]
             logger.info(f"Selected experiment with score/noise ratio: {df['score_noise_ratio']}")
         else:
-            df = filtered_df.loc[filtered_df["score_w/o_penalty"].idxmax()] if self.eval_method == "silhouette" else filtered_df.loc[filtered_df["score_w/o_penalty"].idxmin()]
+            df = filtered_df.loc[filtered_df["score_w/o_penalty"].idxmax()] if "silhouette" in self.eval_method else filtered_df.loc[filtered_df["score_w/o_penalty"].idxmin()]
             logger.info(f"Selected experiment with score: {df['score_w/o_penalty']}")
             
         return df
