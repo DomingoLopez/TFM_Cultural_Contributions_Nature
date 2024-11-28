@@ -17,11 +17,13 @@ from abc import ABC, abstractmethod
 
 from typing import Optional, Tuple
 from matplotlib.colors import ListedColormap
-from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn.cluster import DBSCAN, AgglomerativeClustering, KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import davies_bouldin_score, make_scorer, silhouette_score
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import cosine_similarity
+
+from src.clustering.clust_dbscan import DBSCANClustering
 
 from ..utils.decorators import deprecated
 
@@ -102,6 +104,9 @@ class ClusteringModel(ABC):
         elif self.model_name == "hdbscan":
             # HDBSCAN clustering
             model = hdbscan.HDBSCAN(**params)
+        elif self.model_name == "dbscan":
+            # HDBSCAN clustering
+            model = DBSCAN(**params)
         elif self.model_name == "agglomerative":
             # Agglomerative clustering
             model = AgglomerativeClustering(**params)
@@ -299,6 +304,9 @@ class ClusteringModel(ABC):
         elif self.model_name == "hdbscan":
             # HDBSCAN clustering
             model = hdbscan.HDBSCAN()
+        elif self.model_name == "dbscan":
+            # DBSCAN clustering
+            model = DBSCAN()
         elif self.model_name == "agglomerative":
             # Agglomerative clustering
             model = AgglomerativeClustering()
