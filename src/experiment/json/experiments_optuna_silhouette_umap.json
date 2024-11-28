@@ -318,31 +318,11 @@
     "eval_method" : "silhouette",
     "penalty" : null,
     "penalty_range" : null,
-    "cache" : 0
-    },
-    {
-    "_comment":"This is using DINOV2 BASE MODEL",
-    "id": 18,
-    "optimizer" : "optuna",
-    "optuna_trials": 200,
-    "normalization": true,
-    "scaler" : "standard",
-    "dim_red" : "umap",
-    "reduction_parameters": {
-        "metric": ["euclidean","cosine"],
-        "n_components": [2,3,4,5],
-        "n_neighbors": [5, 10, 15, 20, 50],
-        "min_dist": [0.1, 0.3, 0.5, 0.7]
-    },
-    "clustering" : "dbscan",
-    "eval_method" : "silhouette",
-    "penalty" : null,
-    "penalty_range" : null,
     "cache" : 1
     },
     {
     "_comment":"This is using DINOV2 BASE MODEL",
-    "id": 19,
+    "id": 18,
     "optimizer" : "optuna",
     "optuna_trials": 200,
     "normalization": true,
@@ -356,6 +336,26 @@
     },
     "clustering" : "hdbscan",
     "eval_method" : "davies_bouldin",
+    "penalty" : null,
+    "penalty_range" : null,
+    "cache" : 1
+    },
+    {
+    "_comment":"This is using DINOV2 BASE MODEL",
+    "id": 19,
+    "optimizer" : "optuna",
+    "optuna_trials": 200,
+    "normalization": true,
+    "scaler" : "standard",
+    "dim_red" : "umap",
+    "reduction_parameters": {
+        "metric": ["euclidean","cosine"],
+        "n_components": [2,3,4,5],
+        "n_neighbors": [5, 10, 15, 20, 50],
+        "min_dist": [0.1, 0.3, 0.5, 0.7]
+    },
+    "clustering" : "dbscan",
+    "eval_method" : "silhouette",
     "penalty" : null,
     "penalty_range" : null,
     "cache" : 1
