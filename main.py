@@ -161,4 +161,8 @@ if __name__ == "__main__":
         #         # llava.run()
         #         # llava.create_results_stats()
         #         # llava.plot_cluster_categories()
+
+
+        # I need some actor that allows me to get llava stats from every experiment
+        # I got the experiment, I got the results from llava
    
