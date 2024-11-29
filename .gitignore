@@ -5,6 +5,7 @@ data/test
 /src/results
 *.pkl
 /src/llava_inference/cluster_images
+/src/experiment/clusters
 
 /trash/
 trash

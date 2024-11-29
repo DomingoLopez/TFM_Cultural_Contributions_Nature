@@ -63,10 +63,7 @@ class LlavaInference():
         self.classification_lvl = classification_lvl
         self.categories = pd.read_csv(os.path.join(self.classification_lvls_dir, f"classification_level_{self.classification_lvl}.csv"), header=None, sep=";").iloc[:, 0].tolist()
         self.cache = cache
-
-        # Initialize images_dict_format
-        self.images_dict_format = self.get_cluster_images_dict()
-
+        
         # Results
         self.result_df = None
         self.result_stats_df = None
@@ -100,85 +97,8 @@ class LlavaInference():
         print(self.prompt_2)
 
 
-
-    def get_cluster_images_dict(self, knn=None):
-        """
-        Finds the k-nearest neighbors for each centroid of clusters among points that belong to the same cluster.
-        Returns knn points for each cluster in dict format in case knn is not None
-
-        Parameters
-        ----------
-        knn : int
-            Number of nearest neighbors to find for each centroid
-
-        Returns
-        -------
-        sorted_cluster_images_dict : dictionary with images per cluster (as key)
-        """
-
-        cluster_images_dict = {}
-        labels = self.best_experiment['labels']
-
-        if knn is not None:
-            used_metric = "euclidean"
-            
-            for idx, centroid in enumerate(tqdm(self.best_experiment['centers'], desc="Processing cluster dirs (knn images selected)")):
-                # Filter points based on label mask over embeddings
-                cluster_points = self.best_experiment['embeddings'].values[labels == idx]
-                cluster_images = [self.images[i] for i in range(len(self.images)) if labels[i] == idx]
-                # Adjust neighbors, just in case
-                n_neighbors_cluster = min(knn, len(cluster_points))
-                
-                nbrs = NearestNeighbors(n_neighbors=n_neighbors_cluster, metric=used_metric, algorithm='auto').fit(cluster_points)
-                distances, indices = nbrs.kneighbors([centroid])
-                closest_indices = indices.flatten()
-                
-                # Get images for each cluster
-                cluster_images_dict[idx] = [cluster_images[i] for i in closest_indices]
-
-            # Get noise (-1)
-            cluster_images_dict[-1] = [self.images[i] for i in range(len(self.images)) if labels[i] == -1]
-            
-        else:
-            for i, label in enumerate(tqdm(labels, desc="Processing cluster dirs")):
-                if label not in cluster_images_dict:
-                    cluster_images_dict[label] = []
-                cluster_images_dict[label].append(self.images[i])
-        
-        # Sort dictionary
-        sorted_cluster_images_dict = dict(sorted(cluster_images_dict.items()))
-        return sorted_cluster_images_dict
-
-
-
-
-
-    def create_cluster_dirs(self):
-        """
-        Create a dir for every cluster given in dictionary of images. 
-        This is how we are gonna send that folder to ugr gpus
-        """
-        # logger.info("Copying images from Data path to cluster dirs")
-        # For every key (cluster index)
-        try:
-            for k,v in self.images_dict_format.items():
-                # Create folder if it doesnt exists
-                cluster_dir = os.path.join(self.base_dir, str(k)) 
-                os.makedirs(cluster_dir, exist_ok=True)
-                # For every path image, copy that image from its path to cluster folder
-                for path in v:
-                    shutil.copy(path, cluster_dir)
-        except (os.error) as ex:
-            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-            message = template.format(type(ex).__name__, ex.args)
-            print(message)
-
-
-
     def run(self):
         self.__run_llava() if self.type == "llava" else self.__run_llava_next()
-
-
 
 
     def __run_llava(self):

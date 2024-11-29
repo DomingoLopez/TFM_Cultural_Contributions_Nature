@@ -356,9 +356,9 @@
     },
     "clustering" : "hdbscan",
     "eval_method" : "silhouette_noise",
-    "penalty" : null,
-    "penalty_range" : null,
-    "cache" : 1
+    "penalty" : "range",
+    "penalty_range" : [60, 300],
+    "cache" : 0
     },
     {
         "_comment":"This is using DINOV2 BASE MODEL",
@@ -376,9 +376,9 @@
         },
         "clustering" : "hdbscan",
         "eval_method" : "davies_noise",
-        "penalty" : null,
-        "penalty_range" : null,
-        "cache" : 1
+        "penalty" : "range",
+        "penalty_range" : [60, 300],
+        "cache" : 0
     },
     {
         "_comment":"This is using DINOV2 BASE MODEL",
@@ -436,8 +436,8 @@
         },
         "clustering" : "hdbscan",
         "eval_method" : "davies_noise",
-        "penalty" : null,
-        "penalty_range" : null,
+        "penalty" : "range",
+        "penalty_range" : [60, 300],
         "cache" : 1
     },
     {
@@ -446,7 +446,7 @@
     "optimizer" : "optuna",
     "optuna_trials": 200,
     "normalization": true,
-    "scaler" : "standard",
+    "scaler" : null,
     "dim_red" : "umap",
     "reduction_parameters": {
         "metric": ["euclidean","cosine"],
@@ -454,7 +454,7 @@
         "n_neighbors": [5, 10, 15, 20, 50],
         "min_dist": [0.1, 0.3, 0.5, 0.7]
     },
-    "clustering" : "dbscan",
+    "clustering" : "hdbscan",
     "eval_method" : "silhouette",
     "penalty" : null,
     "penalty_range" : null,
@@ -466,7 +466,7 @@
     "optimizer" : "optuna",
     "optuna_trials": 200,
     "normalization": true,
-    "scaler" : "standard",
+    "scaler" : null,
     "dim_red" : "umap",
     "reduction_parameters": {
         "metric": ["euclidean","cosine"],
@@ -474,7 +474,7 @@
         "n_neighbors": [5, 10, 15, 20, 50],
         "min_dist": [0.1, 0.3, 0.5, 0.7]
     },
-    "clustering" : "dbscan",
+    "clustering" : "hdbscan",
     "eval_method" : "davies_bouldin",
     "penalty" : null,
     "penalty_range" : null,

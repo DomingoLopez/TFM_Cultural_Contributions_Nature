@@ -3,6 +3,7 @@ from itertools import product
 import os
 from pathlib import Path
 import pickle
+import shutil
 import sys
 from matplotlib.colors import ListedColormap
 import seaborn as sns
@@ -16,6 +17,8 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import davies_bouldin_score, silhouette_samples, silhouette_score
 from sklearn.datasets import make_blobs
+from sklearn.neighbors import NearestNeighbors
+from tqdm import tqdm
 from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering.clustering_model import ClusteringModel
 from src.preprocess.preprocess import Preprocess
@@ -26,14 +29,22 @@ class ExperimentResultController():
     def __init__(self, 
                  eval_method="silhouette",
                  experiment_id=None,
+                 use_score_noise_ratio=False,
+                 n_cluster_range=None,
+                 reduction_params=None,
                  cache= True, 
                  verbose= False,
                  **kwargs):
     
         # Setup attrs
         self.eval_method = eval_method
+        self.experiment_id = experiment_id
+        self.use_score_noise_ratio = use_score_noise_ratio
+        self.n_cluster_range = n_cluster_range
+        self.reduction_params = reduction_params
         self.cache = cache
         self.verbose = verbose
+        
 
         logger.remove()
         if verbose:
@@ -41,7 +52,7 @@ class ExperimentResultController():
         else:
             logger.add(sys.stdout, level="INFO")
 
-        # Dir where all experiments are stored
+        # Results dir
         self.results_dir = (
             Path(__file__).resolve().parent
             / f"results"
@@ -53,6 +64,13 @@ class ExperimentResultController():
         )
         self.plot_dir.mkdir(parents=True, exist_ok=True)
 
+        # Clusters dir
+        self.cluster_dir = (
+            Path(__file__).resolve().parent
+            / f"clusters"
+        )
+        self.cluster_dir.mkdir(parents=True, exist_ok=True)
+
         # Load all experiments for given eval_method
         self.results_df = None
         self.__load_all_experiments(experiment_id)
@@ -61,8 +79,7 @@ class ExperimentResultController():
     
     def __load_all_experiments(self, experiment_id = None):
         """
-        Loads all experiment of given eval_method. It does not care if it is hdbscan, optuna, gridsearch,
-        etc. We are gonna be loading the bests
+        Loads all experiment of given experiment id.
         """
         experiment_files = Path(self.results_dir).rglob("*.pkl") if experiment_id is None else Path(os.path.join(self.results_dir, f"experiment_{experiment_id}")).rglob("*.pkl")
         experiments = []
@@ -97,10 +114,7 @@ class ExperimentResultController():
 
 
 
-    def get_top_k_experiments(self, top_k: int, 
-                              n_cluster_range: tuple,
-                              reduction_params: dict,
-                              use_score_noise_ratio: bool) -> pd.DataFrame:
+    def get_top_k_experiments(self, top_k: int) -> pd.DataFrame:
         """
         Returns the top_k experiments based on the specified criteria.
 
@@ -117,14 +131,14 @@ class ExperimentResultController():
         """
         
         # Validate n_cluster_range
-        min_n_cluster, max_n_cluster = n_cluster_range
+        min_n_cluster, max_n_cluster = self.n_cluster_range
         if min_n_cluster < 2 or max_n_cluster > 800:
             raise ValueError("n_cluster_range values must be between 2 and 800.")
         if min_n_cluster > max_n_cluster:
             raise ValueError("min_n_cluster cannot be greater than max_n_cluster.")
         
         # Validate reduction_params
-        for key, value_range in reduction_params.items():
+        for key, value_range in self.reduction_params.items():
             if not isinstance(value_range, tuple) or len(value_range) != 2:
                 raise ValueError(f"Parameter {key} in reduction_params must be a tuple (min, max).")
             if value_range[0] > value_range[1]:
@@ -132,9 +146,19 @@ class ExperimentResultController():
     
         
         # Verify df is loaded
-        if self.results_df is None:
+        if self.results_df.shape[0] == 0 or self.results_df is None:
             logger.warning("No experiments loaded. Returning an empty DataFrame.")
             return pd.DataFrame()
+
+
+        # Determine sorting column and order based on eval_method
+        if "davies" in self.eval_method:
+            sort_column = 'score_noise_ratio' if self.use_score_noise_ratio else 'score_w/o_penalty'
+            ascending_order = True  # Lower is better for davies_bouldin
+        else:
+            sort_column = 'score_noise_ratio' if self.use_score_noise_ratio else 'score_w/o_penalty'
+            ascending_order = False  # Higher is better for silhouette
+
 
         # Filter dataframe based on cluster
         filtered_df = self.results_df[
@@ -142,33 +166,36 @@ class ExperimentResultController():
             (self.results_df['n_clusters'] <= max_n_cluster) 
         ]
 
-        # Filter by reduction params
-        for param, value_range in reduction_params.items():
-            min_val, max_val = value_range
-            filtered_df = filtered_df[
-                filtered_df['reduction_params'].apply(
-                    lambda params: param in params and min_val <= params[param] <= max_val
-                )
-            ]
-
-        # Determine sorting column and order based on eval_method
-        if "davies" in self.eval_method:
-            sort_column = 'score_noise_ratio' if use_score_noise_ratio else 'score_w/o_penalty'
-            ascending_order = True  # Lower is better for davies_bouldin
+        # Check if df empty and filter based on reduction params
+        if not filtered_df.empty:
+            # Filter by reduction params
+            for param, value_range in self.reduction_params.items():
+                min_val, max_val = value_range
+                filtered_df = filtered_df[
+                    filtered_df['reduction_params'].apply(
+                        lambda params: param in params and min_val <= params[param] <= max_val
+                    )
+                ]
         else:
-            sort_column = 'score_noise_ratio' if use_score_noise_ratio else 'score_w/o_penalty'
-            ascending_order = False  # Higher is better for silhouette
+             logger.warning("Column 'reduction_params' not found or DataFrame is empty. Skipping reduction parameter filtering.")
 
-        # Sort the DataFrame
-        sorted_df = filtered_df.sort_values(by=sort_column, ascending=ascending_order)
+
+        if not filtered_df.empty:
+            filtered_df = filtered_df.sort_values(by=sort_column, ascending=ascending_order)
+        else:
+            logger.warning("Filtered DataFrame is empty. Skipping sorting step.")
+
+        if filtered_df.empty:
+            logger.warning("Filtered DataFrame is empty after applying filters. Returning top_k experiments from the entire dataset.")
+            filtered_df = self.results_df.sort_values(by=sort_column, ascending=ascending_order)
 
         # Select the top_k experiments
-        top_k_df = sorted_df.head(top_k)
+        top_k_df = filtered_df.head(top_k)
         
         return top_k_df
 
 
-    def get_best_experiment_data(self, filtered_df, use_score_noise_ratio):
+    def get_best_experiment_data(self, filtered_df):
         """
         Helper function to get the best experiment based on `experiment_type`.
 
@@ -188,7 +215,7 @@ class ExperimentResultController():
         if filtered_df.empty:
             raise ValueError("No experiments found.")
 
-        if (use_score_noise_ratio):
+        if (self.use_score_noise_ratio):
             df = filtered_df.loc[filtered_df["score_noise_ratio"].idxmax()] if "silhouette" in self.eval_method else filtered_df.loc[filtered_df["score_noise_ratio"].idxmin()]
             logger.info(f"Selected experiment with score/noise ratio: {df['score_noise_ratio']}")
         else:
@@ -200,7 +227,120 @@ class ExperimentResultController():
 
 
 
-    def show_best_silhouette(self, experiment, use_score_noise_ratio=True, show_all=False, top_n=20, min_clusters=40, show_cluster_index=False, show_plots=False):
+
+    def get_cluster_images_dict(self, images, experiment, knn=None):
+        """
+        Finds the k-nearest neighbors for each centroid of clusters among points that belong to the same cluster.
+        Returns knn points for each cluster in dict format in case knn is not None
+
+        Parameters
+        ----------
+        knn : int
+            Number of nearest neighbors to find for each centroid
+
+        Returns
+        -------
+        sorted_cluster_images_dict : dictionary with images per cluster (as key)
+        """
+
+        cluster_images_dict = {}
+        labels = experiment['labels']
+
+        if knn is not None:
+            used_metric = "euclidean"
+            
+            for idx, centroid in enumerate(tqdm(experiment['centers'], desc="Processing cluster dirs (knn images selected)")):
+                # Filter points based on label mask over embeddings
+                cluster_points = experiment['embeddings'].values[labels == idx]
+                cluster_images = [images[i] for i in range(len(images)) if labels[i] == idx]
+                # Adjust neighbors, just in case
+                n_neighbors_cluster = min(knn, len(cluster_points))
+                
+                nbrs = NearestNeighbors(n_neighbors=n_neighbors_cluster, metric=used_metric, algorithm='auto').fit(cluster_points)
+                distances, indices = nbrs.kneighbors([centroid])
+                closest_indices = indices.flatten()
+                
+                # Get images for each cluster
+                cluster_images_dict[idx] = [cluster_images[i] for i in closest_indices]
+
+            # Get noise (-1)
+            cluster_images_dict[-1] = [images[i] for i in range(len(images)) if labels[i] == -1]
+            
+        else:
+            for i, label in enumerate(tqdm(labels, desc="Processing cluster dirs")):
+                if label not in cluster_images_dict:
+                    cluster_images_dict[label] = []
+                cluster_images_dict[label].append(images[i])
+        
+        # Sort dictionary
+        sorted_cluster_images_dict = dict(sorted(cluster_images_dict.items()))
+        return sorted_cluster_images_dict
+
+
+
+
+    def get_cluster_exp_path(self, experiment):
+        return os.path.join(self.cluster_dir, f"experiment_{experiment['id']}/index_{experiment['original_index']}_{self.eval_method}_{experiment['score_w/o_penalty']:.3f}")
+
+
+
+
+
+
+    def create_cluster_dirs(self, images, experiment, knn=None):
+        """
+        Create a dir for every cluster given in dictionary of images. 
+        This is how we are gonna send that folder to ugr gpus
+        """
+        # logger.info("Copying images from Data path to cluster dirs")
+        # For every key (cluster index)
+        images_dict_format = self.get_cluster_images_dict(images, experiment)
+        path_cluster = os.path.join(self.get_cluster_exp_path(experiment), "clusters")
+        try:
+            for k,v in images_dict_format.items():
+                # Create folder if it doesnt exists
+                cluster_dir = os.path.join(path_cluster, str(k)) 
+                os.makedirs(cluster_dir, exist_ok=True)
+                # For every path image, copy that image from its path to cluster folder
+                for path in v:
+                    shutil.copy(path, cluster_dir)
+        except (os.error) as ex:
+            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+            message = template.format(type(ex).__name__, ex.args)
+            print(message)
+
+
+
+
+
+
+
+
+
+    # ###############################################################################3
+    # VISUALIZATION METHODS
+    # ###############################################################################3
+
+
+
+    def plot_all(self, experiment):
+        
+        if "silhouette" in self.eval_method:
+            self.show_best_silhouette(experiment)
+            self.show_best_scatter(experiment)
+            self.show_best_scatter_with_centers(experiment)
+            self.show_best_clusters_counters_comparision(experiment)
+            #self.show_best_experiments_silhouette(experiment)
+        elif "davies" in self.eval_method:
+            pass 
+        else:
+            raise ValueError("Eval Method not support for plotting")
+
+
+
+
+
+    def show_best_silhouette(self, experiment):
         """
         Displays the top `top_n` clusters with the highest silhouette average and the 
         `top_n` clusters with the lowest silhouette average, only if the total cluster 
@@ -219,6 +359,11 @@ class ExperimentResultController():
         original_score = best_experiment['score_w/o_penalty']
         embeddings_used = best_experiment['embeddings']
 
+
+        min_clusters = self.n_cluster_range[0]
+        top_n = int(self.n_cluster_range[0]/2)
+
+
         # Exclude noise points (label -1)
         non_noise_mask = best_labels != -1
         non_noise_labels = best_labels[non_noise_mask]
@@ -232,7 +377,9 @@ class ExperimentResultController():
         cluster_count = len(unique_labels)
 
         # Determine top and bottom clusters
-        if cluster_count <= min_clusters or show_all:
+        top_clusters = []
+        bottom_clusters = []
+        if cluster_count <= min_clusters:
             selected_clusters = unique_labels
         else:
             cluster_silhouette_means = {
@@ -301,12 +448,10 @@ class ExperimentResultController():
         )
 
         # Save and optionally show the plot
-        file_suffix = "best_silhouette" if not use_score_noise_ratio else "best_silhouette_noise_ratio"
-        file_path = os.path.join(self.plot_dir, f"experiment_{best_experiment['id']}", f"index_{best_experiment['original_index']}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        file_suffix = "best_silhouette" if not self.use_score_noise_ratio else "best_silhouette_noise_ratio"
+        file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         plt.savefig(file_path, bbox_inches="tight")
-        if show_plots:
-            plt.show()
 
         logger.info(f"Silhouette plot saved to {file_path}.")
 
@@ -316,7 +461,7 @@ class ExperimentResultController():
 
 
 
-    def show_best_scatter(self,  experiment, use_score_noise_ratio=True, show_all=False, show_plots=False):
+    def show_best_scatter(self, experiment):
         """
         Plots a 2D scatter plot for the best experiment configuration, with clusters reduced 
         to 2D space using PCA and color-coded for better visual distinction. Points labeled 
@@ -380,19 +525,17 @@ class ExperimentResultController():
         plt.legend(loc='upper right')
 
         # Save and show plot
-        file_suffix = "best_scatter" if not use_score_noise_ratio else "best_scatter_noise_ratio"
-        file_path = os.path.join(self.plot_dir, f"experiment_{str(best_id)}",f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        file_suffix = "best_scatter" if not self.use_score_noise_ratio else "best_scatter_noise_ratio"
+        file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
         os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
         plt.savefig(file_path, bbox_inches='tight')
 
-        if show_plots:
-            plt.show()
         logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
 
 
 
 
-    def show_best_scatter_with_centers(self,  experiment, use_score_noise_ratio=True, show_all=False, show_plots=False):
+    def show_best_scatter_with_centers(self, experiment):
         """
         Plots a 2D scatter plot for the best experiment configuration, with clusters reduced 
         to 2D space using PCA and color-coded for better visual distinction. Points labeled 
@@ -466,19 +609,17 @@ class ExperimentResultController():
         plt.legend(loc='upper right')
 
         # Save and show plot
-        file_suffix = "best_experiment_with_centers" if not use_score_noise_ratio else "best_experiment_sil_noise_ratio_with_centers"
-        file_path = os.path.join(self.plot_dir, f"experiment_{str(best_id)}",f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        file_suffix = "best_experiment_with_centers" if not self.use_score_noise_ratio else "best_experiment_sil_noise_ratio_with_centers"
+        file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
         os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
         plt.savefig(file_path, bbox_inches='tight')
 
-        if show_plots:
-            plt.show()
         logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
 
 
 
 
-    def show_best_clusters_counters_comparision(self,  experiment, use_score_noise_ratio=True, show_all=False, show_plots=False):
+    def show_best_clusters_counters_comparision(self,  experiment):
         """
         Displays a bar chart comparing the number of points in each cluster for the best configuration.
         
@@ -533,17 +674,17 @@ class ExperimentResultController():
         plt.xticks(ticks=range(0, len(cluster_indices), step), labels=[cluster_indices[i] for i in range(0, len(cluster_indices), step)], rotation=90)
         
         # Save the plot with a name based on the `experiment` type
-        file_suffix = "clusters_counter_comparison" if not use_score_noise_ratio else "sil_noise_clusters_counter_comparison"
-        file_path = os.path.join(self.plot_dir, f"experiment_{str(best_id)}",f"index_{best_index}_silhouette_{original_score:.3f}_{file_suffix}.png")
+        file_suffix = "clusters_counter_comparison" if not self.use_score_noise_ratio else "sil_noise_clusters_counter_comparison"
+        file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
         os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
         plt.savefig(file_path, bbox_inches='tight')
-        if show_plots:
-            plt.show()
+
         logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
 
 
 
-    def show_best_experiments_silhouette(self, show_plots=False):
+    def show_best_experiments_silhouette(self):
+        pass
         """
         Scans the `plots/` directory for all subfolders named `experiment_[id]` and extracts the silhouette scores
         from filenames like `index_XX_silhouette_0.755_...`. It then displays a bar chart of the silhouette scores 
@@ -593,8 +734,6 @@ class ExperimentResultController():
         # Save the plot
         file_path = self.add_path_type("best_experiments_silhouette_scores")
         plt.savefig(file_path, bbox_inches="tight")
-        if show_plots:
-            plt.show()
 
         logger.info(f"Silhouette scores bar chart saved to {file_path}.")
 
