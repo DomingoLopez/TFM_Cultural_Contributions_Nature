@@ -180,7 +180,8 @@ if __name__ == "__main__":
             img_cluster_dict = experiment_controller.cluster_images_dict
             # Create stats and Llava Metrics
 
+            # Metrica ver si está cogiendo ruido en los labels
             lvm_lvlm_metric = MultiModalClusteringMetric(classification_lvl, i, n_prompt, best_experiment, img_cluster_dict, llava_results_df)
             lvm_lvlm_metric.generate_stats()
             lvm_lvlm_metric.calculate_clustering_quality()
-            lvm_lvlm_metric.plot_cluster_categories()
+            lvm_lvlm_metric.plot_cluster_categories_2()
