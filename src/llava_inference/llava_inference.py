@@ -141,7 +141,7 @@ class LlavaInference():
                 inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
                 
                 start_time = time.time()
-                output = model.generate(**inputs, max_new_tokens=100)
+                output = model.generate(**inputs, max_new_tokens=500)
                 classification_result = processor.decode(output[0], skip_special_tokens=True)
                 classification_category = classification_result.split(":")[-1].strip()
                 inference_time = time.time() - start_time
@@ -195,7 +195,7 @@ class LlavaInference():
                     inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
 
                     start_time = time.time()
-                    output = model.generate(**inputs, max_new_tokens=100)
+                    output = model.generate(**inputs, max_new_tokens=500)
 
                     classification_result = processor.decode(output[0], skip_special_tokens=True)
                     
@@ -220,6 +220,22 @@ class LlavaInference():
             self.result_df = results_df
 
 
+
+
+    def get_results(self,model_name):
+        """
+        Returns inference results for given model name 
+        (on classification_lvl where it was created, and for given prompt)
+        """
+        results = None
+        try:
+            results = pd.read_csv(f"results/classification_lvl_{self.classification_lvl}/{model_name}/prompt_{self.n_prompt}/inference_results.csv",
+                                  sep=";",
+                                  header=0)
+        except:
+            ValueError("File not found")
+
+        return results
 
 
     def create_results_stats(self):

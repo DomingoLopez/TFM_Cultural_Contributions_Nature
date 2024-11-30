@@ -17,8 +17,7 @@ from scipy.stats import entropy
 
 class MultiModalClusteringMetric():
     """
-    LlavaInference allows us to deploy selected Llava model (locally or in NGPU - UGR, but without automation yet)
-    We start with Llava1.5-7b params. It can download model, and do some inference given some images and text prompt as inputs.
+    MultiModalClusteringMetric
     """
     def __init__(self, 
                  images_cluster_dict: dict,
