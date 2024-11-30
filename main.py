@@ -107,7 +107,9 @@ def run_experiments(file, embeddings) -> None:
 
 if __name__ == "__main__": 
     
-    # 1. Load images, generate embeddings and run experiments
+    # ###################################################################
+    # 1. LOAD IMAGES AND GENERATE EMBEDDINGS. RUN CLUSTERING EXPERIMENTS
+
     images = load_images("./data/Data")
     embeddings = generate_embeddings(images, model="base")
     experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
@@ -115,24 +117,36 @@ if __name__ == "__main__":
     # run_experiments(experiments_file, embeddings)
     #run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
     
-    # 2. Load all available experiments from results folder
-    # 2.1 Define eval method to analyze
-    # 2.2 Load all experiments of given eval method
-    
 
     # ###################################################################
-    # CLUSTER DIRS AND LLAVA METRIC LOOP
+    # 2. INFERENCE FROM LLAVA MODELS
+    # It will save on llava results de csv with inferences from all i mages
 
-    # 1. Desired filters. Important to select right experiments to consider
+    # Classification level to analyze
+    classification_lvl = 3
+    # Models to compare
+    llava_models = ("llava1-5_7b", "llava1-6_7b", "llava1-6_13b")
+
+    for i in llava_models:
+        llava = LlavaInference(images=images, classification_lvl=classification_lvl, n_prompt=1, model=i)
+        llava.run()
+
+
+    # ###################################################################
+    # 3. APPLY FILTERS FROM EXPERT KNOWLEDGE IN ORDER TO GET BEST EXPERIMENTS
     use_score_noise_ratio = False
-    # The are range (from 2 to 15)
+    # Reduction params from Umap
     reduction_params = {
         "n_components": (2,25),
         "n_neighbors": (3,60),
         "min_dist": (0.1, 0.8)
     }
+    # Cluster range to analyze
     n_cluster_range = (60,300)
-    # Load json file with all experiments
+
+
+    # ###################################################################
+    # 4. GENERATE RESULTS FROM CLUSTERING EXPERIMENTS AND DIFFERENT EVAL METHODS
     with open(experiments_file, 'r') as f:
         experiments_config = json.load(f)
 
@@ -150,19 +164,9 @@ if __name__ == "__main__":
         experiment_controller.plot_all(best_experiment)
         experiment_controller.create_cluster_dirs(images=images, experiment=best_experiment)
 
-        # 3. Process images to Llava-1.5 and see:
-        # 3.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
-        #llava = LlavaInference(images=images, classification_lvl=3, n_prompt=1, type="llava")
-
-        # for i in range(1,3,1):
-        #     for type in ("llava","llava_next"):
-        #         llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=i, type=type)
-        #         llava.create_cluster_dirs()
-        #         # llava.run()
-        #         # llava.create_results_stats()
-        #         # llava.plot_cluster_categories()
-
-
-        # I need some actor that allows me to get llava stats from every experiment
-        # I got the experiment, I got the results from llava
-   
+        # ###################################################################
+        # 4. CREATE STATS FROM:
+        # - CLUSTERING FROM EMBEDDINGS (DinoV2 LVM)
+        # - LLAVA INFERENCE (LVLM)
+        lvm_lvlm_metric = MultiModalClusteringMetric()
+        

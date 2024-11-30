@@ -27,9 +27,8 @@ class LlavaInference():
     def __init__(self, 
                  images: list,
                  classification_lvl: str,
-                 best_experiment: pd.DataFrame,
                  n_prompt:int,
-                 type:str,
+                 model:str,
                  cache: bool = True, 
                  verbose: bool = False):
         """
@@ -40,41 +39,47 @@ class LlavaInference():
             experiment_name (str): Name of the experiment for organizing results
         """
 
-        if(type not in ("llava", "llava_next")):
-            raise ValueError("type must be one of llava or llava_next")
+        if(model not in ("llava1-5_7b", "llava1-6_7b","llava1-6_13b")):
+            raise ValueError("type must be one of followin: [llava1-5_7b, llava1-6_7b,llava1-6_13b]")
+        
+        # Adjust model from huggint face, but anyway, we need 2 different methods
+        # depending on llava or llava-next
+        if model == "llava1-5_7b":
+            self.model_hf = "llava-hf/llava-1.5-7b-hf"
+        elif model == "llava1-6_7b":
+            self.model_hf = "llava-hf/llava-v1.6-mistral-7b-hf"
+        elif model == "llava1-6_13b":
+            self.model_hf = "liuhaotian/llava-v1.6-vicuna-13b"
+        else:
+            self.model_hf = "llava-hf/llava-v1.6-mistral-7b-hf"
 
-        self.best_experiment = best_experiment
         self.images = images
-        self.type = type
-        # Base dir for moving images from every cluster.
-        self.base_dir = Path(__file__).resolve().parent / f"cluster_images/experiment_{self.best_experiment['id']}" / f"index_{self.best_experiment['original_index']}_silhouette_{self.best_experiment['score_w/o_penalty']:.3f}"
-        self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{classification_lvl}/experiment_{self.best_experiment['id']}" / f"index_{self.best_experiment['original_index']}_silhouette_{self.best_experiment['score_w/o_penalty']:.3f}" / f"prompt_{n_prompt}"
-        self.results_object = self.results_dir / f"result_{self.type}.pkl"
-        self.results_csv = self.results_dir / f"inference_results_{self.type}.csv"
-        self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
-        
-        # Ensure directories exist
-        
-        # shutil.rmtree(self.base_dir, ignore_errors=True)
-        os.makedirs(self.base_dir, exist_ok=True)
-        os.makedirs(self.results_dir, exist_ok=True)
-
-        # Load categories based on classification level
         self.classification_lvl = classification_lvl
-        self.categories = pd.read_csv(os.path.join(self.classification_lvls_dir, f"classification_level_{self.classification_lvl}.csv"), header=None, sep=";").iloc[:, 0].tolist()
+        self.model = model
+        self.n_prompt = n_prompt
         self.cache = cache
+        self.verbose = verbose
+        # Base dirs
+        self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
+        self.results_csv = self.results_dir / f"inference_results.csv"
+        self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
+        # Ensure directories exist
+        os.makedirs(self.results_dir, exist_ok=True)
         
-        # Results
-        self.result_df = None
-        self.result_stats_df = None
-
-
+        # Load categories based on classification level
+        self.categories = pd.read_csv(os.path.join(self.classification_lvls_dir, f"classification_level_{self.classification_lvl}.csv"), header=None, sep=";").iloc[:, 0].tolist()
         categories_joins = ", ".join([category.upper() for category in self.categories])
+
         self.prompt_1 = (
             "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
             f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "Under no circumstances should you provide a category that is not listed above."
-            "Please provide ONLY the classification as your response, without any reasoning or additional details."
+            "If the image does not belong to any of those categories, classify it as 'NOT VALID'. "
+            "Under no circumstances should you provide a category that is not listed above. "
+            "Please, provide the classification as your response, and also provide the reasoning after the classification separated by ':'."
+            "The response should follow this example schema: "
+            "VEHICLE: This image seems like a vehicle because..."
+            "Another example schema: "
+            "NOT VALID: This image does not belong to any of selected categories because..."
             )
         
         self.prompt_2 = (
@@ -98,29 +103,85 @@ class LlavaInference():
 
 
     def run(self):
-        self.__run_llava() if self.type == "llava" else self.__run_llava_next()
+        self.__run_llava() if self.model == "llava1-5_7b" else self.__run_llava_next()
 
+    
 
+    # TODO: TAKE IMAGES AND INFERENCE THEM
     def __run_llava(self):
         """
         Run Llava inference for every image in each subfolder of the base path.
         Store results.
         """
-        if os.path.isfile(self.results_object) and self.cache:
+        if os.path.isfile(self.results_csv) and self.cache:
             print("Recovering results from cache")
-            self.result_df = pickle.load(open(str(self.results_object), "rb"))
+            self.result_df = pd.read_csv(self.results_csv, sep=";", header=0) 
         else:
-            processor = LlavaProcessor.from_pretrained("llava-hf/llava-1.5-7b-hf")
-            model = LlavaForConditionalGeneration.from_pretrained("llava-hf/llava-1.5-7b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True)
+            processor = LlavaProcessor.from_pretrained(self.model_hf)
+            model = LlavaForConditionalGeneration.from_pretrained(self.model_hf, 
+                                                                  torch_dtype=torch.float16, 
+                                                                  low_cpu_mem_usage=True)
             model.to("cuda:0")
 
             results = []
-            print("Launching llava")
+            print(f"Launching llava: {self.model_hf}")
             
-            for cluster_name, image_paths in self.images_dict_format.items():
-                print(f"Cluster {cluster_name}. Imágenes: {len(image_paths)}")
-                for image_path in image_paths:
-                    image = Image.open(image_path)
+            for image_path in self.images:
+                image = Image.open(image_path)
+                conversation = [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": self.prompt},
+                            {"type": "image", "image": image},  
+                        ],
+                    },
+                ]
+                prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
+                inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
+                
+                start_time = time.time()
+                output = model.generate(**inputs, max_new_tokens=100)
+                classification_result = processor.decode(output[0], skip_special_tokens=True)
+                classification_category = classification_result.split(":")[-1].strip()
+                inference_time = time.time() - start_time
+
+                results.append({
+                    "img": image_path,
+                    "category_llava": classification_category,
+                    "output": classification_result,
+                    "inference_time": inference_time
+                })
+
+            results_df = pd.DataFrame(results)
+            results_df.to_csv(self.results_csv, index=False, sep=";")
+            self.result_df = results_df
+
+
+
+    # TODO: TAKE IMAGES FROM DATA, AND INFERENCE THEM
+    def __run_llava_next(self):
+        """
+        Run Llava-Next inference for every image in each subfolder of the base path.
+        Store results.
+        """
+        if os.path.isfile(self.results_csv) and self.cache:
+            print("Recovering results from cache")
+            self.result_df = pd.read_csv(self.results_csv, sep=";", header=0) 
+        else:
+            processor = LlavaNextProcessor.from_pretrained(self.model_hf)
+            model = LlavaNextForConditionalGeneration.from_pretrained(self.model_hf, 
+                                                                      torch_dtype=torch.float16, 
+                                                                      low_cpu_mem_usage=True)
+            model.to("cuda:0")
+            model.config.pad_token_id = model.config.eos_token_id
+
+            results = []
+            print(f"Launching llava: {self.model_hf}")
+            
+            for image_path in self.images:
+                try:
+                    image = Image.open(image_path).convert("RGB")  # Ensure compatibility with the model
                     conversation = [
                         {
                             "role": "user",
@@ -132,90 +193,30 @@ class LlavaInference():
                     ]
                     prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
                     inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
-                    
+
                     start_time = time.time()
                     output = model.generate(**inputs, max_new_tokens=100)
+
                     classification_result = processor.decode(output[0], skip_special_tokens=True)
-                    classification_category = classification_result.split(":")[-1].strip()
+                    
+                    if "[/INST]" in classification_result:
+                        classification_category = classification_result.split("[/INST]")[-1].strip()
+                    else:
+                        classification_category = "Unknown"  # Handle unexpected output format
+
                     inference_time = time.time() - start_time
 
                     results.append({
-                        "cluster": cluster_name,
                         "img": image_path,
                         "category_llava": classification_category,
                         "output": classification_result,
                         "inference_time": inference_time
                     })
+                except Exception as e:
+                    print(f"Error processing image {image_path}: {e}")
 
             results_df = pd.DataFrame(results)
             results_df.to_csv(self.results_csv, index=False, sep=";")
-            pickle.dump(results_df, open(self.results_object, "wb"))
-            self.result_df = results_df
-            #logger.info(f"Results saved to {results_path}")
-
-
-
-
-    def __run_llava_next(self):
-        """
-        Run Llava-Next inference for every image in each subfolder of the base path.
-        Store results.
-        """
-        if os.path.isfile(self.results_object) and self.cache:
-            print("Recovering results from cache")
-            self.result_df = pickle.load(open(str(self.results_object), "rb"))
-        else:
-            processor = LlavaNextProcessor.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf")
-            model = LlavaNextForConditionalGeneration.from_pretrained(
-                "llava-hf/llava-v1.6-mistral-7b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True
-            )
-            model.to("cuda:0")
-            model.config.pad_token_id = model.config.eos_token_id
-
-            results = []
-            print("Launching llava-next")
-            for cluster_name, image_paths in self.images_dict_format.items():
-                print(f"Cluster {cluster_name}. Images: {len(image_paths)}")
-                for image_path in image_paths:
-                    try:
-                        image = Image.open(image_path).convert("RGB")  # Ensure compatibility with the model
-                        conversation = [
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": self.prompt},
-                                    {"type": "image", "image": image},  
-                                ],
-                            },
-                        ]
-                        prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
-                        inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
-
-                        start_time = time.time()
-                        output = model.generate(**inputs, max_new_tokens=100)
-
-                        classification_result = processor.decode(output[0], skip_special_tokens=True)
-                        
-                        if "[/INST]" in classification_result:
-                            classification_category = classification_result.split("[/INST]")[-1].strip()
-                        else:
-                            classification_category = "Unknown"  # Handle unexpected output format
-
-                        inference_time = time.time() - start_time
-
-                        results.append({
-                            "cluster": cluster_name,
-                            "img": image_path,
-                            "category_llava": classification_category,
-                            "output": classification_result,
-                            "inference_time": inference_time
-                        })
-                    except Exception as e:
-                        print(f"Error processing image {image_path}: {e}")
-
-            results_df = pd.DataFrame(results)
-            results_df.to_csv(self.results_csv, index=False, sep=";")
-            pickle.dump(results_df, open(self.results_object, "wb"))
             self.result_df = results_df
 
 

@@ -17,6 +17,7 @@ class LlavaInferenceRemote():
     LlavaInferenceRemote for execution on remote, with only archives needed
     """
     def __init__(self, 
+                 images:list,
                  classification_lvl: str,
                  experiment:int,
                  name:str,
@@ -31,6 +32,7 @@ class LlavaInferenceRemote():
             classification_lvl (str): Classification level to be used
             experiment_name (str): Name of the experiment for organizing results
         """
+        self.images=images
         self.experiment = experiment
         self.name = name
         self.type=type
