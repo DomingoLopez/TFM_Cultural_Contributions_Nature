@@ -73,6 +73,7 @@ class ExperimentResultController():
 
         # Load all experiments for given eval_method
         self.results_df = None
+        self.cluster_images_dict = None
         self.__load_all_experiments(experiment_id)
 
 
@@ -273,8 +274,8 @@ class ExperimentResultController():
                 cluster_images_dict[label].append(images[i])
         
         # Sort dictionary
-        sorted_cluster_images_dict = dict(sorted(cluster_images_dict.items()))
-        return sorted_cluster_images_dict
+        self.cluster_images_dict = dict(sorted(cluster_images_dict.items()))
+        return self.cluster_images_dict
 
 
 

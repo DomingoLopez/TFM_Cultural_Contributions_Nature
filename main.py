@@ -11,6 +11,7 @@ from src.clustering.clustering_factory import ClusteringFactory
 from src.experiment.experiment import Experiment
 from src.experiment.experiment_result_controller import ExperimentResultController
 from src.llava_inference.llava_inference import LlavaInference
+from src.multimodal_clustering_metric.multimodal_clustering_metric import MultiModalClusteringMetric
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
 from src.preprocess.preprocess import Preprocess
@@ -168,5 +169,8 @@ if __name__ == "__main__":
         # 4. CREATE STATS FROM:
         # - CLUSTERING FROM EMBEDDINGS (DinoV2 LVM)
         # - LLAVA INFERENCE (LVLM)
-        lvm_lvlm_metric = MultiModalClusteringMetric()
+        for i in llava_models:
+            llava_results_df = llava.get_results(i)
+            img_cluster_dict = experiment_controller.cluster_images_dict
+            lvm_lvlm_metric = MultiModalClusteringMetric(img_cluster_dict, llava_results_df)
         
