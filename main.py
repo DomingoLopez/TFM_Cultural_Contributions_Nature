@@ -125,11 +125,12 @@ if __name__ == "__main__":
 
     # Classification level to analyze
     classification_lvl = 3
+    n_prompt=1
     # Models to compare
     llava_models = ("llava1-5_7b", "llava1-6_7b", "llava1-6_13b")
 
     for i in llava_models:
-        llava = LlavaInference(images=images, classification_lvl=classification_lvl, n_prompt=1, model=i)
+        llava = LlavaInference(images=images, classification_lvl=classification_lvl, n_prompt=n_prompt, model=i)
         llava.run()
 
 
@@ -151,6 +152,7 @@ if __name__ == "__main__":
     with open(experiments_file, 'r') as f:
         experiments_config = json.load(f)
 
+    
     for config in experiments_config:
         eval_method = config.get("eval_method", "silhouette")
         id = config.get("id",1)
@@ -158,19 +160,27 @@ if __name__ == "__main__":
                                                         experiment_id=id, 
                                                         use_score_noise_ratio=use_score_noise_ratio,
                                                         n_cluster_range=n_cluster_range,
-                                                        reduction_params=reduction_params
-                                                        )
+                                                        reduction_params=reduction_params)
         experiments_filtered = experiment_controller.get_top_k_experiments(top_k=5)
         best_experiment = experiment_controller.get_best_experiment_data(experiments_filtered)
         experiment_controller.plot_all(best_experiment)
         experiment_controller.create_cluster_dirs(images=images, experiment=best_experiment)
+        
+
+
 
         # ###################################################################
         # 4. CREATE STATS FROM:
         # - CLUSTERING FROM EMBEDDINGS (DinoV2 LVM)
         # - LLAVA INFERENCE (LVLM)
         for i in llava_models:
+            # Get Llava Results from llava-model i 
             llava_results_df = llava.get_results(i)
+            # Get cluster of images
             img_cluster_dict = experiment_controller.cluster_images_dict
-            lvm_lvlm_metric = MultiModalClusteringMetric(img_cluster_dict, llava_results_df)
-        
+            # Create stats and Llava Metrics
+
+            lvm_lvlm_metric = MultiModalClusteringMetric(classification_lvl, i, n_prompt, best_experiment, img_cluster_dict, llava_results_df)
+            lvm_lvlm_metric.generate_stats()
+            lvm_lvlm_metric.calculate_clustering_quality()
+            lvm_lvlm_metric.plot_cluster_categories()

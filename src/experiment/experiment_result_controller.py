@@ -218,10 +218,10 @@ class ExperimentResultController():
 
         if (self.use_score_noise_ratio):
             df = filtered_df.loc[filtered_df["score_noise_ratio"].idxmax()] if "silhouette" in self.eval_method else filtered_df.loc[filtered_df["score_noise_ratio"].idxmin()]
-            logger.info(f"Selected experiment with score/noise ratio: {df['score_noise_ratio']}")
+            logger.info(f"Selected experiment with score/noise ratio: {df['score_noise_ratio']:.3f}")
         else:
             df = filtered_df.loc[filtered_df["score_w/o_penalty"].idxmax()] if "silhouette" in self.eval_method else filtered_df.loc[filtered_df["score_w/o_penalty"].idxmin()]
-            logger.info(f"Selected experiment with score: {df['score_w/o_penalty']}")
+            logger.info(f"Selected experiment with score: {df['score_w/o_penalty']:.3f}")
             
         return df
 

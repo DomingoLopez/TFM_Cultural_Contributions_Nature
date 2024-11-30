@@ -17,214 +17,84 @@ from scipy.stats import entropy
 
 class MultiModalClusteringMetric():
     """
-    MultiModalClusteringMetric
+    MultiModalClusteringMetric that allows to create stats and metrics from 
+    Dinov2 clustering and Llava inference comparision
     """
     def __init__(self, 
+                 classification_lvl: int,
+                 model:str,
+                 n_prompt:int,
+                 experiment: pd.DataFrame,
                  images_cluster_dict: dict,
                  llava_results_df: pd.DataFrame,
                  cache: bool = True, 
                  verbose: bool = False):
         """
-        Loads images from every cluster in order to do some inference on llava on ugr gpus
-        Args:
-            images_cluster_dict (dict)
-            classification_lvl (str): Classification level to be used
-            experiment_name (str): Name of the experiment for organizing results
+        Loads cluster-images dict and llava inference results.
+
         """
 
-        if(model not in ("llava1-5_7b", "llava1-6_7b","llava1-6_13b")):
-            raise ValueError("type must be one of followin: [llava1-5_7b, llava1-6_7b,llava1-6_13b]")
-        
-        # Adjust model from huggint face, but anyway, we need 2 different methods
-        # depending on llava or llava-next
-        if model == "llava1-5_7b":
-            self.model_hf = "llava-hf/llava-1.5-7b-hf"
-        elif model == "llava1-6_7b":
-            self.model_hf = "llava-hf/llava-v1.6-mistral-7b-hf"
-        elif model == "llava1-6_13b":
-            self.model_hf = "liuhaotian/llava-v1.6-vicuna-13b"
-        else:
-            self.model_hf = "llava-hf/llava-v1.6-mistral-7b-hf"
-
-        self.images = images
         self.classification_lvl = classification_lvl
         self.model = model
         self.n_prompt = n_prompt
+        self.experiment = experiment
+        self.images_cluster_dict = images_cluster_dict
+        self.llava_results_df= llava_results_df
         self.cache = cache
         self.verbose = verbose
         # Base dirs
         self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
-        self.results_csv = self.results_dir / f"inference_results.csv"
-        self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
+        self.results_csv = self.results_dir / f"experiment_{experiment['id']}_cluster_vs_llava_stats_experiment_{experiment['id']}.csv"
+        self.quality_stats_csv = self.results_dir / f"experiment_{experiment['id']}_quality.csv"
+        self.category_distribution_plot = self.results_dir / f"experiment_{experiment['id']}_category_distribution.png"
+        self.noise_distribution_plot = self.results_dir / f"experiment_{experiment['id']}_noise_distribution.png"
+
+        
         # Ensure directories exist
         os.makedirs(self.results_dir, exist_ok=True)
         
-        # Load categories based on classification level
-        self.categories = pd.read_csv(os.path.join(self.classification_lvls_dir, f"classification_level_{self.classification_lvl}.csv"), header=None, sep=";").iloc[:, 0].tolist()
-        categories_joins = ", ".join([category.upper() for category in self.categories])
-
-        self.prompt_1 = (
-            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
-            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "If the image does not belong to any of those categories, classify it as 'NOT VALID'. "
-            "Under no circumstances should you provide a category that is not listed above. "
-            "Please, provide the classification as your response, and also provide the reasoning after the classification separated by ':'."
-            "The response should follow this example schema: "
-            "VEHICLE: This image seems like a vehicle because..."
-            "Another example schema: "
-            "NOT VALID: This image does not belong to any of selected categories because..."
-            )
-        
-        self.prompt_2 = (
-            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
-            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "If the image's focus does not pertain to cultural ecosystem services or cultural nature contributions to people, classify it as 'NOT VALID'. "
-            "Under no circumstances should you provide a category that is not listed above. "
-            "Please provide ONLY the classification as your response, without any reasoning or additional details."
-            )
-        
-        if n_prompt > 2 or n_prompt < 1:
-                raise ValueError("n_prompt must be 1 or 2")
-            
-        self.prompt = self.prompt_1 if n_prompt == 1 else self.prompt_2
+        # Data frame of result stats
+        self.result_stats_df = None
+        # Get Distinct Categories from inference
+        self.categories = self.llava_results_df['category_llava'].unique()
 
 
 
-    def show_prompts(self):
-        print(self.prompt_1)
-        print(self.prompt_2)
 
-
-    def run(self):
-        self.__run_llava() if self.model == "llava1-5_7b" else self.__run_llava_next()
-
-    
-
-    # TODO: TAKE IMAGES AND INFERENCE THEM
-    def __run_llava(self):
+    def add_cluster_to_llava_inference(self):
         """
-        Run Llava inference for every image in each subfolder of the base path.
-        Store results.
+        Adding column to Llava Inference csv result in order to add 
+        cluster number. 
         """
-        if os.path.isfile(self.results_csv) and self.cache:
-            print("Recovering results from cache")
-            self.result_df = pd.read_csv(self.results_csv, sep=";", header=0) 
-        else:
-            processor = LlavaProcessor.from_pretrained(self.model_hf)
-            model = LlavaForConditionalGeneration.from_pretrained(self.model_hf, 
-                                                                  torch_dtype=torch.float16, 
-                                                                  low_cpu_mem_usage=True)
-            model.to("cuda:0")
+        # I got images in clusters dict
+        # Need to reverse that dict. 
+        images_cluster_dict_reverse = {}
+        for cluster, images in self.images_cluster_dict.items():
+            for image in images:
+                image_name = image.resolve().name.split("/")[-1]
+                images_cluster_dict_reverse[image_name] = cluster
+        # Done, now match image name, and add a column y llava_inference_results
+        result_df = self.llava_results_df.copy()
+        result_df['cluster'] = result_df['image_name'].map(images_cluster_dict_reverse)
 
-            results = []
-            print(f"Launching llava: {self.model_hf}")
-            
-            for image_path in self.images:
-                image = Image.open(image_path)
-                conversation = [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": self.prompt},
-                            {"type": "image", "image": image},  
-                        ],
-                    },
-                ]
-                prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
-                inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
-                
-                start_time = time.time()
-                output = model.generate(**inputs, max_new_tokens=100)
-                classification_result = processor.decode(output[0], skip_special_tokens=True)
-                classification_category = classification_result.split(":")[-1].strip()
-                inference_time = time.time() - start_time
-
-                results.append({
-                    "img": image_path,
-                    "category_llava": classification_category,
-                    "output": classification_result,
-                    "inference_time": inference_time
-                })
-
-            results_df = pd.DataFrame(results)
-            results_df.to_csv(self.results_csv, index=False, sep=";")
-            self.result_df = results_df
-
-
-
-    # TODO: TAKE IMAGES FROM DATA, AND INFERENCE THEM
-    def __run_llava_next(self):
-        """
-        Run Llava-Next inference for every image in each subfolder of the base path.
-        Store results.
-        """
-        if os.path.isfile(self.results_csv) and self.cache:
-            print("Recovering results from cache")
-            self.result_df = pd.read_csv(self.results_csv, sep=";", header=0) 
-        else:
-            processor = LlavaNextProcessor.from_pretrained(self.model_hf)
-            model = LlavaNextForConditionalGeneration.from_pretrained(self.model_hf, 
-                                                                      torch_dtype=torch.float16, 
-                                                                      low_cpu_mem_usage=True)
-            model.to("cuda:0")
-            model.config.pad_token_id = model.config.eos_token_id
-
-            results = []
-            print(f"Launching llava: {self.model_hf}")
-            
-            for image_path in self.images:
-                try:
-                    image = Image.open(image_path).convert("RGB")  # Ensure compatibility with the model
-                    conversation = [
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": self.prompt},
-                                {"type": "image", "image": image},  
-                            ],
-                        },
-                    ]
-                    prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
-                    inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
-
-                    start_time = time.time()
-                    output = model.generate(**inputs, max_new_tokens=100)
-
-                    classification_result = processor.decode(output[0], skip_special_tokens=True)
-                    
-                    if "[/INST]" in classification_result:
-                        classification_category = classification_result.split("[/INST]")[-1].strip()
-                    else:
-                        classification_category = "Unknown"  # Handle unexpected output format
-
-                    inference_time = time.time() - start_time
-
-                    results.append({
-                        "img": image_path,
-                        "category_llava": classification_category,
-                        "output": classification_result,
-                        "inference_time": inference_time
-                    })
-                except Exception as e:
-                    print(f"Error processing image {image_path}: {e}")
-
-            results_df = pd.DataFrame(results)
-            results_df.to_csv(self.results_csv, index=False, sep=";")
-            self.result_df = results_df
+        return result_df
 
 
 
 
-    def create_results_stats(self):
+    def generate_stats(self):
         """
         Generate statistics for each cluster's category distribution.
         Calculate the percentage of images in each cluster belonging to the same category.
         Also, calculate homogeneity and entropy for each cluster.
         """
-        # Contar categorías por clúster
-        category_counts = self.result_df.groupby(['cluster', 'category_llava']).size().reset_index(name='count')
+        # Add column with cluster
+        result_df = self.add_cluster_to_llava_inference()
 
-        # Calcular estadísticas por clúster
+        # Count distinct categories per cluster
+        category_counts = result_df.groupby(['cluster', 'category_llava']).size().reset_index(name='count')
+
+        # Get stats from cluster
         cluster_stats = []
         for cluster_name, group in category_counts.groupby('cluster'):
             total_images = group['count'].sum()
@@ -232,15 +102,15 @@ class MultiModalClusteringMetric():
             predominant_count = group['count'].max()
             success_percent = (predominant_count / total_images) * 100
 
-            # Calcular homogeneidad
+            # Get homegeneity
             homogeneity_k = predominant_count / total_images
 
-            # Calcular entropía
+            # Calculate entropy
             label_counts = group['count'].values
             probabilities = label_counts / label_counts.sum()
             entropy_k = entropy(probabilities, base=2)
 
-            # Guardar estadísticas del clúster
+            # Save statistics per cluster
             cluster_stats.append({
                 'cluster': cluster_name,
                 'total_img': total_images,
@@ -250,27 +120,63 @@ class MultiModalClusteringMetric():
                 'entropy_k': entropy_k
             })
 
-        # Crear DataFrame con estadísticas por clúster
+        # Create df with statistics
         self.result_stats_df = pd.DataFrame(cluster_stats)
-
-        # Guardar las estadísticas en un archivo CSV
-        self.result_stats_df.to_csv(self.results_dir / f"result_stats_{self.type}.csv", index=False, sep=";")
-
-        # Calcular la métrica de calidad usando calculate_clustering_quality
-        quality_results = self.calculate_clustering_quality(self.result_stats_df, alpha=1.0)
-
-        # Mostrar resultados de la métrica de calidad
-        print("Resultados de la Métrica de Calidad:")
-        print(f"Homogeneidad Global: {quality_results['homogeneity_global']:.4f}")
-        print(f"Penalización Global: {quality_results['penalization_global']:.4f}")
-        print(f"Métrica de Calidad: {quality_results['quality_metric']:.4f}")
-
-        # Llamar a la función de visualización si es necesario
-        self.plot_cluster_categories()
+        self.result_stats_df = self.result_stats_df.merge(category_counts, on='cluster', how='left')
+        # Save statistics to csv
+        self.result_stats_df.to_csv(self.results_csv, index=False, sep=";")
 
 
 
 
+
+
+    def calculate_clustering_quality(self, alpha=1.0):
+        """
+        Calculate the quality metric for clustering based on homogeneity and entropy.
+
+        Args:
+            result_stats_df (pd.DataFrame): DataFrame with statistics for each cluster. 
+                Expected columns:
+                    - 'cluster': Cluster ID.
+                    - 'total_img': Total images in the cluster.
+                    - 'homogeneity_k': Proportion of images in the dominant category.
+                    - 'entropy_k': Entropy of label distribution in the cluster.
+            alpha (float): Weight for the entropy penalty in the quality metric.
+
+        Returns:
+            dict: A dictionary with the calculated metrics:
+                - 'homogeneity_global': Weighted average of cluster homogeneities.
+                - 'penalization_global': Weighted average of cluster entropies.
+                - 'quality_metric': Final clustering quality score.
+        """
+        # Ensure the required columns are present
+        required_columns = ['total_img', 'homogeneity_k', 'entropy_k']
+        for col in required_columns:
+            if col not in self.result_stats_df.columns:
+                raise ValueError(f"Missing required column: {col} in result_stats_df")
+
+        # Calculate the total number of images across all clusters
+        total_images = self.result_stats_df['total_img'].sum()
+
+        # Calculate global homogeneity (weighted average of homogeneity_k)
+        homogeneity_global = (self.result_stats_df['total_img'] * self.result_stats_df['homogeneity_k']).sum() / total_images
+
+        # Calculate global penalty (weighted average of entropy_k)
+        penalization_global = (self.result_stats_df['total_img'] * self.result_stats_df['entropy_k']).sum() / total_images
+
+        # Combine metrics into the quality score
+        quality_metric = homogeneity_global - alpha * penalization_global
+
+         # Convert the results to a DataFrame
+        quality_results = pd.DataFrame([{
+            'homogeneity_global': homogeneity_global,
+            'penalization_global': penalization_global,
+            'quality_metric': quality_metric
+        }])
+
+        # Save the DataFrame to a CSV file
+        quality_results.to_csv(self.quality_stats_csv, sep=";", index=False)
 
 
 
@@ -289,10 +195,10 @@ class MultiModalClusteringMetric():
         total_images = self.result_stats_df['count'].sum()
         total_noise_images = self.result_stats_df[self.result_stats_df['cluster'].astype(str) == '-1']['count'].sum()
 
-        # Define a color map for each category based on all unique categories in result_stats_df
-        unique_categories = self.result_stats_df['category_llava'].unique()
-        colors = plt.cm.tab20c.colors  # A color map with enough colors
-        category_colors = {cat: colors[i % len(colors)] for i, cat in enumerate(unique_categories)}
+       # Define a consistent and alphabetically ordered color map for categories
+        unique_categories = sorted(self.result_stats_df['category_llava'].unique())  # Sort alphabetically
+        colors = plt.cm.tab20c.colors  # Use a predefined colormap
+        category_colors = {cat: colors[i % len(colors)] for i, cat in enumerate(unique_categories)}  # Assign colors
 
         # Divide clusters into 4 groups for 4 charts
         n_clusters = plot_data['cluster'].nunique()
@@ -353,15 +259,18 @@ class MultiModalClusteringMetric():
         fig.legend([plt.Line2D([0], [0], color=category_colors[cat], lw=4) for cat in unique_categories],
                 unique_categories, title="Category", bbox_to_anchor=(0.93, 0.5), loc='center')
         plt.tight_layout(rect=[0, 0, 0.84, 0.95])
-        fig.savefig(self.results_dir / f"category_distribution_clusters_{self.type}.png")
+        fig.savefig(self.category_distribution_plot)
         plt.close(fig)
+
+       
 
         # Create pie chart for the noise cluster (-1)
         noise_data = self.result_stats_df[self.result_stats_df['cluster'].astype(str) == '-1']
         if not noise_data.empty:
             noise_counts = noise_data.groupby('category_llava')['count'].sum()
+            noise_counts = noise_counts.sort_index()
             
-            fig, ax = plt.subplots(figsize=(8, 10))  # Adjust height for better legend placement
+            fig, ax = plt.subplots(figsize=(8, 15))  # Adjust height for better legend placement
             wedges, texts = ax.pie(noise_counts, startangle=90, colors=[category_colors[cat] for cat in noise_counts.index])
             
             # Add a detailed legend below the chart
@@ -371,55 +280,9 @@ class MultiModalClusteringMetric():
             
             ax.set_title("Category Distribution in Noise Cluster (-1)" \
                         f"Total noise images: {total_noise_images}")
-            fig.savefig(self.results_dir / f"noise_cluster_pie_chart_{self.type}.png")
+            fig.savefig(self.noise_distribution_plot)
             plt.close(fig)
 
-
-
-
-    def calculate_clustering_quality(self,result_stats_df, alpha=1.0):
-        """
-        Calculate the quality metric for clustering based on homogeneity and entropy.
-
-        Args:
-            result_stats_df (pd.DataFrame): DataFrame with statistics for each cluster. 
-                Expected columns:
-                    - 'cluster': Cluster ID.
-                    - 'total_img': Total images in the cluster.
-                    - 'homogeneity_k': Proportion of images in the dominant category.
-                    - 'entropy_k': Entropy of label distribution in the cluster.
-            alpha (float): Weight for the entropy penalty in the quality metric.
-
-        Returns:
-            dict: A dictionary with the calculated metrics:
-                - 'homogeneity_global': Weighted average of cluster homogeneities.
-                - 'penalization_global': Weighted average of cluster entropies.
-                - 'quality_metric': Final clustering quality score.
-        """
-        # Ensure the required columns are present
-        required_columns = ['total_img', 'homogeneity_k', 'entropy_k']
-        for col in required_columns:
-            if col not in result_stats_df.columns:
-                raise ValueError(f"Missing required column: {col} in result_stats_df")
-
-        # Calculate the total number of images across all clusters
-        total_images = result_stats_df['total_img'].sum()
-
-        # Calculate global homogeneity (weighted average of homogeneity_k)
-        homogeneity_global = (result_stats_df['total_img'] * result_stats_df['homogeneity_k']).sum() / total_images
-
-        # Calculate global penalty (weighted average of entropy_k)
-        penalization_global = (result_stats_df['total_img'] * result_stats_df['entropy_k']).sum() / total_images
-
-        # Combine metrics into the quality score
-        quality_metric = homogeneity_global - alpha * penalization_global
-
-        # Return the results as a dictionary
-        return {
-            'homogeneity_global': homogeneity_global,
-            'penalization_global': penalization_global,
-            'quality_metric': quality_metric
-        }
 
 
 
