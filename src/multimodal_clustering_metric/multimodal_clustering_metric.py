@@ -150,23 +150,30 @@ class MultiModalClusteringMetric():
                 - 'penalization_global': Weighted average of cluster entropies.
                 - 'quality_metric': Final clustering quality score.
         """
+
+        # epsilon in case entropy is 0
+        epsilon=1e-6
+
         # Ensure the required columns are present
         required_columns = ['total_img', 'homogeneity_k', 'entropy_k']
         for col in required_columns:
             if col not in self.result_stats_df.columns:
                 raise ValueError(f"Missing required column: {col} in result_stats_df")
 
+        # Remove duplicate entries for clusters (consider only one row per cluster)
+        unique_clusters = self.result_stats_df.drop_duplicates(subset=['cluster'])
+
         # Calculate the total number of images across all clusters
-        total_images = self.result_stats_df['total_img'].sum()
+        total_images = unique_clusters['total_img'].sum()
 
         # Calculate global homogeneity (weighted average of homogeneity_k)
-        homogeneity_global = (self.result_stats_df['total_img'] * self.result_stats_df['homogeneity_k']).sum() / total_images
+        homogeneity_global = (unique_clusters['total_img'] * unique_clusters['homogeneity_k']).sum() / total_images
 
         # Calculate global penalty (weighted average of entropy_k)
-        penalization_global = (self.result_stats_df['total_img'] * self.result_stats_df['entropy_k']).sum() / total_images
+        penalization_global = (unique_clusters['total_img'] * unique_clusters['entropy_k']).sum() / total_images
 
         # Combine metrics into the quality score
-        quality_metric = homogeneity_global - alpha * penalization_global
+        quality_metric = homogeneity_global / (penalization_global + epsilon)
 
          # Convert the results to a DataFrame
         quality_results = pd.DataFrame([{
@@ -301,6 +308,7 @@ class MultiModalClusteringMetric():
 
         # Preparar datos para los gráficos
         plot_data = self.result_stats_df[self.result_stats_df['cluster'].astype(str) != '-1'].copy()
+
         plot_data['cluster_int'] = pd.to_numeric(plot_data['cluster'], errors='coerce')
         plot_data['cluster_int'] = plot_data['cluster_int'].astype(int)
         plot_data = plot_data.sort_values(by='cluster_int').reset_index(drop=True)
@@ -325,7 +333,7 @@ class MultiModalClusteringMetric():
             f"Category Distribution by Cluster (Excluding Noise)\n"
             f"Experiment ID: {experiment_id}, Classification Level: {classification_lvl}, "
             f"Prompt: {n_prompt}, Llava Model: {model_llava}, Clustering Model: {model_clustering}\n"
-            f"Evaluation Method: {eval_method}, Score (w/o Penalty): {score_best:.4f}, Total Images: {total_images}",
+            f"Evaluation Method: {eval_method}, Score (w/o Penalty): {score_best:.3f}, Total Images: {total_images}, Noise Images: {total_noise_images}", 
             fontsize=16
         )
 
@@ -374,7 +382,8 @@ class MultiModalClusteringMetric():
         # Crear la leyenda fuera del bucle
         fig.legend(
             [plt.Line2D([0], [0], color=category_colors[cat], lw=4) for cat in unique_categories],
-            unique_categories, title="Category", bbox_to_anchor=(0.93, 0.5), loc='center'
+            [cat[:38] + "..." if len(cat) > 38 else cat for cat in unique_categories],  # Truncar nombres largos
+            title="Category", bbox_to_anchor=(0.93, 0.5), loc='center'
         )
         plt.tight_layout(rect=[0, 0, 0.84, 0.95])
         fig.savefig(self.category_distribution_plot)
@@ -391,9 +400,15 @@ class MultiModalClusteringMetric():
 
             # Añadir leyenda detallada debajo del gráfico
             plt.legend(
-                wedges, [f"{label}: {value:.1f}%" for label, value in zip(noise_counts.index, 
-                                                                        (noise_counts / noise_counts.sum() * 100).round(1))],
-                title="Categories", loc="upper center", bbox_to_anchor=(0.5, 0.1), ncol=2
+                wedges,
+                [
+                    f"{label[:38]}...: {value:.1f}%" if len(label) > 38 else f"{label}: {value:.1f}%"
+                    for label, value in zip(noise_counts.index, (noise_counts / noise_counts.sum() * 100).round(1))
+                ],
+                title="Categories",
+                loc="upper center",
+                bbox_to_anchor=(0.5, 0.1),
+                ncol=2
             )
 
             ax.set_title(
