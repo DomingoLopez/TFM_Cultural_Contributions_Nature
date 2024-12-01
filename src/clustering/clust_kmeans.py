@@ -80,7 +80,7 @@ class KMeansClustering(ClusteringModel):
         # Define the model builder function for KMeans
         def model_builder(trial):
             return KMeans(
-                n_clusters=trial.suggest_int('n_clusters', 80, 200),
+                n_clusters=trial.suggest_int('n_clusters', 40, 180),
                 init=trial.suggest_categorical('init', ['k-means++', 'random']),
                 n_init=trial.suggest_int('n_init', 10, 50),
                 max_iter=trial.suggest_int('max_iter', 100, 150)

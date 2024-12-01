@@ -144,7 +144,7 @@ if __name__ == "__main__":
         "min_dist": (0.1, 0.8)
     }
     # Cluster range to analyze
-    n_cluster_range = (60,300)
+    n_cluster_range = (40,300)
 
 
     # ###################################################################
