@@ -236,6 +236,26 @@ class LlavaInference():
             ValueError("File not found")
 
         return results
+    
+
+
+    def get_categories(self, classsification_lvl):
+        """
+        Returns categories from classification_lvl
+        """
+        categories = None
+        try:
+            categories = pd.read_csv(Path(__file__).resolve().parent / f"classification_lvls/classification_level_{classsification_lvl}.csv",
+                                  sep=";",
+                                  header=None)
+        except:
+            ValueError("File not found")
+
+        data_list = categories[0].to_list()
+        uppercase_list = [item.upper() for item in data_list]
+        return uppercase_list
+
+
 
 
 

@@ -22,6 +22,7 @@ class MultiModalClusteringMetric():
     """
     def __init__(self, 
                  classification_lvl: int,
+                 categories: list,
                  model:str,
                  n_prompt:int,
                  experiment: pd.DataFrame,
@@ -35,6 +36,7 @@ class MultiModalClusteringMetric():
         """
 
         self.classification_lvl = classification_lvl
+        self.categories = categories
         self.model = model
         self.n_prompt = n_prompt
         self.experiment = experiment
@@ -42,6 +44,13 @@ class MultiModalClusteringMetric():
         self.llava_results_df= llava_results_df
         self.cache = cache
         self.verbose = verbose
+
+        # Map colors with categories
+        colors = plt.cm.tab20c.colors  # Palette
+        self.category_colors = {cat: colors[i % len(colors)] for i, cat in enumerate(sorted(categories))}
+        self.category_colors["NOT VALID"] = "red"  # NOT VALID RED
+        self.unknown_category_color = "black"  # UNKNOWN BLACK
+
         # Base dirs
         self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}/experiment_{experiment['id']}"
         self.results_csv = self.results_dir / f"cluster_vs_llava_stats.csv"
@@ -317,11 +326,6 @@ class MultiModalClusteringMetric():
         total_images = self.result_stats_df['count'].sum()
         total_noise_images = self.result_stats_df[self.result_stats_df['cluster'].astype(str) == '-1']['count'].sum()
 
-        # Definir colores consistentes y ordenar las categorías alfabéticamente
-        unique_categories = sorted(self.result_stats_df['category_llava'].unique())  # Ordenar alfabéticamente
-        colors = plt.cm.tab20c.colors  # Usar una paleta predefinida
-        category_colors = {cat: colors[i % len(colors)] for i, cat in enumerate(unique_categories)}  # Asignar colores fijos
-
         # Dividir clusters en 4 grupos para 4 gráficos
         n_clusters = plot_data['cluster'].nunique()
         clusters_per_plot = n_clusters // 4 + (1 if n_clusters % 4 != 0 else 0)
@@ -357,9 +361,9 @@ class MultiModalClusteringMetric():
             )
             pivot_data = pivot_data.reindex(index=plot_subset['cluster'].unique())
 
-            # Crear gráfico de barras apiladas
             ax = axes[i // 2, i % 2]
-            pivot_data.plot(kind='bar', stacked=True, ax=ax, color=[category_colors[cat] for cat in pivot_data.columns])
+            pivot_data.plot(kind='bar', stacked=True, ax=ax, 
+                        color=[self.category_colors.get(cat, self.unknown_category_color) for cat in pivot_data.columns])
 
             # Colorear etiquetas del eje x según el porcentaje de éxito
             for label in ax.get_xticklabels():
@@ -381,10 +385,11 @@ class MultiModalClusteringMetric():
 
         # Crear la leyenda fuera del bucle
         fig.legend(
-            [plt.Line2D([0], [0], color=category_colors[cat], lw=4) for cat in unique_categories],
-            [cat[:38] + "..." if len(cat) > 38 else cat for cat in unique_categories],  # Truncar nombres largos
+            [plt.Line2D([0], [0], color=self.category_colors.get(cat, self.unknown_category_color), lw=4) for cat in self.categories],
+            [cat[:38] + "..." if len(cat) > 38 else cat for cat in self.categories],  # Truncar nombres largos
             title="Category", bbox_to_anchor=(0.93, 0.5), loc='center'
         )
+
         plt.tight_layout(rect=[0, 0, 0.84, 0.95])
         fig.savefig(self.category_distribution_plot)
         plt.close(fig)
@@ -396,7 +401,11 @@ class MultiModalClusteringMetric():
             noise_counts = noise_counts.sort_index()
 
             fig, ax = plt.subplots(figsize=(8, 15))  # Ajustar altura para mejorar la colocación de la leyenda
-            wedges, texts = ax.pie(noise_counts, startangle=90, colors=[category_colors[cat] for cat in noise_counts.index])
+            wedges, texts = ax.pie(
+                noise_counts,
+                startangle=90,
+                colors=[self.category_colors.get(cat, self.unknown_category_color) for cat in noise_counts.index]
+            )
 
             # Añadir leyenda detallada debajo del gráfico
             plt.legend(
@@ -413,13 +422,14 @@ class MultiModalClusteringMetric():
 
             ax.set_title(
                 f"Category Distribution in Noise Cluster (-1)\n"
-                f"Experiment ID: {experiment_id}, Classification Level: {classification_lvl}, "
-                f"Prompt: {n_prompt}, Llava Model: {model_llava}, Clustering Model: {model_clustering}\n"
-                f"Evaluation Method: {eval_method}, Score (w/o Penalty): {score_best:.4f}, Total Noise Images: {total_noise_images}"
+                f"Experiment ID: {self.experiment['id']}, Classification Level: {self.classification_lvl}, "
+                f"Prompt: {self.n_prompt}, Llava Model: {self.model}, Clustering Model: {self.experiment['clustering']}\n"
+                f"Evaluation Method: {self.experiment['eval_method']}, Score (w/o Penalty): {self.experiment['score_w/o_penalty']:.4f}, "
+                f"Total Noise Images: {noise_data['count'].sum()}"
             )
-            fig.savefig(self.noise_distribution_plot)
+            plt.tight_layout()
+            plt.savefig(self.noise_distribution_plot)
             plt.close(fig)
-
 
 
 

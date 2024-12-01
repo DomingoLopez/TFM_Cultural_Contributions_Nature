@@ -115,7 +115,7 @@ if __name__ == "__main__":
     embeddings = generate_embeddings(images, model="base")
     experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
     # experiments_file = "src/experiment/json/single_experiment.json"
-    # run_experiments(experiments_file, embeddings)
+    run_experiments(experiments_file, embeddings)
     #run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
     
 
@@ -178,10 +178,17 @@ if __name__ == "__main__":
             llava_results_df = llava.get_results(i)
             # Get cluster of images
             img_cluster_dict = experiment_controller.cluster_images_dict
-            # Create stats and Llava Metrics
+            # Obtain categories from classification_lvl
+            categories = llava.get_categories(classification_lvl)
 
             # Metrica ver si está cogiendo ruido en los labels
-            lvm_lvlm_metric = MultiModalClusteringMetric(classification_lvl, i, n_prompt, best_experiment, img_cluster_dict, llava_results_df)
+            lvm_lvlm_metric = MultiModalClusteringMetric(classification_lvl,
+                                                         categories,
+                                                         i, 
+                                                         n_prompt, 
+                                                         best_experiment, 
+                                                         img_cluster_dict, 
+                                                         llava_results_df)
             lvm_lvlm_metric.generate_stats()
             lvm_lvlm_metric.calculate_clustering_quality()
             lvm_lvlm_metric.plot_cluster_categories_2()

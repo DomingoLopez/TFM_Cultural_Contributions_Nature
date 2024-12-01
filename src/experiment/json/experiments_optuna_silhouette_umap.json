@@ -357,7 +357,7 @@
     "clustering" : "hdbscan",
     "eval_method" : "silhouette_noise",
     "penalty" : "range",
-    "penalty_range" : [60, 300],
+    "penalty_range" : [50, 300],
     "cache" : 0
     },
     {
@@ -377,7 +377,7 @@
         "clustering" : "hdbscan",
         "eval_method" : "davies_noise",
         "penalty" : "range",
-        "penalty_range" : [60, 300],
+        "penalty_range" : [50, 300],
         "cache" : 0
     },
     {
@@ -438,7 +438,7 @@
         "eval_method" : "davies_noise",
         "penalty" : "range",
         "penalty_range" : [60, 300],
-        "cache" : 1
+        "cache" : 0
     },
     {
     "_comment":"This is using DINOV2 BASE MODEL",
