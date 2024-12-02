@@ -358,7 +358,7 @@
     "eval_method" : "silhouette_noise",
     "penalty" : "range",
     "penalty_range" : [50, 300],
-    "cache" : 0
+    "cache" : 1
     },
     {
         "_comment":"This is using DINOV2 BASE MODEL",
@@ -378,7 +378,7 @@
         "eval_method" : "davies_noise",
         "penalty" : "range",
         "penalty_range" : [50, 300],
-        "cache" : 0
+        "cache" : 1
     },
     {
         "_comment":"This is using DINOV2 BASE MODEL",
@@ -438,13 +438,13 @@
         "eval_method" : "davies_noise",
         "penalty" : "range",
         "penalty_range" : [60, 300],
-        "cache" : 0
+        "cache" : 1
     },    
     {
         "_comment":"This is using DINOV2 BASE MODEL",
         "id": 24,
         "optimizer" : "optuna",
-        "optuna_trials": 200,
+        "optuna_trials": 50,
         "normalization": true,
         "scaler" : "standard",
         "dim_red" : "umap",
@@ -464,7 +464,7 @@
         "_comment":"This is using DINOV2 BASE MODEL",
         "id": 25,
         "optimizer" : "optuna",
-        "optuna_trials": 200,
+        "optuna_trials": 50,
         "normalization": true,
         "scaler" : "standard",
         "dim_red" : "umap",
@@ -484,7 +484,7 @@
         "_comment":"This is using DINOV2 BASE MODEL",
         "id": 26,
         "optimizer" : "optuna",
-        "optuna_trials": 200,
+        "optuna_trials": 100,
         "normalization": true,
         "scaler" : "standard",
         "dim_red" : "umap",
@@ -504,7 +504,7 @@
         "_comment":"This is using DINOV2 BASE MODEL",
         "id": 27,
         "optimizer" : "optuna",
-        "optuna_trials": 200,
+        "optuna_trials": 100,
         "normalization": true,
         "scaler" : "standard",
         "dim_red" : "umap",
