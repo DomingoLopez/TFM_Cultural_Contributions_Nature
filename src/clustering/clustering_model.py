@@ -223,12 +223,19 @@ class ClusteringModel(ABC):
 
                 # Noise points
                 noise_points = (labels == -1).sum()
+                # Calcular la proporción de ruido
+                noise_ratio = noise_points / len(self.data)
 
                 # If we choose to take noise as metric, calculate that score
+                alpha = 0.3  # Ajustable según la importancia del ruido
                 if evaluation_method == "silhouette_noise":
-                    score_original = score_original / (noise_points + 1)
+                    # Penalización proporcional al ruido
+                    score_original = score_original - alpha * noise_ratio
+                    # Garantizar que el score penalizado se mantenga dentro del rango de Silhouette [-1, 1]
+                    score_original = max(score_original, -1.0)
                 elif evaluation_method == "davies_noise":
-                    score_original = (noise_points + 1) / score_original
+                    # Penalización proporcional al ruido
+                    score_original = score_original + alpha * noise_ratio
 
                 if penalty == "linear":
                     adjustment = 0.1 * n_clusters

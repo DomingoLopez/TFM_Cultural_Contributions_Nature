@@ -350,15 +350,15 @@
     "dim_red" : "umap",
     "reduction_parameters": {
         "metric": ["euclidean","cosine"],
-        "n_components": [2,3,4,5],
-        "n_neighbors": [5, 10, 15, 20, 50],
+        "n_components": [2,3,4],
+        "n_neighbors": [5, 10, 15, 20],
         "min_dist": [0.1, 0.3, 0.5, 0.7]
     },
     "clustering" : "hdbscan",
     "eval_method" : "silhouette_noise",
     "penalty" : "range",
     "penalty_range" : [50, 300],
-    "cache" : 1
+    "cache" : 0
     },
     {
         "_comment":"This is using DINOV2 BASE MODEL",
@@ -370,15 +370,15 @@
         "dim_red" : "umap",
         "reduction_parameters": {
             "metric": ["euclidean","cosine"],
-            "n_components": [2,3,4,5],
-            "n_neighbors": [5, 10, 15, 20, 50],
+            "n_components": [2,3,4],
+            "n_neighbors": [5, 10, 15, 20],
             "min_dist": [0.1, 0.3, 0.5, 0.7]
         },
         "clustering" : "hdbscan",
         "eval_method" : "davies_noise",
         "penalty" : "range",
         "penalty_range" : [50, 300],
-        "cache" : 1
+        "cache" : 0
     },
     {
         "_comment":"This is using DINOV2 BASE MODEL",
@@ -438,7 +438,7 @@
         "eval_method" : "davies_noise",
         "penalty" : "range",
         "penalty_range" : [60, 300],
-        "cache" : 1
+        "cache" : 0
     },    
     {
         "_comment":"This is using DINOV2 BASE MODEL",
@@ -550,8 +550,8 @@
         "dim_red" : "umap",
         "reduction_parameters": {
             "metric": ["euclidean","cosine"],
-            "n_components": [2,3,4,5],
-            "n_neighbors": [5, 10, 15, 20, 50],
+            "n_components": [2,3,4],
+            "n_neighbors": [5, 10, 15, 20],
             "min_dist": [0.1, 0.3, 0.5, 0.7]
         },
         "clustering" : "hdbscan",
