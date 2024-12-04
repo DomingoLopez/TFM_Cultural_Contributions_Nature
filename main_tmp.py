@@ -41,20 +41,20 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 
 if __name__ == "__main__":
     
-        
-    file_path = "src/preprocess/cache_small"
-
-    experiment_files = Path(file_path).rglob("*.pkl")
+    file_path = "src/llava_inference/results"
+    experiment_files = Path(file_path).rglob("*.csv")
 
     for file in experiment_files:
-        # Obtener la carpeta y el nombre original del archivo
-        parent_dir = file.parent
-        original_name = file.name
+        # Leer el archivo CSV
+        df = pd.read_csv(file, sep=';')
 
-        # Crear el nuevo nombre
-        new_name = f"dino_model_small--{original_name}"
+        # Eliminar la columna 'cluster'
+        df.drop(columns=['cluster'], inplace=True)
 
-        # Renombrar el archivo
-        file.rename(parent_dir / new_name)
+        # Transformar la columna 'img' para que solo contenga el nombre de la imagen
+        df['img'] = df['img'].apply(lambda x: x.split('/')[-1])
 
-    print("Renombrado completado.")
+        # Guardar el archivo procesado, sobreescribiendo el original
+        df.to_csv(file, index=False, sep=';')
+
+        print(f"Procesado: {file}")

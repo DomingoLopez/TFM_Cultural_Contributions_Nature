@@ -16,13 +16,13 @@ class LlavaInferenceRemote():
     """
     LlavaInferenceRemote for execution on remote, with only archives needed
     """
-    def __init__(self, 
+    def __init__(self,
                  classification_lvl: str,
                  experiment:int,
                  name:str,
                  n_prompt:int,
                  type:str,
-                 cache: bool = True, 
+                 cache: bool = False,
                  verbose: bool = False):
         """
         Loads images from every cluster in order to do some inference on llava on ugr gpus
@@ -102,7 +102,7 @@ class LlavaInferenceRemote():
 
     def run(self):
         if self.type == "llava":
-            self.__run_llava() 
+            self.__run_llava()
         elif self.type == "llava_next":
             self.__run_llava_next()
         else:
@@ -310,3 +310,30 @@ if __name__ == "__main__":
     llava.run()
     llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",2,"llava_next_13b",False,False)
     llava.run()
+    # classification lvl 2#######################################################################
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",1,"llava",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",2,"llava",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",1,"llava_next",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",2,"llava_next",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",1,"llava_next_13b",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",2,"llava_next_13b",False,False)
+    llava.run()
+# classification lvl 1#######################################################################
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",1,"llava",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",2,"llava",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",1,"llava_next",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",2,"llava_next",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",1,"llava_next_13b",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",2,"llava_next_13b",False,False)
+    llava.run()
+
