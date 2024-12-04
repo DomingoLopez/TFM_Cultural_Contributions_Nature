@@ -25,6 +25,7 @@ class Preprocess:
     """
     def __init__(self, 
                  embeddings=None,
+                 dino_model="small",
                  scaler=None,
                  normalization=None,
                  dim_red=None,
@@ -34,6 +35,7 @@ class Preprocess:
                  ):
         
         self.scaler = scaler
+        self.dino_model = dino_model
         self.normalization = normalization
         self.dim_red = dim_red
         self.reduction_params = reduction_params 
@@ -96,7 +98,7 @@ class Preprocess:
         """
         Get path to store or recover embeddings in cache
         """
-        return os.path.join(self.cache_dir, f'norm_{self.normalization}--scaler_{self.scaler}--dimred_{self.dim_red}--' + \
+        return os.path.join(self.cache_dir, f'dino_model_{self.dino_model}--norm_{self.normalization}--scaler_{self.scaler}--dimred_{self.dim_red}--' + \
                             'reduction_params_'+('_'.join([f'{key}={value}' for key, value in self.reduction_params.items()]) if self.reduction_params is not None else "None") + '.pkl')
 
 

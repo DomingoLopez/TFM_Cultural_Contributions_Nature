@@ -42,17 +42,19 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 if __name__ == "__main__":
     
         
-    file_path = "src/llava_inference/results/classification_lvl_3/experiment_1/index_18_silhouette_0.755/prompt_2/result_llava_next.pkl"
+    file_path = "src/preprocess/cache_small"
 
-    # Cargar el DataFrame del archivo
-    with open(file_path, "rb") as f:
-        df = pickle.load(f)
+    experiment_files = Path(file_path).rglob("*.pkl")
 
-    # Renombrar la columna
-    df = df.rename(columns={"category_llava_next": "category_llava"})
+    for file in experiment_files:
+        # Obtener la carpeta y el nombre original del archivo
+        parent_dir = file.parent
+        original_name = file.name
 
-    # Guardar el DataFrame actualizado en el mismo archivo
-    with open(file_path, "wb") as f:
-        pickle.dump(df, f)
+        # Crear el nuevo nombre
+        new_name = f"dino_model_small--{original_name}"
 
-    print("Columna renombrada y archivo guardado exitosamente.")
+        # Renombrar el archivo
+        file.rename(parent_dir / new_name)
+
+    print("Renombrado completado.")

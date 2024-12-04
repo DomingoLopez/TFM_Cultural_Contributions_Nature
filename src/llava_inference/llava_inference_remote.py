@@ -270,8 +270,8 @@ class LlavaInferenceRemote():
 
                         classification_result = processor.decode(output[0], skip_special_tokens=True)
                         
-                        if "[/INST]" in classification_result:
-                            classification_category = classification_result.split("[/INST]")[-1].strip()
+                        if "ASSISTANT" in classification_result:
+                            classification_category = classification_result.split("ASSISTANT:",1)[-1].strip()
                         else:
                             classification_category = "Unknown"  # Handle unexpected output format
 

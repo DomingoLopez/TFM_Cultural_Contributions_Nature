@@ -591,7 +591,7 @@ class ExperimentResultController():
         # Plot cluster points
         cluster_points = reduced_data[best_labels != -1]
         cluster_labels = best_labels[best_labels != -1]
-        scatter = plt.scatter(cluster_points[:, 0], cluster_points[:, 1], c=cluster_labels, cmap=cmap_bold, s=20, alpha=0.6)
+        scatter = plt.scatter(cluster_points[:, 0], cluster_points[:, 1], c=cluster_labels, cmap=cmap_bold, s=15, alpha=0.6)
 
         # Plot cluster centers
         if pca_centers is not None:

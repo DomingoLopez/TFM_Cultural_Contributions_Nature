@@ -27,6 +27,7 @@ class Experiment():
 
     def __init__(self, 
                  id:int = 0,
+                 dino_model = "small",
                  data:pd.DataFrame = None, 
                  optimizer:str = "optuna",
                  optuna_trials: int = 100,
@@ -61,6 +62,7 @@ class Experiment():
         """
         # Setup attrs
         self._id = id
+        self._dino_model = dino_model
         self._data = data
         self._optimizer = optimizer
         self._optuna_trials = optuna_trials
@@ -101,6 +103,14 @@ class Experiment():
     @id.setter
     def id(self, value):
         self._id = value
+
+    @property
+    def dino_model(self):
+        return self._dino_model
+
+    @dino_model.setter
+    def dino_model(self, value):
+        self._dino_model = value
         
     @property
     def data(self):
@@ -330,6 +340,7 @@ class Experiment():
         Applies preprocessing steps including normalization, scaling, and dimensionality reduction.
         """
         preprocces_obj = Preprocess(embeddings=self._data, 
+                                    dino_model = self._dino_model,
                                     scaler=self._scaler, 
                                     normalization=self._normalization,
                                     dim_red=self._dim_red,

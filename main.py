@@ -64,7 +64,7 @@ def generate_embeddings(images, model) -> list:
     return embeddings
 
 
-def run_experiments(file, embeddings) -> None:
+def run_experiments(file, images) -> None:
    
     # Load json file with all experiments
     with open(file, 'r') as f:
@@ -72,6 +72,7 @@ def run_experiments(file, embeddings) -> None:
 
     for config in experiments_config:
         id = config.get("id")
+        dino_model = config.get("dino_model","small")
         optimizer = config.get("optimizer", "optuna")
         optuna_trials = config.get("optuna_trials", None)
         normalization = config.get("normalization", True)
@@ -85,8 +86,12 @@ def run_experiments(file, embeddings) -> None:
         cache = config.get("cache", True)
         # Make and Run Experiment
         logger.info(f"LOADING EXPERIMENT: {id}")
+
+        # Generate embeddings based on experiment model
+        embeddings = generate_embeddings(images, model=dino_model)
         experiment = Experiment(
             id,
+            dino_model,
             embeddings,
             optimizer,
             optuna_trials,
@@ -110,15 +115,10 @@ if __name__ == "__main__":
     
     # ###################################################################
     # 1. LOAD IMAGES AND GENERATE EMBEDDINGS. RUN CLUSTERING EXPERIMENTS
-
     images = load_images("./data/Data")
-    embeddings = generate_embeddings(images, model="base")
     experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
-    # experiments_file = "src/experiment/json/single_experiment.json"
-    run_experiments(experiments_file, embeddings)
-    #run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
+    run_experiments(experiments_file, images)
     
-
     # ###################################################################
     # 2. INFERENCE FROM LLAVA MODELS
     # It will save on llava results de csv with inferences from all i mages
