@@ -1,2 +1,2 @@
-homogeneity_global;penalization_global;quality_metric
-0.7327279905250691;1.1195607755077623;0.6544774987452122
+homogeneity_global;entropy_global;quality_metric
+0.8040540540540541;0.6585037294720593;1.2210300367906022

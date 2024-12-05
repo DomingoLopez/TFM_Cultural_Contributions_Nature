@@ -117,7 +117,7 @@ if __name__ == "__main__":
     # 1. LOAD IMAGES AND GENERATE EMBEDDINGS. RUN CLUSTERING EXPERIMENTS
     images = load_images("./data/Data")
     experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
-    run_experiments(experiments_file, images)
+    #run_experiments(experiments_file, images)
     
     # ###################################################################
     # 2. INFERENCE FROM LLAVA MODELS
@@ -163,7 +163,7 @@ if __name__ == "__main__":
                                                         reduction_params=reduction_params)
         experiments_filtered = experiment_controller.get_top_k_experiments(top_k=5)
         best_experiment = experiment_controller.get_best_experiment_data(experiments_filtered)
-        experiment_controller.plot_all(best_experiment)
+        #experiment_controller.plot_all(best_experiment)
         experiment_controller.create_cluster_dirs(images=images, experiment=best_experiment)
         
 
@@ -190,5 +190,6 @@ if __name__ == "__main__":
                                                          img_cluster_dict, 
                                                          llava_results_df)
             lvm_lvlm_metric.generate_stats()
-            lvm_lvlm_metric.calculate_clustering_quality()
-            lvm_lvlm_metric.plot_cluster_categories_2()
+            for i in (True, False):
+                lvm_lvlm_metric.calculate_clustering_quality(use_noise=i)
+            lvm_lvlm_metric.plot_cluster_categories_3()

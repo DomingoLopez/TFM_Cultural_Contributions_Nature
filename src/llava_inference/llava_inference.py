@@ -71,24 +71,24 @@ class LlavaInference():
         categories_joins = ", ".join([category.upper() for category in self.categories])
 
         self.prompt_1 = (
-            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
+            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
             f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "If the image does not belong to any of those categories, classify it as 'NOT VALID'. "
-            "Under no circumstances should you provide a category that is not listed above. "
-            "Please, provide the classification as your response, and also provide the reasoning after the classification separated by ':'."
-            "The response should follow this example schema: "
-            "VEHICLE: This image seems like a vehicle because..."
-            "Another example schema: "
-            "NOT VALID: This image does not belong to any of selected categories because..."
+            "Please adhere to the following rules:"
+            "1. You must not assign a category that is not listed above."
+            "2. If the image does not belong to any of the listed categories, classify it as 'NOT VALID'."
+            "3. Provide your response exclusively as the classification, without any additional explanation or commentary."
             )
         
         self.prompt_2 = (
-            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
+            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
             f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "If the image's focus does not pertain to cultural ecosystem services or cultural nature contributions to people, classify it as 'NOT VALID'. "
-            "Under no circumstances should you provide a category that is not listed above. "
-            "Please provide ONLY the classification as your response, without any reasoning or additional details."
+            "Please adhere to the following rules:"
+            "1. You must not assign a category that is not listed above."
+            "2. If the image does not clearly belong to any of the listed categories, classify it as the most similar category from the list."
+            "3. If the image is not clear enough or blurry, classify it as 'NOT VALID'."
+            "4. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
             )
+        
         
         if n_prompt > 2 or n_prompt < 1:
                 raise ValueError("n_prompt must be 1 or 2")

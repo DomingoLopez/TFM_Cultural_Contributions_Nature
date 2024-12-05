@@ -72,7 +72,8 @@ class LlavaInferenceRemote():
             "Please adhere to the following rules:"
             "1. You must not assign a category that is not listed above."
             "2. If the image does not clearly belong to any of the listed categories, classify it as the most similar category from the list."
-            "3. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
+            "3. If the image is not clear enough or blurry, classify it as 'NOT VALID'."
+            "4. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
             )
         
             

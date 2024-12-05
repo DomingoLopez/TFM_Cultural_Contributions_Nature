@@ -1,6 +1,8 @@
 from pathlib import Path
 import pickle
 import shutil
+from collections import OrderedDict
+import numpy as np
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
@@ -36,7 +38,7 @@ class MultiModalClusteringMetric():
         """
 
         self.classification_lvl = classification_lvl
-        self.categories = categories
+        self.categories = sorted(categories)
         self.model = model
         self.n_prompt = n_prompt
         self.experiment = experiment
@@ -45,16 +47,52 @@ class MultiModalClusteringMetric():
         self.cache = cache
         self.verbose = verbose
 
-        # Map colors with categories
-        colors = plt.cm.tab20c.colors  # Palette
-        self.category_colors = {cat: colors[i % len(colors)] for i, cat in enumerate(sorted(categories))}
-        self.category_colors["NOT VALID"] = "red"  # NOT VALID RED
-        self.unknown_category_color = "black"  # UNKNOWN BLACK
+        distinct_colors= [
+            "#1f77b4",  # Azul oscuro
+            "#ff7f0e",  # Naranja intenso
+            "#2ca02c",  # Verde brillante
+            "#9467bd",  # Morado oscuro
+            "#8c564b",  # Marrón oscuro
+            "#e377c2",  # Rosa oscuro
+            "#7f7f7f",  # Gris neutro
+            "#17becf",  # Azul cian brillante
+            "#bcbd22",  # Amarillo oliva oscuro
+            "#aec7e8",  # Azul claro
+            "#ffbb78",  # Naranja claro
+            "#c5b0d5",  # Lavanda
+            "#c49c94",  # Marrón claro
+            "#98df8a",  # Verde claro
+            "#dbdb8d",  # Amarillo pastel
+            "#9edae5",  # Cian claro
+            "#393b79",  # Azul marino
+            "#5254a3",  # Púrpura azulado
+            "#6b6ecf",  # Violeta claro
+            "#9c9ede",  # Azul lavanda claro
+            "#8c6d31",  # Mostaza oscuro
+            "#f7b6d2",  # Rosa pastel
+            "#d9d9d9",  # Gris claro
+            "#3182bd",  # Azul vibrante
+            "#6baed6",  # Azul cielo
+            "#31a354",  # Verde bosque
+        ]
+
+
+
+        # Map colors to categories in alphabetical order
+        self.category_colors = {
+            cat: distinct_colors[i % len(distinct_colors)]
+            for i, cat in enumerate(self.categories)
+        }
+
+        self.category_colors["NOT VALID"] = "red"  # Reserved for NOT VALID
+        self.unknown_category_color = "black"  # Reserved for unknowns
+
 
         # Base dirs
         self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}/experiment_{experiment['id']}"
         self.results_csv = self.results_dir / f"cluster_vs_llava_stats.csv"
         self.quality_stats_csv = self.results_dir / f"quality.csv"
+        self.quality_stats_noise_csv = self.results_dir / f"quality_w_noise.csv"
         self.category_distribution_plot = self.results_dir / f"category_distribution.png"
         self.noise_distribution_plot = self.results_dir / f"noise_distribution.png"
 
@@ -65,7 +103,7 @@ class MultiModalClusteringMetric():
         # Data frame of result stats
         self.result_stats_df = None
         # Get Distinct Categories from inference
-        self.categories = self.llava_results_df['category_llava'].unique()
+        self.categories = sorted(self.llava_results_df['category_llava'].unique())
 
 
 
@@ -84,7 +122,7 @@ class MultiModalClusteringMetric():
                 images_cluster_dict_reverse[image_name] = cluster
         # Done, now match image name, and add a column y llava_inference_results
         result_df = self.llava_results_df.copy()
-        result_df['cluster'] = result_df['image_name'].map(images_cluster_dict_reverse)
+        result_df['cluster'] = result_df['img'].map(images_cluster_dict_reverse)
 
         return result_df
 
@@ -140,7 +178,7 @@ class MultiModalClusteringMetric():
 
 
 
-    def calculate_clustering_quality(self, alpha=1.0):
+    def calculate_clustering_quality(self, use_noise, alpha=1.0):
         """
         Calculate the quality metric for clustering based on homogeneity and entropy.
 
@@ -172,6 +210,9 @@ class MultiModalClusteringMetric():
         # Remove duplicate entries for clusters (consider only one row per cluster)
         unique_clusters = self.result_stats_df.drop_duplicates(subset=['cluster'])
 
+        if not use_noise:
+            unique_clusters = unique_clusters[unique_clusters['cluster'] != -1]
+
         # Calculate the total number of images across all clusters
         total_images = unique_clusters['total_img'].sum()
 
@@ -179,20 +220,21 @@ class MultiModalClusteringMetric():
         homogeneity_global = (unique_clusters['total_img'] * unique_clusters['homogeneity_k']).sum() / total_images
 
         # Calculate global penalty (weighted average of entropy_k)
-        penalization_global = (unique_clusters['total_img'] * unique_clusters['entropy_k']).sum() / total_images
+        entropy_global = (unique_clusters['total_img'] * unique_clusters['entropy_k']).sum() / total_images
 
         # Combine metrics into the quality score
-        quality_metric = homogeneity_global / (penalization_global + epsilon)
+        quality_metric = homogeneity_global / (entropy_global + epsilon)
 
          # Convert the results to a DataFrame
         quality_results = pd.DataFrame([{
             'homogeneity_global': homogeneity_global,
-            'penalization_global': penalization_global,
+            'entropy_global': entropy_global,
             'quality_metric': quality_metric
         }])
 
         # Save the DataFrame to a CSV file
-        quality_results.to_csv(self.quality_stats_csv, sep=";", index=False)
+        path_to_save = self.quality_stats_noise_csv if use_noise else self.quality_stats_csv
+        quality_results.to_csv(path_to_save, sep=";", index=False)
 
 
 
@@ -408,6 +450,135 @@ class MultiModalClusteringMetric():
             )
 
             # Añadir leyenda detallada debajo del gráfico
+            plt.legend(
+                wedges,
+                [
+                    f"{label[:38]}...: {value:.1f}%" if len(label) > 38 else f"{label}: {value:.1f}%"
+                    for label, value in zip(noise_counts.index, (noise_counts / noise_counts.sum() * 100).round(1))
+                ],
+                title="Categories",
+                loc="upper center",
+                bbox_to_anchor=(0.5, 0.1),
+                ncol=2
+            )
+
+            ax.set_title(
+                f"Category Distribution in Noise Cluster (-1)\n"
+                f"Experiment ID: {self.experiment['id']}, Classification Level: {self.classification_lvl}, "
+                f"Prompt: {self.n_prompt}, Llava Model: {self.model}, Clustering Model: {self.experiment['clustering']}\n"
+                f"Evaluation Method: {self.experiment['eval_method']}, Score (w/o Penalty): {self.experiment['score_w/o_penalty']:.4f}, "
+                f"Total Noise Images: {noise_data['count'].sum()}"
+            )
+            plt.tight_layout()
+            plt.savefig(self.noise_distribution_plot)
+            plt.close(fig)
+
+
+    def plot_cluster_categories_3(self, threshold=0.75):
+        """
+        Plot two stacked bar charts showing the category distribution within each cluster,
+        excluding noise (cluster -1). Additionally, create a pie chart for the noise cluster.
+        """
+        # Extraer datos del experimento
+        experiment_id = self.experiment["id"]
+        classification_lvl = self.classification_lvl
+        n_prompt = self.n_prompt
+        model_llava = self.model
+        model_clustering = self.experiment["clustering"]
+        eval_method = self.experiment["eval_method"]
+        score_best = self.experiment["score_w/o_penalty"]
+
+        # Preparar datos para los gráficos
+        plot_data = self.result_stats_df[self.result_stats_df['cluster'].astype(str) != '-1'].copy()
+        plot_data['cluster_int'] = pd.to_numeric(plot_data['cluster'], errors='coerce')
+        plot_data['cluster_int'] = plot_data['cluster_int'].astype(int)
+        plot_data = plot_data.sort_values(by='cluster_int').reset_index(drop=True)
+        plot_data['cluster'] = plot_data['cluster_int'].astype(str)
+
+        total_images = self.result_stats_df['count'].sum()
+        total_noise_images = self.result_stats_df[self.result_stats_df['cluster'].astype(str) == '-1']['count'].sum()
+
+        # Dividir clusters en 2 grupos para 2 gráficos
+        n_clusters = plot_data['cluster'].nunique()
+        clusters_per_plot = n_clusters // 2 + (1 if n_clusters % 2 != 0 else 0)
+        clusters = plot_data['cluster'].unique()
+
+        # Crear subplots para 2 gráficos en 2 filas y 1 columna
+        fig, axes = plt.subplots(2, 1, figsize=(20, 20))
+        fig.suptitle(
+            f"Category Distribution by Cluster (Excluding Noise)\n"
+            f"Experiment ID: {experiment_id}, Classification Level: {classification_lvl}, "
+            f"Prompt: {n_prompt}, Llava Model: {model_llava}, Clustering Model: {model_clustering}\n"
+            f"Evaluation Method: {eval_method}, Score (w/o Penalty): {score_best:.3f}, Total Images: {total_images}, Noise Images: {total_noise_images}", 
+            fontsize=16
+        )
+
+        for i in range(2):
+            start_idx = i * clusters_per_plot
+            end_idx = min((i + 1) * clusters_per_plot, n_clusters)
+            subset_clusters = clusters[start_idx:end_idx]
+            plot_subset = plot_data[plot_data['cluster'].isin(subset_clusters)]
+
+            # Agrupar y ordenar los datos
+            plot_subset = plot_subset.groupby(['cluster', 'category_llava'], as_index=False).sum()
+            plot_subset = plot_subset.sort_values(by='cluster_int')
+
+            # Crear tabla pivote
+            pivot_data = plot_subset.pivot_table(
+                index='cluster', 
+                columns='category_llava', 
+                values='count', 
+                aggfunc='sum', 
+                fill_value=0
+            )
+            pivot_data = pivot_data.reindex(index=plot_subset['cluster'].unique())
+
+            ax = axes[i]
+            pivot_data.plot(kind='bar', stacked=True, ax=ax, 
+                            color=[self.category_colors.get(cat, self.unknown_category_color) for cat in pivot_data.columns])
+
+            # Colorear etiquetas del eje x según el porcentaje de éxito
+            for label in ax.get_xticklabels():
+                cluster_id = label.get_text()
+                predominant_row = self.result_stats_df[
+                    (self.result_stats_df['cluster'].astype(str) == cluster_id) &
+                    (self.result_stats_df['category_llava'] ==
+                    self.result_stats_df.loc[self.result_stats_df['cluster'].astype(str) == cluster_id, 'predominant_category'].values[0])
+                ]
+                if not predominant_row.empty:
+                    success_percent = predominant_row['success_percent'].iloc[0]
+                    label.set_color('green' if success_percent > threshold * 100 else 'black')
+
+            # Etiquetas y título del gráfico
+            ax.set_title(f"Clusters {subset_clusters[0]} to {subset_clusters[-1]}")
+            ax.set_xlabel("Cluster")
+            ax.set_ylabel("Image Count")
+            ax.legend().set_visible(False)
+
+        # Crear la leyenda fuera del bucle
+        fig.legend(
+            [plt.Line2D([0], [0], color=self.category_colors.get(cat, self.unknown_category_color), lw=4) for cat in self.categories],
+            [cat[:38] + "..." if len(cat) > 38 else cat for cat in self.categories],
+            title="Category", bbox_to_anchor=(0.93, 0.5), loc='center'
+        )
+
+        plt.tight_layout(rect=[0, 0, 0.84, 0.95])
+        fig.savefig(self.category_distribution_plot)
+        plt.close(fig)
+
+        # Crear gráfico de pastel para el cluster de ruido (-1)
+        noise_data = self.result_stats_df[self.result_stats_df['cluster'].astype(str) == '-1']
+        if not noise_data.empty:
+            noise_counts = noise_data.groupby('category_llava')['count'].sum()
+            noise_counts = noise_counts.sort_index()
+
+            fig, ax = plt.subplots(figsize=(8, 15))
+            wedges, texts = ax.pie(
+                noise_counts,
+                startangle=90,
+                colors=[self.category_colors.get(cat, self.unknown_category_color) for cat in noise_counts.index]
+            )
+
             plt.legend(
                 wedges,
                 [
