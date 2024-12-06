@@ -15,7 +15,6 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, RobustScaler, StandardScaler, normalize
 import umap
-from cvae import cvae
 
 
 
@@ -206,8 +205,6 @@ class Preprocess:
         """
         if self.dim_red == "umap":
             embeddings_dim_red = self.__do_UMAP(embeddings_df)
-        elif self.dim_red == "cvae":
-            embeddings_dim_red = self.__do_CVAE(embeddings_df)
         elif self.dim_red == "pca":
             embeddings_dim_red = self.__do_PCA(embeddings_df)
         elif self.dim_red == "tsne":
@@ -271,35 +268,6 @@ class Preprocess:
         tsne_df = pd.DataFrame(data=tsne_result)
         return tsne_df
 
-
-    
-
-    def __do_CVAE(self, embeddings_df):
-        """
-        Compression VAE Dim reduction. 
-        More info in https://github.com/maxfrenzel/CompressionVAE
-        https://maxfrenzel.com/articles/compression-vae
-        pip install tensorflow keras
-        git clone https://github.com/maxfrenzel/CompressionVAE.git
-        cd CompressionVAE
-        pip install -e .
-        """
-
-        if self.reduction_params is None:
-            raise ValueError("No reduction params provided")
-
-        logger.info(f"Using CVAE Dim. reduction: Params: {', '.join([f'{key}={value}' for key, value in self.reduction_params.items()])}")
-        # 1: Obtain array of embeddings
-        X = embeddings_df.values
-        # 2: Initialize cvae model with selected dimensions
-        # embedder = cvae.CompressionVAE(X, dim_latent=dimensions, verbose = False)
-        embedder = cvae.CompressionVAE(X, **self.reduction_params, verbose = False)
-        # 3: Train cvae model
-        embedder.train()  
-        # 4: Get reduced embeddings
-        embeddings_compressed = embedder.embed(X)  
-        cvae_df = pd.DataFrame(data=embeddings_compressed)
-        return cvae_df
 
 
 

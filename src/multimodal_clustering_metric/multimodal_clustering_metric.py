@@ -225,16 +225,23 @@ class MultiModalClusteringMetric():
         # Combine metrics into the quality score
         quality_metric = homogeneity_global / (entropy_global + epsilon)
 
-         # Convert the results to a DataFrame
-        quality_results = pd.DataFrame([{
-            'homogeneity_global': homogeneity_global,
-            'entropy_global': entropy_global,
-            'quality_metric': quality_metric
-        }])
 
-        # Save the DataFrame to a CSV file
+        # Determine the column suffix
+        suffix = "_w_noise" if use_noise else ""
+
+        # Prepare the results with the column suffix
+        quality_results = {
+            f'homogeneity_global{suffix}': homogeneity_global,
+            f'entropy_global{suffix}': entropy_global,
+            f'quality_metric{suffix}': quality_metric
+        }
+
+        # Convert results to a DataFrame for saving, but return a dict for scalar values
         path_to_save = self.quality_stats_noise_csv if use_noise else self.quality_stats_csv
-        quality_results.to_csv(path_to_save, sep=";", index=False)
+        pd.DataFrame([quality_results]).to_csv(path_to_save, sep=";", index=False)
+
+        # Return results as scalars
+        return quality_results
 
 
 
