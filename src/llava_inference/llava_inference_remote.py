@@ -16,13 +16,13 @@ class LlavaInferenceRemote():
     """
     LlavaInferenceRemote for execution on remote, with only archives needed
     """
-    def __init__(self, 
+    def __init__(self,
                  classification_lvl: str,
                  experiment:int,
                  name:str,
                  n_prompt:int,
                  type:str,
-                 cache: bool = True, 
+                 cache: bool = False,
                  verbose: bool = False):
         """
         Loads images from every cluster in order to do some inference on llava on ugr gpus
@@ -55,29 +55,27 @@ class LlavaInferenceRemote():
         self.result_df = None
         self.result_stats_df = None
 
+
         categories_joins = ", ".join([category.upper() for category in self.categories])
         self.prompt_1 = (
-            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
+            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
             f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "If the image does not belong to any of those categories, classify it as 'NOT VALID'. "
-            "Under no circumstances should you provide a category that is not listed above. "
-            "Please, provide the classification as your response, and also provide the reasoning after the classification separated by ':'."
-            "The response should follow this example schema: "
-            "VEHICLE: This image seems like a vehicle because..."
-            "Another example schema: "
-            "NOT VALID: This image does not belong to any of selected categories because..."
+            "Please adhere to the following rules:"
+            "1. You must not assign a category that is not listed above."
+            "2. If the image does not belong to any of the listed categories, classify it as 'NOT VALID'."
+            "3. Provide your response exclusively as the classification, without any additional explanation or commentary."
             )
         
         self.prompt_2 = (
-            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and cultural nature contributions to people. "
+            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
             f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "If the image's focus does not pertain to cultural ecosystem services or cultural nature contributions to people, classify it as 'NOT VALID'"
-            "Under no circumstances should you provide a category that is not listed above. "
-            "Please provide ONLY the classification as your response, without any reasoning or additional details."
+            "Please adhere to the following rules:"
+            "1. You must not assign a category that is not listed above."
+            "2. If the image does not clearly belong to any of the listed categories, classify it as the most similar category from the list."
+            "3. If the image is not clear enough or blurry, classify it as 'NOT VALID'."
+            "4. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
             )
         
-        if n_prompt > 2 or n_prompt < 1:
-                raise ValueError("n_prompt must be 1 or 2")
             
         self.prompt = self.prompt_1 if n_prompt == 1 else self.prompt_2
 
@@ -104,7 +102,12 @@ class LlavaInferenceRemote():
 
 
     def run(self):
-        self.__run_llava() if self.type == "llava" else self.__run_llava_next()
+        if self.type == "llava":
+            self.__run_llava()
+        elif self.type == "llava_next":
+            self.__run_llava_next()
+        else:
+            self.__run_llava_next_2()
 
 
 
@@ -227,126 +230,111 @@ class LlavaInferenceRemote():
 
 
 
-
-    def create_results_stats(self):
+    def __run_llava_next_2(self):
         """
-        Generate statistics for each cluster's category distribution.
-        Calculate the percentage of images in each cluster belonging to the same category.
+        Run Llava-Next inference for every image in each subfolder of the base path.
+        Store results.
         """
-        category_counts = self.result_df.groupby(['cluster', 'category_llava']).size().reset_index(name='count')
+        if os.path.isfile(self.results_object) and self.cache:
+            print("Recovering results from cache")
+            self.result_df = pickle.load(open(str(self.results_object), "rb"))
+        else:
+            # "llava-hf/llava-v1.6-mistral-7b-hf"
+            processor = LlavaNextProcessor.from_pretrained("llava-hf/llava-v1.6-vicuna-13b-hf")
+            model = LlavaNextForConditionalGeneration.from_pretrained(
+                "llava-hf/llava-v1.6-vicuna-13b-hf", torch_dtype=torch.float16, low_cpu_mem_usage=True
+            )
+            model.to("cuda:0")
+            model.config.pad_token_id = model.config.eos_token_id
 
-        cluster_stats = []
-        for cluster_name, group in category_counts.groupby('cluster'):
-            total_images = group['count'].sum()
-            predominant_category = group.loc[group['count'].idxmax(), 'category_llava']
-            predominant_count = group['count'].max()
-            success_percent = (predominant_count / total_images) * 100
+            results = []
+            print("Launching llava-next-vicuna-13b")
+            for cluster_name, image_paths in self.images_dict_format.items():
+                print(f"Cluster {cluster_name}. Images: {len(image_paths)}")
+                for image_path in image_paths:
+                    try:
+                        image = Image.open(image_path).convert("RGB")  # Ensure compatibility with the model
+                        conversation = [
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": self.prompt},
+                                    {"type": "image", "image": image},  
+                                ],
+                            },
+                        ]
+                        prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
+                        inputs = processor(images=image, text=prompt, return_tensors="pt").to("cuda:0")
 
-            cluster_stats.append({
-                'cluster': cluster_name,
-                'total_img': total_images,
-                'predominant_category': predominant_category,
-                'success_percent': success_percent
-            })
+                        start_time = time.time()
+                        output = model.generate(**inputs, max_new_tokens=500)
 
-        self.result_stats_df = pd.DataFrame(cluster_stats)
-        self.result_stats_df = self.result_stats_df.merge(category_counts, on='cluster', how='left')
-        self.result_stats_df.to_csv(self.results_dir / "result_stats.csv", index=False, sep=";")
-        
-        self.plot_cluster_categories()
+                        classification_result = processor.decode(output[0], skip_special_tokens=True)
+                        
+                        if "ASSISTANT" in classification_result:
+                            classification_category = classification_result.split("ASSISTANT:",1)[-1].strip()
+                        else:
+                            classification_category = "Unknown"  # Handle unexpected output format
 
+                        inference_time = time.time() - start_time
 
+                        
+                        results.append({
+                            "cluster": cluster_name,
+                            "img": image_path,
+                            "category_llava": classification_category,
+                            "output": classification_result,
+                            "inference_time": inference_time
+                        })
+                    except Exception as e:
+                        print(f"Error processing image {image_path}: {e}")
 
-
-
-
-    def plot_cluster_categories(self, threshold=0.75):
-        """
-        Plot four stacked bar charts showing the category distribution within each cluster,
-        excluding noise (cluster -1). Additionally, create a pie chart for the noise cluster.
-        """
-        # Exclude the noise (-1) from the main DataFrame and sort clusters numerically
-        plot_data = self.result_stats_df[self.result_stats_df['cluster'] != '-1']
-        plot_data['cluster_int'] = plot_data['cluster'].astype(int)  # Add helper column for sorting
-        plot_data = plot_data.sort_values(by='cluster_int').reset_index(drop=True)
-        plot_data['cluster'] = plot_data['cluster'].astype(str)  # Convert back to str for plotting
-        plot_data = plot_data.drop(columns=['cluster_int'])  # Remove helper column
-
-        total_images = self.result_stats_df['count'].sum()
-        total_noise_images = self.result_stats_df[self.result_stats_df['cluster'] == '-1']['count'].sum()
-
-        # Define a color map for each category based on all unique categories in result_stats_df
-        unique_categories = self.result_stats_df['category_llava'].unique()
-        colors = plt.cm.tab20c.colors  # A color map with enough colors
-        category_colors = {cat: colors[i % len(colors)] for i, cat in enumerate(unique_categories)}
-
-        # Divide clusters into 4 groups for 4 charts
-        n_clusters = plot_data['cluster'].nunique()
-        clusters_per_plot = n_clusters // 4 + (1 if n_clusters % 4 != 0 else 0)
-        clusters = plot_data['cluster'].unique()  # Ensures clusters are ordered
-
-        # Create subplots
-        fig, axes = plt.subplots(2, 2, figsize=(25, 15))
-        fig.suptitle("Category Distribution by Cluster (Excluding Noise)\n" \
-                     f"Total images: {total_images}", 
-                     fontsize=16)
-
-        for i in range(4):
-            start_idx = i * clusters_per_plot
-            end_idx = min((i + 1) * clusters_per_plot, n_clusters)
-            subset_clusters = clusters[start_idx:end_idx]
-            plot_subset = plot_data[plot_data['cluster'].isin(subset_clusters)]
-            
-            # Create stacked bar chart
-            ax = axes[i // 2, i % 2]
-            pivot_data = plot_subset.pivot_table(index='cluster', columns='category_llava', values='count', fill_value=0)
-            pivot_data.plot(kind='bar', stacked=True, ax=ax, color=[category_colors[cat] for cat in pivot_data.columns])
-            
-            # Set green color for x-axis labels if success percent > 75%
-            for label in ax.get_xticklabels():
-                cluster_id = label.get_text()
-                predominant_row = self.result_stats_df[(self.result_stats_df['cluster'] == cluster_id) &
-                                                    (self.result_stats_df['category_llava'] == 
-                                                        self.result_stats_df.loc[self.result_stats_df['cluster'] == cluster_id, 'predominant_category'].values[0])]
-                success_percent = predominant_row['success_percent'].iloc[0]
-                label.set_color('green' if success_percent > threshold*100 else 'black')
-            
-            # Title and individual plot labels
-            ax.set_title(f"Clusters {subset_clusters[0]} to {subset_clusters[-1]}")
-            ax.set_xlabel("Cluster")
-            ax.set_ylabel("Image Count")
-            ax.legend().set_visible(False)
-
-        # Create the legend outside the loop
-        fig.legend([plt.Line2D([0], [0], color=category_colors[cat], lw=4) for cat in unique_categories],
-                unique_categories, title="Category", bbox_to_anchor=(0.92, 0.5), loc='center')
-        plt.tight_layout(rect=[0, 0, 0.84, 0.95])
-        fig.savefig(self.results_dir / "category_distribution_clusters.png")
-        plt.close(fig)
-
-        # Create pie chart for the noise cluster (-1)
-        noise_data = self.result_stats_df[self.result_stats_df['cluster'] == '-1']
-        if not noise_data.empty:
-            noise_counts = noise_data.groupby('category_llava')['count'].sum()
-            
-            fig, ax = plt.subplots(figsize=(8, 10))  # Adjust height for better legend placement
-            wedges, texts = ax.pie(noise_counts, startangle=90, colors=[category_colors[cat] for cat in noise_counts.index])
-            
-            # Add a detailed legend below the chart
-            plt.legend(wedges, [f"{label}: {value:.1f}%" for label, value in zip(noise_counts.index, 
-                    (noise_counts / noise_counts.sum() * 100).round(1))], 
-                    title="Categories", loc="upper center", bbox_to_anchor=(0.5, 0.1), ncol=2)
-            
-            ax.set_title("Category Distribution in Noise Cluster (-1)" \
-                        f"Total noise images: {total_noise_images}")
-            fig.savefig(self.results_dir / "noise_cluster_pie_chart.png")
-            plt.close(fig)
-
+            results_df = pd.DataFrame(results)
+            results_df.to_csv(self.results_csv, index=False, sep=";")
+            pickle.dump(results_df, open(self.results_object, "wb"))
+            self.result_df = results_df
 
 
 
 
 
 if __name__ == "__main__":
+    llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",1,"llava",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",2,"llava",False,False)
+    llava.run()
     llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",1,"llava_next",False,False)
     llava.run()
+    llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",2,"llava_next",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",1,"llava_next_13b",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(3,1,"index_18_silhouette_0.755",2,"llava_next_13b",False,False)
+    llava.run()
+    # classification lvl 2#######################################################################
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",1,"llava",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",2,"llava",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",1,"llava_next",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",2,"llava_next",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",1,"llava_next_13b",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(2,1,"index_18_silhouette_0.755",2,"llava_next_13b",False,False)
+    llava.run()
+# classification lvl 1#######################################################################
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",1,"llava",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",2,"llava",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",1,"llava_next",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",2,"llava_next",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",1,"llava_next_13b",False,False)
+    llava.run()
+    llava = LlavaInferenceRemote(1,1,"index_18_silhouette_0.755",2,"llava_next_13b",False,False)
+    llava.run()
+

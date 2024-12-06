@@ -11,6 +11,7 @@ from src.clustering.clustering_factory import ClusteringFactory
 from src.experiment.experiment import Experiment
 from src.experiment.experiment_result_controller import ExperimentResultController
 from src.llava_inference.llava_inference import LlavaInference
+from src.multimodal_clustering_metric.multimodal_clustering_metric import MultiModalClusteringMetric
 from src.utils.image_loader import ImageLoader
 from src.dinov2_inference.dinov2_inference import Dinov2Inference
 from src.preprocess.preprocess import Preprocess
@@ -63,7 +64,7 @@ def generate_embeddings(images, model) -> list:
     return embeddings
 
 
-def run_experiments(file, embeddings) -> None:
+def run_experiments(file, images) -> None:
    
     # Load json file with all experiments
     with open(file, 'r') as f:
@@ -71,6 +72,7 @@ def run_experiments(file, embeddings) -> None:
 
     for config in experiments_config:
         id = config.get("id")
+        dino_model = config.get("dino_model","small")
         optimizer = config.get("optimizer", "optuna")
         optuna_trials = config.get("optuna_trials", None)
         normalization = config.get("normalization", True)
@@ -84,8 +86,12 @@ def run_experiments(file, embeddings) -> None:
         cache = config.get("cache", True)
         # Make and Run Experiment
         logger.info(f"LOADING EXPERIMENT: {id}")
+
+        # Generate embeddings based on experiment model
+        embeddings = generate_embeddings(images, model=dino_model)
         experiment = Experiment(
             id,
+            dino_model,
             embeddings,
             optimizer,
             optuna_trials,
@@ -107,53 +113,83 @@ def run_experiments(file, embeddings) -> None:
 
 if __name__ == "__main__": 
     
-    # 1. Load images, generate embeddings and run experiments
+    # ###################################################################
+    # 1. LOAD IMAGES AND GENERATE EMBEDDINGS. RUN CLUSTERING EXPERIMENTS
     images = load_images("./data/Data")
-    embeddings = generate_embeddings(images, model="base")
     experiments_file = "src/experiment/json/experiments_optuna_silhouette_umap.json"
-    # experiments_file = "src/experiment/json/single_experiment.json"
-    run_experiments(experiments_file, embeddings)
-    #run_experiments("src/experiment/json/experiments_optuna_silhouette_umap.json", embeddings)
+    #run_experiments(experiments_file, images)
     
-    # 2. Load all available experiments from results folder
-    # 2.1 Define eval method to analyze
-    # 2.2 Load all experiments of given eval method
-    
-    # eval_method = "silhouette"
-    # experiment_results = ExperimentResultController(eval_method, experiment_id=None)
-    # # DESIRED FILTERS 
-    # use_score_noise_ratio = False
-    # # The are range (from 2 to 15)
-    # reduction_params = {
-    #     "n_components": (2,25),
-    #     "n_neighbors": (3,60),
-    #     "min_dist": (0.1, 0.8)
-    # }
-    # n_cluster_range = (80,300)
-    # experiments_filtered = experiment_results.get_top_k_experiments(top_k=20, 
-    #                                                                 n_cluster_range=n_cluster_range,
-    #                                                                 reduction_params=reduction_params,
-    #                                                                 use_score_noise_ratio = use_score_noise_ratio)
-    
-    # # Cogemos mejor experimento que mejor silhouette/noise ratio tiene de entre los mejores silhouette
-    # best_experiment = experiment_results.get_best_experiment_data(experiments_filtered,use_score_noise_ratio=use_score_noise_ratio)
+    # ###################################################################
+    # 2. INFERENCE FROM LLAVA MODELS
+    # It will save on llava results de csv with inferences from all i mages
 
-    # experiment_results.show_best_silhouette(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
-    # experiment_results.show_best_scatter(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
-    # experiment_results.show_best_scatter_with_centers(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
-    # experiment_results.show_best_clusters_counters_comparision(best_experiment, use_score_noise_ratio=use_score_noise_ratio, show_plots=False)
-    # experiment_results.show_best_experiments_silhouette(show_plots=False)
+    # Classification level to analyze
+    classification_lvl = 3
+    n_prompt=1
+    # Models to compare
+    llava_models = ("llava1-5_7b", "llava1-6_7b", "llava1-6_13b")
+
+    for i in llava_models:
+        llava = LlavaInference(images=images, classification_lvl=classification_lvl, n_prompt=n_prompt, model=i)
+        llava.run()
 
 
-    # # 3. Process images to Llava-1.5 and see:
-    # # 3.1 Generate dir with images per cluster (each dir index/name of cluster) - Noise y dir called -1
-    # llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=1, type="llava_next")
-    # llava.create_cluster_dirs()
-    # # for i in range(1,3,1):
-    # #     for type in ("llava","llava_next"):
-    # #         llava = LlavaInference(images=images, classification_lvl=3, best_experiment=best_experiment, n_prompt=i, type=type)
-    # #         llava.create_cluster_dirs()
-    # #         # llava.run()
-    # #         # llava.create_results_stats()
-    # #         # llava.plot_cluster_categories()
-   
+    # ###################################################################
+    # 3. APPLY FILTERS FROM EXPERT KNOWLEDGE IN ORDER TO GET BEST EXPERIMENTS
+    use_score_noise_ratio = False
+    # Reduction params from Umap
+    reduction_params = {
+        "n_components": (2,25),
+        "n_neighbors": (3,60),
+        "min_dist": (0.1, 0.8)
+    }
+    # Cluster range to analyze
+    n_cluster_range = (40,300)
+
+
+    # ###################################################################
+    # 4. GENERATE RESULTS FROM CLUSTERING EXPERIMENTS AND DIFFERENT EVAL METHODS
+    with open(experiments_file, 'r') as f:
+        experiments_config = json.load(f)
+
+    
+    for config in experiments_config:
+        eval_method = config.get("eval_method", "silhouette")
+        id = config.get("id",1)
+        experiment_controller = ExperimentResultController(eval_method, 
+                                                        experiment_id=id, 
+                                                        use_score_noise_ratio=use_score_noise_ratio,
+                                                        n_cluster_range=n_cluster_range,
+                                                        reduction_params=reduction_params)
+        experiments_filtered = experiment_controller.get_top_k_experiments(top_k=5)
+        best_experiment = experiment_controller.get_best_experiment_data(experiments_filtered)
+        experiment_controller.plot_all(best_experiment)
+        experiment_controller.create_cluster_dirs(images=images, experiment=best_experiment)
+        
+
+
+
+        # ###################################################################
+        # 4. CREATE STATS FROM:
+        # - CLUSTERING FROM EMBEDDINGS (DinoV2 LVM)
+        # - LLAVA INFERENCE (LVLM)
+        for i in llava_models:
+            # Get Llava Results from llava-model i 
+            llava_results_df = llava.get_results(i)
+            # Get cluster of images
+            img_cluster_dict = experiment_controller.cluster_images_dict
+            # Obtain categories from classification_lvl
+            categories = llava.get_categories(classification_lvl)
+
+            # Metrica ver si está cogiendo ruido en los labels
+            lvm_lvlm_metric = MultiModalClusteringMetric(classification_lvl,
+                                                         categories,
+                                                         i, 
+                                                         n_prompt, 
+                                                         best_experiment, 
+                                                         img_cluster_dict, 
+                                                         llava_results_df)
+            lvm_lvlm_metric.generate_stats()
+            for i in (True, False):
+                lvm_lvlm_metric.calculate_clustering_quality(use_noise=i)
+            lvm_lvlm_metric.plot_cluster_categories_3()

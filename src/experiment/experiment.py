@@ -27,6 +27,7 @@ class Experiment():
 
     def __init__(self, 
                  id:int = 0,
+                 dino_model = "small",
                  data:pd.DataFrame = None, 
                  optimizer:str = "optuna",
                  optuna_trials: int = 100,
@@ -61,6 +62,7 @@ class Experiment():
         """
         # Setup attrs
         self._id = id
+        self._dino_model = dino_model
         self._data = data
         self._optimizer = optimizer
         self._optuna_trials = optuna_trials
@@ -101,6 +103,14 @@ class Experiment():
     @id.setter
     def id(self, value):
         self._id = value
+
+    @property
+    def dino_model(self):
+        return self._dino_model
+
+    @dino_model.setter
+    def dino_model(self, value):
+        self._dino_model = value
         
     @property
     def data(self):
@@ -261,9 +271,14 @@ class Experiment():
                 score_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
             elif self._eval_method == "davies_bouldin":
                 score_noise_ratio = (noise_not_noise.get(-1) + 1) / score_best
+            elif self._eval_method == "silhouette_noise":
+                score_noise_ratio = score_best
+            elif self._eval_method == "davies_noise":
+                score_noise_ratio = score_best
             else:
                 raise ValueError(f"Unsupported evaluation method: {self._eval_method}")
             
+
             # Append results
             results.append({
                 "id": self._id,
@@ -325,6 +340,7 @@ class Experiment():
         Applies preprocessing steps including normalization, scaling, and dimensionality reduction.
         """
         preprocces_obj = Preprocess(embeddings=self._data, 
+                                    dino_model = self._dino_model,
                                     scaler=self._scaler, 
                                     normalization=self._normalization,
                                     dim_red=self._dim_red,

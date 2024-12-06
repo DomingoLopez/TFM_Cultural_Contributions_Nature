@@ -1,6 +1,7 @@
 [
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 1,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 100,
         "normalization": true,
@@ -18,8 +19,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 2,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 100,
         "normalization": true,
@@ -32,8 +34,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {  
         "id": 3,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 100,
         "normalization": false,
@@ -51,8 +54,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 4,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": false,
@@ -70,8 +74,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 5,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": true,
@@ -89,8 +94,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 6,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": true,
@@ -108,8 +114,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 7,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": true,
@@ -127,8 +134,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 8,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": false,
@@ -146,8 +154,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 9,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": true,
@@ -165,8 +174,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 10,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": false,
@@ -184,8 +194,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 11,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": true,
@@ -203,8 +214,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {  
         "id": 12,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": false,
@@ -222,8 +234,9 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 13,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 200,
         "normalization": true,
@@ -241,28 +254,30 @@
         "penalty_range" : null,
         "cache" : 1
     },
-    {   "_comment":"This is using DINOV2 SMALL MODEL",
+    {   
         "id": 14,
+        "dino_model": "small",
         "optimizer" : "optuna",
         "optuna_trials": 50,
         "normalization": true,
-        "scaler" : null,
+        "scaler" : "standard",
         "dim_red" : "umap",
         "reduction_parameters": {
             "metric": ["euclidean","cosine"],
-            "n_components": [2,5,7,13,15],
-            "n_neighbors": [2, 5, 15, 50, 100],
-            "min_dist": [0.0, 0.1, 0.25, 0.5, 0.8]
+            "n_components": [2,3,4],
+            "n_neighbors": [5, 10, 15, 20],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
         },
         "clustering" : "kmeans",
         "eval_method" : "silhouette",
         "penalty" : null,
         "penalty_range" : null,
-        "cache" : 1
+        "cache" : 0
     },
     {
-    "_comment":"This is using DINOV2 SMALL MODEL",
+    
     "id": 15,
+    "dino_model": "small",
     "optimizer" : "optuna",
     "optuna_trials": 200,
     "normalization": true,
@@ -281,8 +296,9 @@
     "cache" : 1
     },
     {
-    "_comment":"This is using DINOV2 BASE MODEL",
+    
     "id": 16,
+    "dino_model": "base",
     "optimizer" : "optuna",
     "optuna_trials": 200,
     "normalization": true,
@@ -301,8 +317,9 @@
     "cache" : 1
     },
     {
-    "_comment":"This is using DINOV2 BASE MODEL",
+    
     "id": 17,
+    "dino_model": "base",
     "optimizer" : "optuna",
     "optuna_trials": 200,
     "normalization": true,
@@ -321,8 +338,9 @@
     "cache" : 1
     },
     {
-    "_comment":"This is using DINOV2 BASE MODEL",
+    
     "id": 18,
+    "dino_model": "base",
     "optimizer" : "optuna",
     "optuna_trials": 200,
     "normalization": true,
@@ -341,28 +359,9 @@
     "cache" : 1
     },
     {
-    "_comment":"This is using DINOV2 BASE MODEL",
+    
     "id": 19,
-    "optimizer" : "optuna",
-    "optuna_trials": 200,
-    "normalization": true,
-    "scaler" : "standard",
-    "dim_red" : "umap",
-    "reduction_parameters": {
-        "metric": ["euclidean","cosine"],
-        "n_components": [2,3,4,5],
-        "n_neighbors": [5, 10, 15, 20, 50],
-        "min_dist": [0.1, 0.3, 0.5, 0.7]
-    },
-    "clustering" : "dbscan",
-    "eval_method" : "silhouette",
-    "penalty" : null,
-    "penalty_range" : null,
-    "cache" : 1
-    },
-    {
-    "_comment":"This is using DINOV2 BASE MODEL",
-    "id": 20,
+    "dino_model": "base",
     "optimizer" : "optuna",
     "optuna_trials": 200,
     "normalization": true,
@@ -370,14 +369,264 @@
     "dim_red" : "umap",
     "reduction_parameters": {
         "metric": ["euclidean","cosine"],
-        "n_components": [2,3,4,5],
-        "n_neighbors": [5, 10, 15, 20, 50],
+        "n_components": [2,3,4],
+        "n_neighbors": [5, 10, 15, 20],
         "min_dist": [0.1, 0.3, 0.5, 0.7]
     },
-    "clustering" : "dbscan",
-    "eval_method" : "davies_bouldin",
-    "penalty" : null,
-    "penalty_range" : null,
+    "clustering" : "hdbscan",
+    "eval_method" : "silhouette_noise",
+    "penalty" : "range",
+    "penalty_range" : [50, 300],
     "cache" : 1
-    }
+    },
+    {
+        
+        "id": 20,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": true,
+        "scaler" : null,
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4],
+            "n_neighbors": [5, 10, 15, 20],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "davies_noise",
+        "penalty" : "range",
+        "penalty_range" : [50, 300],
+        "cache" : 1
+    },
+    {
+        
+        "id": 21,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "davies_bouldin",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {
+        
+        "id": 22,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {
+        
+        "id": 23,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "davies_noise",
+        "penalty" : "range",
+        "penalty_range" : [60, 300],
+        "cache" : 1
+    },    
+    {
+        
+        "id": 24,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 50,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4],
+            "n_neighbors": [5, 10, 15, 20],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "kmeans",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+        },
+        {
+        
+        "id": 25,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 50,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4],
+            "n_neighbors": [5, 10, 15, 20],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "kmeans",
+        "eval_method" : "davies_bouldin",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+        },
+        {
+        
+        "id": 26,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 100,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4],
+            "n_neighbors": [5, 10, 15, 20],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "agglomerative",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+        },
+        {
+        
+        "id": 27,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 100,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4],
+            "n_neighbors": [5, 10, 15, 20],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "agglomerative",
+        "eval_method" : "davies_bouldin",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+        },
+        {
+        
+        "id": 28,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": true,
+        "scaler" : null,
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+        },
+        {
+        
+        "id": 29,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": true,
+        "scaler" : null,
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4],
+            "n_neighbors": [5, 10, 15, 20],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "davies_bouldin",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+        },
+        {
+        "id": 30,
+        "dino_model": "small",
+        "optimizer" : "optuna",
+        "optuna_trials": 50,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4],
+            "n_neighbors": [5, 10, 15, 20],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "kmeans",
+        "eval_method" : "davies_bouldin",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+        },
+        {   
+        "id": 31,
+        "dino_model": "small",
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4],
+            "n_neighbors": [5, 10, 15, 20],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "agglomerative",
+        "eval_method" : "davies_bouldin",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+        }
 ]

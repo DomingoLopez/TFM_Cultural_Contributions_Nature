@@ -41,18 +41,20 @@ def show_images_per_cluster(images, knn_cluster_result_df):
 
 if __name__ == "__main__":
     
-        
-    file_path = "src/llava_inference/results/classification_lvl_3/experiment_1/index_18_silhouette_0.755/prompt_2/result_llava_next.pkl"
+    file_path = "src/llava_inference/results"
+    experiment_files = Path(file_path).rglob("*.csv")
 
-    # Cargar el DataFrame del archivo
-    with open(file_path, "rb") as f:
-        df = pickle.load(f)
+    for file in experiment_files:
+        # Leer el archivo CSV
+        df = pd.read_csv(file, sep=';')
 
-    # Renombrar la columna
-    df = df.rename(columns={"category_llava_next": "category_llava"})
+        # Eliminar la columna 'cluster'
+        df.drop(columns=['cluster'], inplace=True)
 
-    # Guardar el DataFrame actualizado en el mismo archivo
-    with open(file_path, "wb") as f:
-        pickle.dump(df, f)
+        # Transformar la columna 'img' para que solo contenga el nombre de la imagen
+        df['img'] = df['img'].apply(lambda x: x.split('/')[-1])
 
-    print("Columna renombrada y archivo guardado exitosamente.")
+        # Guardar el archivo procesado, sobreescribiendo el original
+        df.to_csv(file, index=False, sep=';')
+
+        print(f"Procesado: {file}")
