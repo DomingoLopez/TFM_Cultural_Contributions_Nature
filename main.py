@@ -163,7 +163,7 @@ if __name__ == "__main__":
                                                         reduction_params=reduction_params)
         experiments_filtered = experiment_controller.get_top_k_experiments(top_k=5)
         best_experiment = experiment_controller.get_best_experiment_data(experiments_filtered)
-        #experiment_controller.plot_all(best_experiment)
+        experiment_controller.plot_all(best_experiment)
         experiment_controller.create_cluster_dirs(images=images, experiment=best_experiment)
         
 
