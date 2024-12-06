@@ -15,10 +15,12 @@ import pandas as pd
 from loguru import logger
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from sklearn.metrics import davies_bouldin_score, silhouette_samples, silhouette_score
 from sklearn.datasets import make_blobs
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
+import umap
 from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering.clustering_model import ClusteringModel
 from src.preprocess.preprocess import Preprocess
@@ -488,11 +490,20 @@ class ExperimentResultController():
         # Get data reduced from eda object
         data = embeddings.values
 
+        
+
         # Check if reduction is needed
         if data.shape[1] > 2:
-            # Reduce dimensions with PCA
-            pca = PCA(n_components=2, random_state=42)
-            reduced_data = pca.fit_transform(data)
+            # Default parameters. This is only for visualization
+            if dim_red == "umap":
+                reducer = umap.UMAP(random_state=42, n_components=2, min_dist=0.1, n_neighbors=15)
+                reduced_data = reducer.fit_transform(data)
+            elif dim_red == "tsne":
+                reducer = TSNE(random_state=42, n_components=2)
+                reduced_data = reducer.fit_transform(data)
+            else:
+                pca = PCA(n_components=2, random_state=42)
+                reduced_data = pca.fit_transform(data)
         else:
             # Use the data directly if already 2D
             reduced_data = data

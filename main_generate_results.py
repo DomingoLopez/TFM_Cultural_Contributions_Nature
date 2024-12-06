@@ -88,13 +88,14 @@ def create_results_csv():
                     eval_method = config.get("eval_method", "silhouette")
                     penalty = config.get("penalty", None)
                     penalty_range = config.get("penalty_range", None)
-                    cache = config.get("cache", True)
+                    dim_red = config.get("dim_red", None)
 
                     # Get experiment index value
                     # Hay que ir al csv, con los filtros y traerse reduction params tb, etc
-                    index, score = get_eval_method_value(id)
-                    dim_red = config.get("dim_red", None)
-                    reduction_parameters = config.get("reduction_parameters", None)
+                    index, score, reduction_parameters = get_exp_results(id)
+
+                    
+
                     for use_noise_in_metric in [True, False]:
                         homogeneity_global, entropy_global, quality_metric = get_quality_metrics(class_lvl, prompt, id, use_noise_in_metric)
 
