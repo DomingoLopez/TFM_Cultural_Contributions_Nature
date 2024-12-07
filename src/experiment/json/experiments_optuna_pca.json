@@ -275,6 +275,67 @@
         "penalty" : "range",
         "penalty_range" : [50, 300],
         "cache" : 1
+    },
+
+    {   
+        "id": 64,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [7,9,11,13],
+            "n_neighbors": [15, 20, 50],
+            "min_dist": [0.1, 0.25, 0.5]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {   
+        "id": 65,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [7,9,11],
+            "n_neighbors": [15, 20, 30],
+            "min_dist": [0.1, 0.25, 0.5]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette_noise",
+        "penalty" : "range",
+        "penalty_range" : [50, 300],
+        "cache" : 1
+    },
+    {   
+        "id": 66,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 200,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [7,9,11],
+            "n_neighbors": [15, 20, 30],
+            "min_dist": [0.1, 0.25, 0.5]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "davies_noise",
+        "penalty" : "range",
+        "penalty_range" : [50, 300],
+        "cache" : 1
     }
 
 ]

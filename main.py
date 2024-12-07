@@ -86,8 +86,8 @@ if __name__ == "__main__":
     # ###################################################################
     images = load_images("./data/Data")
     #experiments_file = "src/experiment/json/experiments_optuna_umap.json"
-    experiments_file = "src/experiment/json/experiments_optuna_tsne.json"
-    run_experiments(experiments_file, images)
+    # experiments_file = "src/experiment/json/experiments_optuna_tsne.json"
+    # run_experiments(experiments_file, images)
     experiments_file = "src/experiment/json/experiments_optuna_pca.json"
     run_experiments(experiments_file, images)
     
@@ -121,7 +121,7 @@ if __name__ == "__main__":
             reduction_params = {
                 "n_components": (2,25),
                 "perplexity": (4,60),
-                "early_exaggeration": (8, 15)
+                "early_exaggeration": (7, 16)
             }
         else:
             reduction_params = {

@@ -84,7 +84,7 @@ class ExperimentResultController():
             embeddings_name = "embeddings_dinov2_vits14_5066.pkl"
         else:
             embeddings_name = "embeddings_dinov2_vitb14_5066.pkl"
-        original_embeddings_path = Path(__file__).resolve().parent.parent / f"src/dinov2_inference/cache/{embeddings_name}"
+        original_embeddings_path = Path(__file__).resolve().parent.parent / f"dinov2_inference/cache/{embeddings_name}"
         with open(original_embeddings_path, "rb") as f:
             self.original_embeddings = pickle.load(f)
         
@@ -594,14 +594,24 @@ class ExperimentResultController():
 
         # Check if reduction is needed
         if data.shape[1] > 2:
-            # Reduce dimensions with PCA
-            pca = PCA(n_components=2, random_state=42)
-            reduced_data = pca.fit_transform(data)
-            pca_centers = pca.transform(best_centers)
+            # If shape > 1, we cannot use selected reduction params, cause it doesnt make sense
+            if dim_red == "umap":
+                reducer = umap.UMAP(random_state=42, n_components=2, min_dist=0.1, n_neighbors=15)
+                reduced_data = reducer.fit_transform(data)
+                pca_centers = reducer.transform(best_centers)
+            elif dim_red == "tsne":
+                reducer = TSNE(random_state=42, n_components=2)
+                reduced_data = reducer.fit_transform(data)
+                pca_centers = reducer.transform(best_centers)
+            else:
+                reducer = PCA(n_components=2, random_state=42)
+                reduced_data = reducer.fit_transform(data)
+                pca_centers = reducer.transform(best_centers)
         else:
             # Use the data directly if already 2D
             reduced_data = data
             pca_centers = best_centers
+
 
         # Color mapping for clusters and plot setup
         colors = ['#00FF00', '#FFFF00', '#0000FF', '#FF9D0A', '#00B6FF', '#F200FF', '#FF6100']
