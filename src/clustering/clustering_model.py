@@ -237,6 +237,13 @@ class ClusteringModel(ABC):
                     # Penalización proporcional al ruido
                     score_original = score_original + alpha * noise_ratio
 
+
+                # Check eval method has range if noise
+                if (evaluation_method in ("silhouette_noise","davies_noise")):
+                    if penalty == "" or penalty is None:
+                        raise ValueError("When using eval methods optimizing noise, make sure to provide a penalty range.")
+
+
                 if penalty == "linear":
                     adjustment = 0.1 * n_clusters
                     score_penalized = score_original - adjustment if evaluation_method in ["silhouette", "silhouette_noise"] else score_original + adjustment

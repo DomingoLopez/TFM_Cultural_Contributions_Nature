@@ -30,8 +30,8 @@ class ExperimentResultController():
 
     def __init__(self, 
                  eval_method="silhouette",
+                 dino_model="small",
                  experiment_id=None,
-                 use_score_noise_ratio=False,
                  n_cluster_range=None,
                  reduction_params=None,
                  cache= True, 
@@ -40,8 +40,8 @@ class ExperimentResultController():
     
         # Setup attrs
         self.eval_method = eval_method
+        self.dino_model = dino_model
         self.experiment_id = experiment_id
-        self.use_score_noise_ratio = use_score_noise_ratio
         self.n_cluster_range = n_cluster_range
         self.reduction_params = reduction_params
         self.cache = cache
@@ -59,12 +59,6 @@ class ExperimentResultController():
             Path(__file__).resolve().parent
             / f"results"
         )
-        # Plot dir
-        self.plot_dir = (
-            Path(__file__).resolve().parent
-            / f"plots"
-        )
-        self.plot_dir.mkdir(parents=True, exist_ok=True)
 
         # Clusters dir
         self.cluster_dir = (
@@ -78,6 +72,16 @@ class ExperimentResultController():
         self.cluster_images_dict = None
         self.__load_all_experiments(experiment_id)
 
+        # Get original embeddings (Just for representation)
+        # This is a bit messy. Refactor asap.
+        if self.dino_model == "small":
+            embeddings_name = "embeddings_dinov2_vits14_5066.pkl"
+        else:
+            embeddings_name = "embeddings_dinov2_vitb14_5066.pkl"
+        original_embeddings_path = Path(__file__).resolve().parent.parent / f"dinov2_inference/cache/{embeddings_name}"
+        with open(original_embeddings_path, "rb") as f:
+            self.original_embeddings = pickle.load(f)
+        
 
     
     def __load_all_experiments(self, experiment_id = None):
@@ -109,13 +113,6 @@ class ExperimentResultController():
             logger.warning("No experiments found with the specified eval_method.")
 
 
-    def add_path_type(self, file_suffix):
-        """
-        Helper to create file paths for saving plots.
-        """
-        return str(self.plot_dir / f"{file_suffix}.png")
-
-
 
     def get_top_k_experiments(self, top_k: int) -> pd.DataFrame:
         """
@@ -123,11 +120,6 @@ class ExperimentResultController():
 
         Parameters:
             top_k (int): Number of top experiments to return.
-            min_n_cluster (int): Minimum number of clusters.
-            max_n_cluster (int): Maximum number of clusters.
-            min_dimension (int): Minimum dimension for reduced data.
-            max_dimension (int): Maximum dimension for reduced data.
-            use_score_noise_ratio (bool): If True, sort by score_noise_ratio; otherwise, sort by score_w/o_penalty.
 
         Returns:
             pd.DataFrame: Filtered DataFrame with the top_k experiments.
@@ -155,12 +147,20 @@ class ExperimentResultController():
 
 
         # Determine sorting column and order based on eval_method
-        if "davies" in self.eval_method:
-            sort_column = 'score_noise_ratio' if self.use_score_noise_ratio else 'score_w/o_penalty'
+        if self.eval_method == "davies_bouldin":
+            sort_column =  'score_w/o_penalty'
             ascending_order = True  # Lower is better for davies_bouldin
-        else:
-            sort_column = 'score_noise_ratio' if self.use_score_noise_ratio else 'score_w/o_penalty'
+        elif self.eval_method == "davies_noise":
+            sort_column = 'score_w_penalty'
+            ascending_order = True  # Lower is better for davies_bouldin
+        elif self.eval_method == "silhouette":
+            sort_column =  'score_w/o_penalty'
             ascending_order = False  # Higher is better for silhouette
+        elif self.eval_method == "silhouette_noise":
+            sort_column =  'score_w_penalty'
+            ascending_order = False  # Higher is better for silhouette
+        else:
+            raise ValueError("Eval method not supported")
 
 
         # Filter dataframe based on cluster
@@ -218,12 +218,20 @@ class ExperimentResultController():
         if filtered_df.empty:
             raise ValueError("No experiments found.")
 
-        if (self.use_score_noise_ratio):
-            df = filtered_df.loc[filtered_df["score_noise_ratio"].idxmax()] if "silhouette" in self.eval_method else filtered_df.loc[filtered_df["score_noise_ratio"].idxmin()]
-            logger.info(f"Selected experiment with score/noise ratio: {df['score_noise_ratio']:.3f}")
+
+        # Determine sorting column and order based on eval_method
+        if self.eval_method == "davies_bouldin":
+            df = filtered_df.loc[filtered_df["score_w/o_penalty"].idxmin()]
+        elif self.eval_method == "davies_noise":
+            df = filtered_df.loc[filtered_df["score_w_penalty"].idxmin()]
+        elif self.eval_method == "silhouette":
+            df = filtered_df.loc[filtered_df["score_w/o_penalty"].idxmax()]
+        elif self.eval_method == "silhouette_noise":
+            df = filtered_df.loc[filtered_df["score_w_penalty"].idxmax()]
         else:
-            df = filtered_df.loc[filtered_df["score_w/o_penalty"].idxmax()] if "silhouette" in self.eval_method else filtered_df.loc[filtered_df["score_w/o_penalty"].idxmin()]
-            logger.info(f"Selected experiment with score: {df['score_w/o_penalty']:.3f}")
+            raise ValueError("Eval method not supported")
+
+        logger.info(f"Selected experiment with score: {df['score_w/o_penalty']:.3f}")
             
         return df
 
@@ -231,7 +239,7 @@ class ExperimentResultController():
 
 
 
-    def get_cluster_images_dict(self, images, experiment, knn=None):
+    def get_cluster_images_dict(self, images, experiment, knn=None, save_result=True):
         """
         Finds the k-nearest neighbors for each centroid of clusters among points that belong to the same cluster.
         Returns knn points for each cluster in dict format in case knn is not None
@@ -276,7 +284,8 @@ class ExperimentResultController():
                 cluster_images_dict[label].append(images[i])
         
         # Sort dictionary
-        self.cluster_images_dict = dict(sorted(cluster_images_dict.items()))
+        if save_result:
+            self.cluster_images_dict = dict(sorted(cluster_images_dict.items()))
         return self.cluster_images_dict
 
 
@@ -331,11 +340,15 @@ class ExperimentResultController():
         if "silhouette" in self.eval_method:
             self.show_best_silhouette(experiment)
             self.show_best_scatter(experiment)
+            self.show_best_scatter(experiment, keep_original_embeddings = False)
             self.show_best_scatter_with_centers(experiment)
             self.show_best_clusters_counters_comparision(experiment)
             #self.show_best_experiments_silhouette(experiment)
         elif "davies" in self.eval_method:
-            pass 
+            self.show_best_scatter(experiment)
+            self.show_best_scatter(experiment, keep_original_embeddings = False)
+            self.show_best_scatter_with_centers(experiment)
+            self.show_best_clusters_counters_comparision(experiment)
         else:
             raise ValueError("Eval Method not support for plotting")
 
@@ -451,7 +464,7 @@ class ExperimentResultController():
         )
 
         # Save and optionally show the plot
-        file_suffix = "best_silhouette" if not self.use_score_noise_ratio else "best_silhouette_noise_ratio"
+        file_suffix = "best_silhouette"
         file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         plt.savefig(file_path, bbox_inches="tight")
@@ -464,7 +477,7 @@ class ExperimentResultController():
 
 
 
-    def show_best_scatter(self, experiment):
+    def show_best_scatter(self, experiment, keep_original_embeddings=True):
         """
         Plots a 2D scatter plot for the best experiment configuration, with clusters reduced 
         to 2D space using PCA and color-coded for better visual distinction. Points labeled 
@@ -477,26 +490,27 @@ class ExperimentResultController():
         best_labels = np.array(best_experiment['labels'])
         optimizer = best_experiment['optimization']
         clustering = best_experiment['clustering']
+        eval_method = best_experiment['eval_method']
         scaler = best_experiment['scaler']
         dim_red = best_experiment['dim_red']
         dimensions = best_experiment['dimensions']
         params = best_experiment['best_params']
         embeddings = best_experiment['embeddings']
-        original_score = best_experiment['score_w/o_penalty']
+        score = best_experiment['score_w/o_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_experiment['score_w_penalty']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
 
-
-        # TODO THIS
-        # Get data reduced from eda object
-        data = embeddings.values
-
-        
+        # Get original embeddings (avoind reduction over reduction embeddings)
+        if keep_original_embeddings:
+            data_df = pd.DataFrame(self.original_embeddings)
+            data = data_df.values
+        else:
+            data = embeddings.values
 
         # Check if reduction is needed
         if data.shape[1] > 2:
-            # Default parameters. This is only for visualization
+            # If shape > 1, we cannot use selected reduction params, cause it doesnt make sense
             if dim_red == "umap":
-                reducer = umap.UMAP(random_state=42, n_components=2, min_dist=0.1, n_neighbors=15)
+                reducer = umap.UMAP(random_state=42, n_components=2, min_dist=0.2, n_neighbors=15)
                 reduced_data = reducer.fit_transform(data)
             elif dim_red == "tsne":
                 reducer = TSNE(random_state=42, n_components=2)
@@ -528,7 +542,7 @@ class ExperimentResultController():
         
         plt.title(f"Scatter Plot of Best Experiment to date (Exp. {best_id})- {optimizer} (Noise in Red, Clusters in 2D PCA) \n\n"
                   f"Clustering: {clustering} | Dim Reduction: {dim_red} | Dimensions: {dimensions}\n"
-                  f"Silhouette: {original_score:.3f}")
+                  f"{eval_method}: {score:.3f}")
 
 
         plt.xlabel("Component 1")
@@ -537,9 +551,8 @@ class ExperimentResultController():
         plt.legend(loc='upper right')
 
         # Save and show plot
-        file_suffix = "best_scatter" if not self.use_score_noise_ratio else "best_scatter_noise_ratio"
+        file_suffix = "best_scatter_original_embeddings" if keep_original_embeddings else "best_scatter_reduced_embeddings"
         file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
-        os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
         plt.savefig(file_path, bbox_inches='tight')
 
         logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
@@ -559,6 +572,7 @@ class ExperimentResultController():
 
         best_labels = np.array(best_experiment['labels'])
         best_id = best_experiment['id']
+        eval_method = best_experiment['eval_method']
         best_index = best_experiment['original_index']
         best_centers = best_experiment['centers'].values if isinstance(best_experiment['centers'], pd.DataFrame) else np.array(best_experiment['centers'])
         best_labels = best_experiment['labels']
@@ -568,7 +582,7 @@ class ExperimentResultController():
         dimensions = best_experiment['dimensions']
         params = best_experiment['best_params']
         optimizer = best_experiment['optimization']
-        original_score = best_experiment['score_w/o_penalty']
+        score = best_experiment['score_w/o_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_experiment['score_w_penalty']
         embeddings_used = best_experiment['embeddings']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
 
@@ -577,14 +591,24 @@ class ExperimentResultController():
 
         # Check if reduction is needed
         if data.shape[1] > 2:
-            # Reduce dimensions with PCA
-            pca = PCA(n_components=2, random_state=42)
-            reduced_data = pca.fit_transform(data)
-            pca_centers = pca.transform(best_centers)
+            # If shape > 1, we cannot use selected reduction params, cause it doesnt make sense
+            if dim_red == "umap":
+                reducer = umap.UMAP(random_state=42, n_components=2, min_dist=0.2, n_neighbors=15)
+                reduced_data = reducer.fit_transform(data)
+                pca_centers = reducer.transform(best_centers)
+            elif dim_red == "tsne":
+                reducer = TSNE(random_state=42, n_components=2)
+                reduced_data = reducer.fit_transform(data)
+                pca_centers = reducer.transform(best_centers)
+            else:
+                reducer = PCA(n_components=2, random_state=42)
+                reduced_data = reducer.fit_transform(data)
+                pca_centers = reducer.transform(best_centers)
         else:
             # Use the data directly if already 2D
             reduced_data = data
             pca_centers = best_centers
+
 
         # Color mapping for clusters and plot setup
         colors = ['#00FF00', '#FFFF00', '#0000FF', '#FF9D0A', '#00B6FF', '#F200FF', '#FF6100']
@@ -614,16 +638,15 @@ class ExperimentResultController():
         
         plt.title(f"Scatter Plot of Best Experiment to date with Cluster Centers (Exp. {best_id}) - {optimizer} (Noise in Red) \n\n"
                 f"Clustering: {clustering} - Dim Reduction: {dim_red} - Dimensions: {dimensions}\n"
-                f"Silhouette: {original_score:.3f}")
+                f"{eval_method}: {score:.3f}")
         plt.xlabel("Component 1")
         plt.ylabel("Component 2")
         plt.grid(True, alpha=0.3)
         plt.legend(loc='upper right')
 
         # Save and show plot
-        file_suffix = "best_experiment_with_centers" if not self.use_score_noise_ratio else "best_experiment_sil_noise_ratio_with_centers"
+        file_suffix = "best_scatter_with_centers_reduced"
         file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
-        os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
         plt.savefig(file_path, bbox_inches='tight')
 
         logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
@@ -654,11 +677,12 @@ class ExperimentResultController():
         clustering = best_experiment['clustering']
         scaler = best_experiment['scaler']
         dim_red = best_experiment['dim_red']
+        eval_method = best_experiment['eval_method']
         dimensions = best_experiment['dimensions']
         params = best_experiment['best_params']
         optimizer = best_experiment['optimization']
-        original_score = best_experiment['score_w/o_penalty']
         embeddings_used = best_experiment['embeddings']
+        score = best_experiment['score_w/o_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_experiment['score_w_penalty']
         label_counter = best_experiment['label_counter']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
         
@@ -680,78 +704,17 @@ class ExperimentResultController():
         plt.title(f"Comparison of Cluster Sizes for Best Experiment to date (Exp. {best_id})\n\n" \
                   f"Total cluster points: {total_rest}\n"   \
                   f"Total noise points: {total_minus_one}\n" \
-                  f"Silhouette: {original_score:.3f}")
+                  f"{eval_method}: {score:.3f}")
         step = 10
         cluster_indices.sort()
         plt.xticks(ticks=range(0, len(cluster_indices), step), labels=[cluster_indices[i] for i in range(0, len(cluster_indices), step)], rotation=90)
         
         # Save the plot with a name based on the `experiment` type
-        file_suffix = "clusters_counter_comparison" if not self.use_score_noise_ratio else "sil_noise_clusters_counter_comparison"
+        file_suffix = "clusters_counter_comparison"
         file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
-        os.makedirs(os.path.join(self.plot_dir, f"experiment_{str(best_id)}"), exist_ok=True)
         plt.savefig(file_path, bbox_inches='tight')
 
         logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
-
-
-
-    def show_best_experiments_silhouette(self):
-        pass
-        """
-        Scans the `plots/` directory for all subfolders named `experiment_[id]` and extracts the silhouette scores
-        from filenames like `index_XX_silhouette_0.755_...`. It then displays a bar chart of the silhouette scores 
-        for all experiments.
-
-        Parameters:
-            show_plots (bool): If True, displays the plot. Default is False.
-        """
-        import re
-
-        # Initialize a dictionary to store silhouette scores for each experiment
-        silhouette_scores = {}
-
-        # Scan the plots directory for experiment subfolders
-        experiment_folders = [f for f in self.plot_dir.iterdir() if f.is_dir() and re.match(r"experiment_\d+", f.name)]
-
-        for folder in experiment_folders:
-            # Extract experiment ID from the folder name
-            experiment_id = re.search(r"experiment_(\d+)", folder.name).group(1)
-
-            # Look for files matching the pattern `index_XX_silhouette_0.755_...`
-            silhouette_files = folder.glob("index_*_silhouette_*.png")
-            for file in silhouette_files:
-                # Extract the silhouette score from the filename
-                match = re.search(r"silhouette_([\d.]+)", file.name)
-                if match:
-                    silhouette_score = float(match.group(1))
-                    # Store the highest silhouette score for each experiment
-                    silhouette_scores[experiment_id] = max(silhouette_scores.get(experiment_id, 0), silhouette_score)
-
-        # Convert the scores into a DataFrame for plotting
-        if not silhouette_scores:
-            logger.warning("No silhouette scores found in the plots directory.")
-            return
-
-        scores_df = pd.DataFrame(list(silhouette_scores.items()), columns=["Experiment ID", "Silhouette Score"])
-        scores_df = scores_df.sort_values(by="Silhouette Score", ascending=True)
-
-        # Plot the bar chart
-        plt.figure(figsize=(14, 8))
-        sns.barplot(x="Experiment ID", y="Silhouette Score", data=scores_df, palette="Blues_r")
-        plt.xlabel("Experiment ID")
-        plt.ylabel("Silhouette Score")
-        plt.title("Silhouette Scores of Experiments (Ordered)")
-        plt.xticks(rotation=45)
-
-        # Save the plot
-        file_path = self.add_path_type("best_experiments_silhouette_scores")
-        plt.savefig(file_path, bbox_inches="tight")
-
-        logger.info(f"Silhouette scores bar chart saved to {file_path}.")
-
-
-
-
 
 
 
